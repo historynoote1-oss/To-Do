@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model GuildSettings {
+  id              String   @id @default(cuid())
+  guildId         String   @unique
+  studyChannelIds String[] @default([])
+  trackingEnabled Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model StudySession {
+  id        String    @id @default(cuid())
+  userId    String
+  guildId   String
+  startTime DateTime
+  endTime   DateTime?
+  duration  Int       @default(0)
+  coins     Int       @default(0)
+  active    Boolean   @default(true)
+
+  @@index([userId, guildId])
+  @@index([guildId, startTime])
+  @@index([guildId, active])
+}
+
+model UserStreak {
+  id            String    @id @default(cuid())
+  userId        String
+  guildId       String
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastStudyDate DateTime?
+  totalDays     Int       @default(0)
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, guildId])
+  @@index([guildId, currentStreak])
+}
+
+model UserSettings {
+  id              String   @id @default(cuid())
+  userId          String
+  guildId         String
+  trackingEnabled Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, guildId])
+}
+
+model BotAdmin {
+  id        String   @id @default(cuid())
+  userId    String
+  guildId   String
+  addedBy   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, guildId])
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Anti-Cheat V1 — إعدادات نظام كشف الغش
+// ══════════════════════════════════════════════════════════════
+
+model AntiCheatSettings {
+  id              String   @id @default(cuid())
+  guildId         String   @unique
+
+  enabled         Boolean  @default(false)
+  checkAfterHours Int      @default(3)
+  firstTimerMins  Int      @default(10)
+  finalTimerMins  Int      @default(5)
+  strikeThreshold Int      @default(3)
+  penaltyType     String   @default("DEDUCT")
+  penaltyValue    Int      @default(2)
+  warningChannelId String?
+  logChannelId     String?
+  next3hChannelId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ══════════════════════════════════════════════════════════════
+//  سجل التحذيرات لكل عضو
+// ══════════════════════════════════════════════════════════════
+
+model UserAntiCheatRecord {
+  id      String @id @default(cuid())
+  userId  String
+  guildId String
+
+  strikes            Int       @default(0)
+  totalVerifiedHours Float     @default(0)
+  isSuspended        Boolean   @default(false)
+  suspensionExpiry   DateTime?
+  manualSuspended    Boolean   @default(false)
+  manualSuspExpiry   DateTime?
+  lastCheckSentAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, guildId])
+  @@index([guildId, strikes])
+}
+
+// ══════════════════════════════════════════════════════════════
+//  سجل جلسات التحقق
+// ══════════════════════════════════════════════════════════════
+
+model AntiCheatVerification {
+  id      String @id @default(cuid())
+  userId  String
+  guildId String
+
+  status    String   @default("PENDING_FIRST")
+  sentAt    DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, guildId])
+  @@index([guildId, status])
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Focus Mode — وضع التركيز
+// ══════════════════════════════════════════════════════════════
+
+model FocusMode {
+  id               String    @id @default(cuid())
+  guildId          String    @unique
+
+  // هل وضع التركيز مفعل؟
+  isActive         Boolean   @default(false)
+
+  // قائمة القنوات المستثناة إضافةً إلى studyChannelIds
+  exemptChannelIds String[]  @default([])
+
+  // الرتب المستهدفة بوضع التركيز (إضافةً إلى @everyone)
+  focusRoleIds     String[]  @default([])
+
+  // الحالة الأصلية لصلاحيات القنوات قبل التفعيل
+  savedPermissions Json?
+
+  activatedBy      String?
+  activatedAt      DateTime?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
