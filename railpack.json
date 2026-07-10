@@ -1,4 +1,0 @@
-{
-  "buildCommand": "npm install && npm run build",
-  "startCommand": "npx prisma generate && npx prisma db push && npm start"
-}

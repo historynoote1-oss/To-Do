@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TodoList {
+  id        String     @id @default(cuid())
+  guildId   String
+  userId    String
+  title     String     @default("قائمتي")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  items     TodoItem[]
+
+  @@unique([guildId, userId, title])
+  @@index([guildId, userId])
+}
+
+model TodoItem {
+  id        String    @id @default(cuid())
+  listId    String
+  list      TodoList  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  content   String
+  isDone    Boolean   @default(false)
+  position  Int       @default(0)
+  dueDate   DateTime?
+  priority  Priority  @default(NONE)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([listId])
+}
+
+enum Priority {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
