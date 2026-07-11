@@ -1,18 +1,17 @@
 import { prisma } from '../lib/prisma';
 
 // ============================================================================
-// سكريبت هجرة يُشغَّل مرة واحدة (من Railway Shell) بعد نشر النظام الجديد.
+// سكريبت اختياري (مش لازم تشغّله خالص) — /auth/login بقى بيكتشف الحسابات
+// القديمة تلقائيًا أول ما صاحبها يجرب يسجّل دخول (شوف routes/auth.ts)، فمفيش
+// أي حاجة يدوية مطلوبة عشان إعادة التأهيل تشتغل.
 //
-// أي حساب اتسجّل بالنظام القديم معندوش email خالص (الحقل كان مش موجود أصلًا).
-// أي حساب جديد من دلوقتي لازم يبقى معاه email من لحظة التسجيل (شوف routes/auth.ts).
-// يبقى ببساطة: كل حساب email = NULL دلوقتي هو حساب قديم محتاج إعادة تأهيل —
-// مفيش داعي لسرد أسماء المستخدمين الـ 8 يدويًا، السكريبت بيكتشفهم تلقائيًا
-// وبيفضل آمن حتى لو الشغل اتشغل أكتر من مرة بالغلط (idempotent).
+// الاستخدام الوحيد لسكريبت زي ده: لو عايز "تعلّم" كل الحسابات القديمة وتلغي
+// جلساتهم فورًا مرة واحدة (بدل ما تستنى كل واحد يفتح الموقع بنفسه)، مثلاً
+// عشان تتابعهم من لوحة التحكم قبل ما حد منهم يسجّل دخول أصلًا.
 //
 // الاستخدام:
-//   node dist/scripts/markLegacyAccounts.js            -> يعالج كل الحسابات معندهاش إيميل
+//   node dist/scripts/markLegacyAccounts.js            -> يعالج كل الحسابات اللي مالهاش كود استرجاع
 //   node dist/scripts/markLegacyAccounts.js user1 user2 -> يعالج أسماء مستخدمين محددين بس
-//                                                           (حتى لو عندهم إيميل بالفعل، للطوارئ)
 // ============================================================================
 async function main() {
   const specificUsernames = process.argv.slice(2);
@@ -20,7 +19,7 @@ async function main() {
   const targets =
     specificUsernames.length > 0
       ? await prisma.user.findMany({ where: { username: { in: specificUsernames } } })
-      : await prisma.user.findMany({ where: { email: null, mustRehabilitate: false } });
+      : await prisma.user.findMany({ where: { recoveryCodeHash: null, mustRehabilitate: false } });
 
   if (targets.length === 0) {
     console.log('مفيش أي حسابات قديمة محتاجة إعادة تأهيل حاليًا. تمام ✅');

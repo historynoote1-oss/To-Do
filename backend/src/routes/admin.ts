@@ -24,8 +24,6 @@ async function logAction(adminId: string, targetUserId: string | null, action: s
 const userListSelect = {
   id: true,
   username: true,
-  email: true,
-  emailVerified: true,
   isAdmin: true,
   isActive: true,
   legacyAccount: true,
@@ -120,8 +118,6 @@ router.get('/users/export', async (req: AuthRequest, res) => {
 
   const header = [
     'username',
-    'email',
-    'emailVerified',
     'isAdmin',
     'isActive',
     'legacyAccount',
@@ -137,8 +133,6 @@ router.get('/users/export', async (req: AuthRequest, res) => {
   const rows = users.map((u) =>
     [
       u.username,
-      u.email || '',
-      u.emailVerified,
       u.isAdmin,
       u.isActive,
       u.legacyAccount,

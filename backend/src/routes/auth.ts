@@ -9,34 +9,17 @@ import {
   verifyPendingRehabToken,
   MAX_FAILED_LOGIN_ATTEMPTS,
   LOCKOUT_DURATION_MS,
-  MIN_PASSWORD_LENGTH,
-  generateSecureToken,
-  hashToken,
   validatePasswordPolicy,
   checkPwnedPassword,
-  RESET_TOKEN_TTL_MS,
-  EMAIL_VERIFY_TTL_MS,
-  RESEND_COOLDOWN_MS,
+  generateRecoveryCode,
+  hashRecoveryCode,
 } from '../lib/auth';
 import { getSiteSettings } from '../lib/siteSettings';
-import { sendPasswordResetEmail, sendEmailVerificationEmail, sendRehabilitationCompletedEmail } from '../lib/email';
-import { verifyUser, AuthRequest } from '../middleware/verifyUser';
 
 const router = Router();
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-// رسالة رد موحّدة لأي طلب "نسيت كلمة المرور" — سواء الحساب/الإيميل موجود أو
-// مش موجود، عشان محدش يقدر "يعدّ" حسابات موجودة فعلًا (user enumeration)،
-// زي ما بتوصي OWASP Forgot Password Cheat Sheet.
-const GENERIC_RESET_MESSAGE = 'لو الحساب ده موجود عندنا، هيوصله إيميل فيه رابط إعادة تعيين كلمة المرور خلال دقايق.';
-
 router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body as { username?: string; email?: string; password?: string };
+  const { username, password } = req.body as { username?: string; password?: string };
 
   const settings = await getSiteSettings();
   if (settings.maintenanceMode === 'true') {
@@ -46,18 +29,14 @@ router.post('/register', async (req, res) => {
     return res.status(403).json({ error: 'تسجيل حسابات جديدة متوقف مؤقتًا' });
   }
 
-  if (!username?.trim() || !email?.trim() || !password) {
-    return res.status(400).json({ error: 'اسم المستخدم والإيميل وكلمة المرور مطلوبين' });
+  if (!username?.trim() || !password) {
+    return res.status(400).json({ error: 'اسم المستخدم وكلمة المرور مطلوبين' });
   }
   if (username.trim().length < 3) {
     return res.status(400).json({ error: 'اسم المستخدم لازم يكون 3 أحرف على الأقل' });
   }
-  const normalizedEmail = normalizeEmail(email);
-  if (!EMAIL_REGEX.test(normalizedEmail)) {
-    return res.status(400).json({ error: 'صيغة الإيميل مش صحيحة' });
-  }
 
-  const policyErrors = validatePasswordPolicy(password, { username: username.trim(), email: normalizedEmail });
+  const policyErrors = validatePasswordPolicy(password, { username: username.trim() });
   if (policyErrors.length > 0) {
     return res.status(400).json({ error: policyErrors[0], passwordErrors: policyErrors });
   }
@@ -67,38 +46,25 @@ router.post('/register', async (req, res) => {
     });
   }
 
-  const [existingUsername, existingEmail] = await Promise.all([
-    prisma.user.findUnique({ where: { username: username.trim() } }),
-    prisma.user.findUnique({ where: { email: normalizedEmail } }),
-  ]);
+  const existingUsername = await prisma.user.findUnique({ where: { username: username.trim() } });
   if (existingUsername) {
     return res.status(409).json({ error: 'اسم المستخدم ده مستخدم بالفعل' });
   }
-  if (existingEmail) {
-    return res.status(409).json({ error: 'في حساب مسجّل بالإيميل ده بالفعل' });
-  }
 
   const passwordHash = await hashPassword(password);
-  const verifyToken = generateSecureToken();
+  const recoveryCode = generateRecoveryCode();
   const user = await prisma.user.create({
     data: {
       username: username.trim(),
-      email: normalizedEmail,
       passwordHash,
       passwordUpdatedAt: new Date(),
-      emailVerificationTokenHash: hashToken(verifyToken),
-      emailVerificationExpiresAt: new Date(Date.now() + EMAIL_VERIFY_TTL_MS),
-      emailVerificationSentAt: new Date(),
+      recoveryCodeHash: hashRecoveryCode(recoveryCode),
+      recoveryCodeCreatedAt: new Date(),
     },
   });
 
-  const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
-  if (frontendUrl) {
-    sendEmailVerificationEmail(normalizedEmail, `${frontendUrl}/?verifyToken=${verifyToken}`).catch(() => {});
-  }
-
   const token = signToken(user.id, user.tokenVersion);
-  res.json({ token, username: user.username, isAdmin: user.isAdmin, emailVerified: false });
+  res.json({ token, username: user.username, isAdmin: user.isAdmin, recoveryCode });
 });
 
 router.post('/login', async (req, res) => {
@@ -154,11 +120,23 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غلط' });
   }
 
-  // الباسورد صح؛ لو الحساب لسه من النظام القديم (اتسجّل من غير إيميل) ومحتاج
-  // "إعادة تأهيل"، منوقفش خالص عند تسجيل الدخول — بندّيله توكن مؤقت (10 دقايق)
-  // يقدر يستخدمه في مسار /rehabilitate/complete بس، ومفيش وصول لأي حاجة تانية
-  // في الموقع لحد ما يضيف إيميل وكلمة مرور جديدة قوية. بياناته القديمة (القوائم
-  // والمهام) متربوطة بـ user.id نفسه فمش بتتلمس خالص في الخطوة دي.
+  // الباسورد صح؛ هنا الاكتشاف التلقائي للحسابات القديمة: أي حساب لسه مالوش
+  // recoveryCodeHash خالص (يعني اتسجّل قبل ما نظام الاسترجاع ده يتضاف) بيتعامل
+  // معاه كحساب "محتاج إعادة تأهيل" فورًا من غير ما يحتاج أي سكريبت يدوي يتشغّل
+  // على السيرفر الأول — الاكتشاف بيحصل لوحده أول ما صاحب الحساب يجرب يدخل.
+  if (!user.mustRehabilitate && !user.recoveryCodeHash && !user.rehabilitatedAt) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { legacyAccount: true, mustRehabilitate: true },
+    });
+    user.mustRehabilitate = true;
+  }
+
+  // الباسورد صح؛ لو الحساب لسه من النظام القديم ومحتاج "إعادة تأهيل"، منوقفش
+  // خالص عند تسجيل الدخول — بندّيله توكن مؤقت (10 دقايق) يقدر يستخدمه في مسار
+  // /rehabilitate/complete بس، ومفيش وصول لأي حاجة تانية في الموقع لحد ما يختار
+  // كلمة مرور جديدة قوية. بياناته القديمة (القوائم والمهام) متربوطة بـ user.id
+  // نفسه فمش بتتلمس خالص في الخطوة دي.
   if (user.mustRehabilitate) {
     await prisma.user.update({
       where: { id: user.id },
@@ -187,24 +165,23 @@ router.post('/login', async (req, res) => {
   });
 
   const token = signToken(user.id, user.tokenVersion);
-  res.json({ token, username: user.username, isAdmin: user.isAdmin, emailVerified: user.emailVerified });
+  res.json({ token, username: user.username, isAdmin: user.isAdmin });
 });
 
 // ============================================================================
-// إعادة تأهيل الحسابات القديمة (Username+Password بسيط، من غير إيميل)
+// إعادة تأهيل الحسابات القديمة (Username+Password بسيط، من غير كود استرجاع)
 // ============================================================================
 // الخطوة اللي بتكمّل بعد login رجّع requiresRehabilitation. بتاخد rehabToken
-// (المؤقت، 10 دقايق) + إيميل جديد + كلمة مرور جديدة قوية، وبتحدّث نفس الحساب
-// (نفس user.id) من غير ما تلمس أي قائمة أو مهمة قديمة خالص.
+// (المؤقت، 10 دقايق) + كلمة مرور جديدة قوية، وبتحدّث نفس الحساب (نفس user.id)
+// من غير ما تلمس أي قائمة أو مهمة قديمة خالص، وبتديله كود استرجاع جديد.
 router.post('/rehabilitate/complete', async (req, res) => {
-  const { rehabToken, email, password, confirmPassword } = req.body as {
+  const { rehabToken, password, confirmPassword } = req.body as {
     rehabToken?: string;
-    email?: string;
     password?: string;
     confirmPassword?: string;
   };
 
-  if (!rehabToken || !email?.trim() || !password) {
+  if (!rehabToken || !password) {
     return res.status(400).json({ error: 'كل الحقول مطلوبة' });
   }
   if (password !== confirmPassword) {
@@ -225,12 +202,7 @@ router.post('/rehabilitate/complete', async (req, res) => {
     return res.status(400).json({ error: 'الحساب ده اتأهّل بالفعل، سجل دخول عادي' });
   }
 
-  const normalizedEmail = normalizeEmail(email);
-  if (!EMAIL_REGEX.test(normalizedEmail)) {
-    return res.status(400).json({ error: 'صيغة الإيميل مش صحيحة' });
-  }
-
-  const policyErrors = validatePasswordPolicy(password, { username: user.username, email: normalizedEmail });
+  const policyErrors = validatePasswordPolicy(password, { username: user.username });
   if (policyErrors.length > 0) {
     return res.status(400).json({ error: policyErrors[0], passwordErrors: policyErrors });
   }
@@ -243,106 +215,59 @@ router.post('/rehabilitate/complete', async (req, res) => {
     });
   }
 
-  const existingEmail = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-  if (existingEmail && existingEmail.id !== user.id) {
-    return res.status(409).json({ error: 'في حساب تاني بالفعل مسجّل بالإيميل ده' });
-  }
-
   const passwordHash = await hashPassword(password);
-  const verifyToken = generateSecureToken();
+  const recoveryCode = generateRecoveryCode();
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
-      email: normalizedEmail,
       passwordHash,
       passwordUpdatedAt: new Date(),
       mustRehabilitate: false,
       rehabilitatedAt: new Date(),
+      recoveryCodeHash: hashRecoveryCode(recoveryCode),
+      recoveryCodeCreatedAt: new Date(),
       tokenVersion: { increment: 1 }, // إلغاء أي توكنات قديمة (بما فيها rehabToken نفسه) فورًا
       failedLoginAttempts: 0,
       lockedUntil: null,
-      emailVerificationTokenHash: hashToken(verifyToken),
-      emailVerificationExpiresAt: new Date(Date.now() + EMAIL_VERIFY_TTL_MS),
-      emailVerificationSentAt: new Date(),
     },
   });
-
-  const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
-  sendRehabilitationCompletedEmail(normalizedEmail, updated.username).catch(() => {});
-  if (frontendUrl) {
-    sendEmailVerificationEmail(normalizedEmail, `${frontendUrl}/?verifyToken=${verifyToken}`).catch(() => {});
-  }
 
   const token = signToken(updated.id, updated.tokenVersion);
-  res.json({ token, username: updated.username, isAdmin: updated.isAdmin, emailVerified: false });
+  res.json({ token, username: updated.username, isAdmin: updated.isAdmin, recoveryCode });
 });
 
 // ============================================================================
-// نسيت كلمة المرور
+// نسيت كلمة المرور — عن طريق كود الاسترجاع بدل الإيميل
 // ============================================================================
-router.post('/forgot-password', async (req, res) => {
-  const { identifier } = req.body as { identifier?: string };
-  if (!identifier?.trim()) {
-    return res.status(400).json({ error: 'اكتب اسم المستخدم أو الإيميل بتاعك' });
-  }
+// رد موحّد قدر الإمكان لأي محاولة فاشلة (اسم مستخدم غلط أو كود غلط)، عشان
+// نقلل من قدرة أي حد يكتشف أسماء مستخدمين موجودة فعلًا بالتجربة والخطأ.
+const RECOVERY_ERROR = 'اسم المستخدم أو كود الاسترجاع غلط';
 
-  const value = identifier.trim();
-  const user = await prisma.user.findFirst({
-    where: { OR: [{ email: normalizeEmail(value) }, { username: value }] },
-  });
-
-  // رد موحّد دايمًا — بغض النظر لو الحساب موجود، نشط، أو معندوش إيميل أصلًا،
-  // عشان نمنع اكتشاف الحسابات الموجودة (user enumeration).
-  if (
-    !user ||
-    !user.isActive ||
-    !user.email ||
-    user.mustRehabilitate || // الحسابات القديمة لازم تعدي بمسار إعادة التأهيل، مش استرجاع الإيميل
-    (user.resetTokenRequestedAt && Date.now() - user.resetTokenRequestedAt.getTime() < RESEND_COOLDOWN_MS)
-  ) {
-    return res.json({ message: GENERIC_RESET_MESSAGE });
-  }
-
-  const resetToken = generateSecureToken();
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      resetTokenHash: hashToken(resetToken),
-      resetTokenExpiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
-      resetTokenRequestedAt: new Date(),
-    },
-  });
-
-  const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
-  if (frontendUrl) {
-    sendPasswordResetEmail(user.email, `${frontendUrl}/?resetToken=${resetToken}`).catch(() => {});
-  }
-
-  res.json({ message: GENERIC_RESET_MESSAGE });
-});
-
-router.post('/reset-password', async (req, res) => {
-  const { token, password, confirmPassword } = req.body as {
-    token?: string;
+router.post('/reset-with-recovery-code', async (req, res) => {
+  const { username, recoveryCode, password, confirmPassword } = req.body as {
+    username?: string;
+    recoveryCode?: string;
     password?: string;
     confirmPassword?: string;
   };
-  if (!token || !password) {
-    return res.status(400).json({ error: 'التوكن وكلمة المرور الجديدة مطلوبين' });
+
+  if (!username?.trim() || !recoveryCode?.trim() || !password) {
+    return res.status(400).json({ error: 'كل الحقول مطلوبة' });
   }
   if (password !== confirmPassword) {
     return res.status(400).json({ error: 'كلمة المرور وتأكيدها مش متطابقين' });
   }
 
-  const tokenHash = hashToken(token);
-  const user = await prisma.user.findFirst({
-    where: { resetTokenHash: tokenHash, resetTokenExpiresAt: { gt: new Date() } },
-  });
-  if (!user) {
-    return res.status(400).json({ error: 'الرابط غير صالح أو منتهي، اطلب رابط جديد' });
+  const user = await prisma.user.findUnique({ where: { username: username.trim() } });
+  if (!user || !user.isActive || !user.recoveryCodeHash || user.mustRehabilitate) {
+    return res.status(400).json({ error: RECOVERY_ERROR });
   }
 
-  const policyErrors = validatePasswordPolicy(password, { username: user.username, email: user.email || undefined });
+  if (hashRecoveryCode(recoveryCode) !== user.recoveryCodeHash) {
+    return res.status(400).json({ error: RECOVERY_ERROR });
+  }
+
+  const policyErrors = validatePasswordPolicy(password, { username: user.username });
   if (policyErrors.length > 0) {
     return res.status(400).json({ error: policyErrors[0], passwordErrors: policyErrors });
   }
@@ -356,72 +281,23 @@ router.post('/reset-password', async (req, res) => {
   }
 
   const passwordHash = await hashPassword(password);
+  // بعد كل استخدام للكود، بنولّد كود جديد يحل محله فورًا (single-use)، عشان
+  // لو حد قدر يشوف الكود القديم من مكان ما، يبقى بقى غير صالح خالص.
+  const newRecoveryCode = generateRecoveryCode();
   await prisma.user.update({
     where: { id: user.id },
     data: {
       passwordHash,
       passwordUpdatedAt: new Date(),
-      resetTokenHash: null,
-      resetTokenExpiresAt: null,
+      recoveryCodeHash: hashRecoveryCode(newRecoveryCode),
+      recoveryCodeCreatedAt: new Date(),
       tokenVersion: { increment: 1 }, // تسجيل خروج إجباري من كل الأجهزة القديمة
       failedLoginAttempts: 0,
       lockedUntil: null,
     },
   });
 
-  res.json({ message: 'تم تغيير كلمة المرور بنجاح، سجل دخول بكلمة المرور الجديدة' });
-});
-
-// ============================================================================
-// تأكيد الإيميل
-// ============================================================================
-router.post('/verify-email', async (req, res) => {
-  const { token } = req.body as { token?: string };
-  if (!token) return res.status(400).json({ error: 'التوكن مطلوب' });
-
-  const tokenHash = hashToken(token);
-  const user = await prisma.user.findFirst({
-    where: { emailVerificationTokenHash: tokenHash, emailVerificationExpiresAt: { gt: new Date() } },
-  });
-  if (!user) {
-    return res.status(400).json({ error: 'رابط التأكيد غير صالح أو منتهي' });
-  }
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { emailVerified: true, emailVerificationTokenHash: null, emailVerificationExpiresAt: null },
-  });
-
-  res.json({ message: 'تم تأكيد الإيميل بنجاح' });
-});
-
-// طلب إيميل تأكيد جديد — محتاج تسجيل دخول عادي (توكن سليم)، مع تهدئة دقيقة
-// واحدة بين كل طلب وطلب عشان محدش يقدر يستخدمه لإغراق إيميل حد تاني بالسبام
-// (مينفعش يطلبه أصلًا غير لحسابه هو نفسه، بس التهدئة حماية إضافية).
-router.post('/resend-verification', verifyUser, async (req: AuthRequest, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.userId } });
-  if (!user) return res.status(404).json({ error: 'الحساب مش موجود' });
-  if (!user.email) return res.status(400).json({ error: 'لازم تضيف إيميل الأول' });
-  if (user.emailVerified) return res.json({ message: 'الإيميل متأكد بالفعل' });
-  if (user.emailVerificationSentAt && Date.now() - user.emailVerificationSentAt.getTime() < RESEND_COOLDOWN_MS) {
-    return res.status(429).json({ error: 'استنى شوية قبل ما تطلب إيميل تأكيد جديد' });
-  }
-
-  const verifyToken = generateSecureToken();
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      emailVerificationTokenHash: hashToken(verifyToken),
-      emailVerificationExpiresAt: new Date(Date.now() + EMAIL_VERIFY_TTL_MS),
-      emailVerificationSentAt: new Date(),
-    },
-  });
-
-  const frontendUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
-  if (frontendUrl) {
-    await sendEmailVerificationEmail(user.email, `${frontendUrl}/?verifyToken=${verifyToken}`);
-  }
-  res.json({ message: 'اتبعت إيميل تأكيد جديد' });
+  res.json({ message: 'تم تغيير كلمة المرور بنجاح', recoveryCode: newRecoveryCode });
 });
 
 export default router;

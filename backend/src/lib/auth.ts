@@ -78,10 +78,38 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-// مدد صلاحية التوكنات المؤقتة المختلفة
-export const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 دقيقة لاسترجاع كلمة المرور
-export const EMAIL_VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24 ساعة لتأكيد الإيميل
-export const RESEND_COOLDOWN_MS = 60 * 1000; // حد أدنى دقيقة بين كل إرسال وإرسال لنفس الحساب
+// ============================================================================
+// كود الاسترجاع — بديل مجاني وفوري لاسترجاع كلمة المرور بالإيميل، مناسب
+// لمواقع صغيرة من غير دومين أو خدمة إرسال إيميلات. الكود بيتولّد من أبجدية
+// مختصرة (بدون أحرف/أرقام متشابهة بصريًا زي 0/O أو 1/I/L) عشان يبقى سهل
+// القراءة والكتابة يدويًا لو المستخدم احتاج يستخدمه من جهاز تاني.
+// 16 حرف من أبجدية 32 رمز ≈ 80 بت إنتروبيا — قوي جدًا زي الباسورد بالظبط.
+// ============================================================================
+const RECOVERY_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const RECOVERY_CODE_GROUPS = 4;
+const RECOVERY_CODE_GROUP_LENGTH = 4;
+
+export function generateRecoveryCode(): string {
+  const groups: string[] = [];
+  for (let g = 0; g < RECOVERY_CODE_GROUPS; g++) {
+    let group = '';
+    for (let i = 0; i < RECOVERY_CODE_GROUP_LENGTH; i++) {
+      group += RECOVERY_CODE_ALPHABET[crypto.randomInt(RECOVERY_CODE_ALPHABET.length)];
+    }
+    groups.push(group);
+  }
+  return groups.join('-');
+}
+
+// بنطبّع الكود (إزالة مسافات/شرطات وتوحيد حالة الأحرف) قبل الهاش والمقارنة،
+// عشان لو المستخدم كتبه بحروف صغيرة أو من غير شرطات يفضل شغال برضو.
+export function normalizeRecoveryCode(code: string): string {
+  return code.trim().toUpperCase().replace(/[\s-]/g, '');
+}
+
+export function hashRecoveryCode(code: string): string {
+  return crypto.createHash('sha256').update(normalizeRecoveryCode(code)).digest('hex');
+}
 
 // ============================================================================
 // سياسة كلمة المرور — مبنية على OWASP ASVS 4.0.3 (V2.1) و NIST SP 800-63B:
@@ -99,7 +127,7 @@ const COMMON_WEAK_PASSWORDS = new Set([
   '11111111', '00000000', 'abcd1234', 'a1b2c3d4', 'football1', 'monkey123',
 ]);
 
-export function validatePasswordPolicy(password: string, context?: { username?: string; email?: string }): string[] {
+export function validatePasswordPolicy(password: string, context?: { username?: string }): string[] {
   const errors: string[] = [];
   if (!password) {
     errors.push('كلمة المرور مطلوبة');
@@ -117,12 +145,6 @@ export function validatePasswordPolicy(password: string, context?: { username?: 
   const lower = password.toLowerCase();
   if (context?.username && context.username.length >= 3 && lower.includes(context.username.toLowerCase())) {
     errors.push('كلمة المرور متقدرش تحتوي على اسم المستخدم بتاعك');
-  }
-  if (context?.email) {
-    const localPart = context.email.split('@')[0]?.toLowerCase();
-    if (localPart && localPart.length >= 3 && lower.includes(localPart)) {
-      errors.push('كلمة المرور متقدرش تحتوي على جزء من إيميلك');
-    }
   }
   return errors;
 }

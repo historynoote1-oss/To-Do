@@ -3,10 +3,10 @@ import { login, register, verifyLoginTwoFactor } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import RehabilitationForm from './RehabilitationForm';
 import ForgotPasswordForm from './ForgotPasswordForm';
+import RecoveryCodeReveal from './RecoveryCodeReveal';
 
 // لازم يفضل متطابق مع MIN_PASSWORD_LENGTH في backend/src/lib/auth.ts
 const MIN_PASSWORD_LENGTH = 10;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // تقييم بسيط لقوة كلمة المرور على جهاز المستخدم نفسه (مفيش أي إرسال أو
 // تخزين) — مجرد مؤشر بصري يساعده يختار كلمة مرور أقوى قبل ما يبعتها أصلاً.
@@ -33,7 +33,6 @@ export default function AuthForm({
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -43,20 +42,22 @@ export default function AuthForm({
 
   const strength = useMemo(() => passwordStrength(password), [password]);
   const usernameTooShort = mode === 'register' && username.length > 0 && username.trim().length < 3;
-  const emailInvalid = mode === 'register' && email.length > 0 && !EMAIL_REGEX.test(email.trim());
   const passwordTooShort = mode === 'register' && password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
   const passwordsMismatch =
     mode === 'register' && confirmPassword.length > 0 && confirmPassword !== password;
   const canSubmit =
     mode === 'login'
       ? username.trim().length > 0 && password.length > 0
-      : username.trim().length >= 3 &&
-        EMAIL_REGEX.test(email.trim()) &&
-        password.length >= MIN_PASSWORD_LENGTH &&
-        confirmPassword === password;
+      : username.trim().length >= 3 && password.length >= MIN_PASSWORD_LENGTH && confirmPassword === password;
 
   // ===== حساب قديم محتاج إعادة تأهيل — بيظهر بدل النموذج العادي بعد login =====
   const [rehabToken, setRehabToken] = useState<string | null>(null);
+
+  // ===== عرض كود الاسترجاع مرة واحدة بعد إنشاء حساب جديد بنجاح =====
+  const [pendingSuccess, setPendingSuccess] = useState<{ username: string; isAdmin: boolean; token: string } | null>(
+    null
+  );
+  const [revealCode, setRevealCode] = useState<string | null>(null);
 
   // ===== خطوة التحقق بخطوتين (2FA) — بتظهر بس لو الحساب أدمن ومفعّل عليه =====
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -73,10 +74,6 @@ export default function AuthForm({
         setError('اسم المستخدم لازم يكون 3 أحرف على الأقل');
         return;
       }
-      if (!EMAIL_REGEX.test(email.trim())) {
-        setError('صيغة الإيميل مش صحيحة');
-        return;
-      }
       if (password.length < MIN_PASSWORD_LENGTH) {
         setError(`كلمة المرور لازم تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل`);
         return;
@@ -89,8 +86,15 @@ export default function AuthForm({
 
     setLoading(true);
     try {
-      const data =
-        mode === 'login' ? await login(username.trim(), password) : await register(username.trim(), email.trim(), password);
+      if (mode === 'register') {
+        const data = await register(username.trim(), password);
+        sounds.success();
+        setPendingSuccess({ username: data.username, isAdmin: !!data.isAdmin, token: data.token });
+        setRevealCode(data.recoveryCode);
+        return;
+      }
+
+      const data = await login(username.trim(), password);
 
       if (data.requiresRehabilitation) {
         sounds.click();
@@ -129,6 +133,18 @@ export default function AuthForm({
     } finally {
       setTwoFactorLoading(false);
     }
+  }
+
+  if (revealCode && pendingSuccess) {
+    return (
+      <RecoveryCodeReveal
+        code={revealCode}
+        onContinue={() => {
+          localStorage.setItem('token', pendingSuccess.token);
+          onSuccess(pendingSuccess.username, pendingSuccess.isAdmin);
+        }}
+      />
+    );
   }
 
   if (rehabToken) {
@@ -230,26 +246,6 @@ export default function AuthForm({
           {usernameTooShort && <p className="field-hint">لازم 3 أحرف على الأقل</p>}
         </div>
 
-        {mode === 'register' && (
-          <div className="field-group">
-            <label htmlFor="auth-email" className="sr-only">
-              البريد الإلكتروني
-            </label>
-            <input
-              id="auth-email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="البريد الإلكتروني"
-              type="email"
-              autoComplete="email"
-              aria-invalid={emailInvalid}
-              required
-            />
-            {emailInvalid && <p className="field-hint field-hint-error">صيغة الإيميل مش صحيحة</p>}
-            <p className="field-hint">هيُستخدم لاسترجاع كلمة المرور لو نسيتها</p>
-          </div>
-        )}
-
         <div className="field-group">
           <label htmlFor="auth-password" className="sr-only">
             كلمة المرور
@@ -304,6 +300,12 @@ export default function AuthForm({
             />
             {passwordsMismatch && <p className="field-hint field-hint-error">كلمة المرور مش متطابقة</p>}
           </div>
+        )}
+
+        {mode === 'register' && (
+          <p className="field-hint">
+            بعد إنشاء الحساب هنديك كود استرجاع — احفظه، هو الطريقة الوحيدة لاسترجاع حسابك لو نسيت كلمة المرور.
+          </p>
         )}
 
         {error && <p className="error">⚠️ {error}</p>}

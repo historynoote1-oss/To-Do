@@ -31,11 +31,14 @@ async function handle(res: Response) {
   return res.json();
 }
 
-export async function register(username: string, email: string, password: string) {
+export async function register(
+  username: string,
+  password: string
+): Promise<{ token: string; username: string; isAdmin: boolean; recoveryCode: string }> {
   const res = await fetch(`${API_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, email, password }),
+    body: JSON.stringify({ username, password }),
   });
   return handle(res);
 }
@@ -49,61 +52,29 @@ export async function login(username: string, password: string) {
   return handle(res);
 }
 
-// ===== نسيت كلمة المرور =====
+// ===== نسيت كلمة المرور — عن طريق كود الاسترجاع =====
 
-export async function forgotPassword(identifier: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier }),
-  });
-  return handle(res);
-}
-
-export async function resetPassword(
-  token: string,
+export async function resetWithRecoveryCode(
+  username: string,
+  recoveryCode: string,
   password: string,
   confirmPassword: string
-): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/api/auth/reset-password`, {
+): Promise<{ message: string; recoveryCode: string }> {
+  const res = await fetch(`${API_URL}/api/auth/reset-with-recovery-code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token, password, confirmPassword }),
+    body: JSON.stringify({ username, recoveryCode, password, confirmPassword }),
   });
   return handle(res);
 }
 
 // ===== إعادة تأهيل الحسابات القديمة =====
 
-export async function completeRehabilitation(
-  rehabToken: string,
-  email: string,
-  password: string,
-  confirmPassword: string
-) {
+export async function completeRehabilitation(rehabToken: string, password: string, confirmPassword: string) {
   const res = await fetch(`${API_URL}/api/auth/rehabilitate/complete`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rehabToken, email, password, confirmPassword }),
-  });
-  return handle(res);
-}
-
-// ===== تأكيد الإيميل =====
-
-export async function verifyEmail(token: string): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/api/auth/verify-email`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token }),
-  });
-  return handle(res);
-}
-
-export async function resendVerificationEmail(): Promise<{ message: string }> {
-  const res = await fetch(`${API_URL}/api/auth/resend-verification`, {
-    method: 'POST',
-    headers: authHeaders(),
+    body: JSON.stringify({ rehabToken, password, confirmPassword }),
   });
   return handle(res);
 }
@@ -241,8 +212,6 @@ export interface AdminUsersPage {
 export interface AdminUserEntry {
   id: string;
   username: string;
-  email: string | null;
-  emailVerified: boolean;
   isAdmin: boolean;
   isActive: boolean;
   legacyAccount: boolean;

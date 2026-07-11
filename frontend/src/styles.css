@@ -2276,3 +2276,57 @@ li input[type='checkbox'] {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* ===== عرض كود الاسترجاع مرة واحدة بعد التسجيل / إعادة التأهيل / إعادة التعيين ===== */
+.recovery-code-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 18px 14px;
+  font-family: var(--font-num), monospace;
+  font-size: 19px;
+  letter-spacing: 2px;
+  color: var(--accent-soft);
+  text-align: center;
+  word-break: break-all;
+  user-select: all;
+}
+
+.recovery-code-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--danger-dim);
+  border: 1px solid rgba(232, 97, 92, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.recovery-code-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.recovery-code-confirm input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.recovery-code-input {
+  font-family: var(--font-num), monospace;
+  letter-spacing: 1.5px;
+}

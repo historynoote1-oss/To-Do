@@ -7,8 +7,6 @@ import AuthForm from './components/AuthForm';
 import AdminDashboard from './components/AdminDashboard';
 import MaintenancePage from './components/MaintenancePage';
 import ToastContainer from './components/ToastContainer';
-import ResetPasswordPage from './components/ResetPasswordPage';
-import VerifyEmailPage from './components/VerifyEmailPage';
 import { PriorityPicker } from './components/Priority';
 import { PriorityKey } from './lib/priority';
 
@@ -20,13 +18,6 @@ interface List {
 }
 
 export default function App() {
-  // روابط الإيميل (استرجاع كلمة المرور / تأكيد الإيميل) بتوصل على نفس الصفحة
-  // الرئيسية مع query param، مش مسار منفصل — عشان محتاجناش أي مكتبة routing
-  // ولا إعداد rewrite إضافي على Vercel. بنقراها مرة واحدة بس عند فتح الصفحة.
-  const [resetToken] = useState(() => new URLSearchParams(window.location.search).get('resetToken'));
-  const [verifyToken] = useState(() => new URLSearchParams(window.location.search).get('verifyToken'));
-  const [tokenPageDismissed, setTokenPageDismissed] = useState(false);
-
   const [username, setUsername] = useState<string | null>(() =>
     localStorage.getItem('token') ? localStorage.getItem('username') : null
   );
@@ -140,33 +131,6 @@ export default function App() {
   }
 
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
-
-  function clearTokenFromUrl() {
-    setTokenPageDismissed(true);
-    window.history.replaceState({}, '', window.location.pathname);
-  }
-
-  if (resetToken && !tokenPageDismissed) {
-    return (
-      <>
-        <ToastContainer />
-        <div className="view-fade">
-          <ResetPasswordPage token={resetToken} onDone={clearTokenFromUrl} />
-        </div>
-      </>
-    );
-  }
-
-  if (verifyToken && !tokenPageDismissed) {
-    return (
-      <>
-        <ToastContainer />
-        <div className="view-fade">
-          <VerifyEmailPage token={verifyToken} onDone={clearTokenFromUrl} />
-        </div>
-      </>
-    );
-  }
 
   if (!statusChecked) {
     return (

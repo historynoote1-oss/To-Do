@@ -256,9 +256,6 @@ export default function AdminUsersPanel() {
                 </span>
               )}
               <span className="user-row-meta">
-                {u.email ? `${u.email}${u.emailVerified ? ' ✅' : ' (مش متأكد)'}` : 'بدون إيميل'}
-              </span>
-              <span className="user-row-meta">
                 {u._count.lists} قائمة · انضم {new Date(u.createdAt).toLocaleDateString('ar-EG')}
               </span>
               <span className="user-row-meta">

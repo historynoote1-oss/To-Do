@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { completeRehabilitation } from '../lib/api';
 import { sounds } from '../lib/sounds';
+import RecoveryCodeReveal from './RecoveryCodeReveal';
 
 const MIN_PASSWORD_LENGTH = 10;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function passwordStrength(password: string): { score: 0 | 1 | 2 | 3; label: string } {
   if (!password) return { score: 0, label: '' };
@@ -28,19 +28,21 @@ export default function RehabilitationForm({
   onSuccess: (username: string, isAdmin: boolean) => void;
   onCancel: () => void;
 }) {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [pendingSuccess, setPendingSuccess] = useState<{ username: string; isAdmin: boolean; token: string } | null>(
+    null
+  );
+  const [revealCode, setRevealCode] = useState<string | null>(null);
+
   const strength = useMemo(() => passwordStrength(password), [password]);
-  const emailInvalid = email.length > 0 && !EMAIL_REGEX.test(email.trim());
   const passwordTooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
   const passwordsMismatch = confirmPassword.length > 0 && confirmPassword !== password;
-  const canSubmit =
-    EMAIL_REGEX.test(email.trim()) && password.length >= MIN_PASSWORD_LENGTH && confirmPassword === password;
+  const canSubmit = password.length >= MIN_PASSWORD_LENGTH && confirmPassword === password;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,10 +51,10 @@ export default function RehabilitationForm({
 
     setLoading(true);
     try {
-      const data = await completeRehabilitation(rehabToken, email.trim(), password, confirmPassword);
+      const data = await completeRehabilitation(rehabToken, password, confirmPassword);
       sounds.success();
-      localStorage.setItem('token', data.token);
-      onSuccess(data.username, !!data.isAdmin);
+      setPendingSuccess({ username: data.username, isAdmin: !!data.isAdmin, token: data.token });
+      setRevealCode(data.recoveryCode);
     } catch (err) {
       sounds.error();
       setError(err instanceof Error ? err.message : 'حصل خطأ غير متوقع');
@@ -61,33 +63,28 @@ export default function RehabilitationForm({
     }
   }
 
+  if (revealCode && pendingSuccess) {
+    return (
+      <RecoveryCodeReveal
+        code={revealCode}
+        title="تم تأمين حسابك ✅ — احفظ كود الاسترجاع"
+        onContinue={() => {
+          localStorage.setItem('token', pendingSuccess.token);
+          onSuccess(pendingSuccess.username, pendingSuccess.isAdmin);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="auth-container">
       <h1>تأمين الحساب مطلوب 🔒</h1>
       <p className="modal-text modal-hint rehab-intro">
-        حسابك اتسجّل زمان بنظام قديم (اسم مستخدم وكلمة مرور بسيطة بدون إيميل). عشان نكمّل تأمين الموقع، لازم
-        تضيف إيميل وتختار كلمة مرور جديدة أقوى. <strong>كل قوائمك ومهامك القديمة هتفضل موجودة بالكامل زي ما هي</strong> —
-        الخطوة دي بتغيّر بيانات الدخول بس.
+        حسابك اتسجّل زمان بنظام قديم (اسم مستخدم وكلمة مرور بسيطة). عشان نكمّل تأمين الموقع، لازم تختار كلمة مرور
+        جديدة أقوى. <strong>كل قوائمك ومهامك القديمة هتفضل موجودة بالكامل زي ما هي</strong> — الخطوة دي بتغيّر كلمة
+        المرور بس، وهنديك بعدها كود استرجاع جديد لحسابك.
       </p>
       <form onSubmit={handleSubmit} className="auth-form" noValidate>
-        <div className="field-group">
-          <label htmlFor="rehab-email" className="sr-only">
-            البريد الإلكتروني
-          </label>
-          <input
-            id="rehab-email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="البريد الإلكتروني"
-            type="email"
-            autoComplete="email"
-            autoFocus
-            aria-invalid={emailInvalid}
-            required
-          />
-          {emailInvalid && <p className="field-hint field-hint-error">صيغة الإيميل مش صحيحة</p>}
-        </div>
-
         <div className="field-group">
           <label htmlFor="rehab-password" className="sr-only">
             كلمة المرور الجديدة
@@ -100,6 +97,7 @@ export default function RehabilitationForm({
               placeholder="كلمة المرور الجديدة"
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
+              autoFocus
               aria-invalid={passwordTooShort}
               required
             />
