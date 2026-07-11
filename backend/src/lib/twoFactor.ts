@@ -14,7 +14,7 @@ export async function generateSecret(): Promise<string> {
 // في ساعة الجهاز ما تمنعش تسجيل الدخول، من غير ما نوسّع النافذة كتير وتقل الحماية.
 export async function verifyTotpToken(token: string, secret: string): Promise<boolean> {
   try {
-    const result = await otpVerify({ token: token.trim(), secret, window: 1 });
+    const result = await otpVerify({ token: token.trim(), secret, epochTolerance: 30 });
     return !!result?.valid;
   } catch {
     return false;
