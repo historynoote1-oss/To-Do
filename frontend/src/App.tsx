@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { getLists, createList, deleteList } from './lib/api';
+import { getLists, createList, deleteList, getSiteStatus, MaintenanceError, SiteStatus } from './lib/api';
 import { sounds } from './lib/sounds';
 import { toast } from './lib/toast';
 import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
 import AdminDashboard from './components/AdminDashboard';
+import MaintenancePage from './components/MaintenancePage';
 import ToastContainer from './components/ToastContainer';
 import { PriorityPicker } from './components/Priority';
 import { PriorityKey } from './lib/priority';
@@ -27,17 +28,47 @@ export default function App() {
   const [newPriority, setNewPriority] = useState<PriorityKey>('NONE');
   const [loading, setLoading] = useState(true);
   const [muted, setMuted] = useState(() => sounds.isMuted());
+  const [siteStatus, setSiteStatus] = useState<SiteStatus | null>(null);
+  const [statusChecked, setStatusChecked] = useState(false);
 
   useEffect(() => {
     if (username) refresh();
     else setLoading(false);
   }, [username]);
 
+  // بنتأكد من حالة الموقع (وضع الصيانة) أول ما التطبيق يفتح، وبعدين كل 15
+  // ثانية طول الوقت — عشان أي مستخدم واقف في صفحة الصيانة يرجعله الموقع
+  // تلقائيًا فور ما الأدمن يلغي الصيانة، من غير ما يحتاج يعمل refresh بنفسه.
+  useEffect(() => {
+    let cancelled = false;
+    async function checkStatus() {
+      try {
+        const status = await getSiteStatus();
+        if (!cancelled) setSiteStatus(status);
+      } catch {
+        // لو السيرفر مش راجع رد أصلًا، الأفضل نسيب المستخدم يكمل بدل ما نقفل
+        // عليه الوصول بالغلط بسبب مشكلة شبكة عابرة.
+      } finally {
+        if (!cancelled) setStatusChecked(true);
+      }
+    }
+    checkStatus();
+    const interval = window.setInterval(checkStatus, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
   async function refresh() {
     try {
       const data = await getLists();
       setLists(data);
     } catch (err) {
+      if (err instanceof MaintenanceError) {
+        setSiteStatus((prev) => (prev ? { ...prev, maintenanceMode: true, maintenanceMessage: err.message } : prev));
+        return;
+      }
       toast.error(err instanceof Error ? err.message : 'حصل خطأ في تحميل المهام الرئيسية');
     } finally {
       setLoading(false);
@@ -99,6 +130,33 @@ export default function App() {
     }
   }
 
+  const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
+
+  if (!statusChecked) {
+    return (
+      <>
+        <ToastContainer />
+        <div className="app-boot" aria-hidden="true">
+          <span className="app-boot-spinner" />
+        </div>
+      </>
+    );
+  }
+
+  if (blockedByMaintenance) {
+    return (
+      <>
+        <ToastContainer />
+        <MaintenancePage
+          emoji={siteStatus?.maintenanceEmoji || '🛠️'}
+          message={siteStatus?.maintenanceMessage || 'الموقع تحت الصيانة حاليًا، هنرجع قريب'}
+          siteName={siteStatus?.siteName || 'الموقع'}
+          onAdminSuccess={handleAuthSuccess}
+        />
+      </>
+    );
+  }
+
   if (!username) {
     return (
       <>
@@ -125,6 +183,14 @@ export default function App() {
     <>
       <ToastContainer />
       <div className="container view-fade">
+        {isAdmin && siteStatus?.maintenanceMode && (
+          <div className="maintenance-banner">
+            <span>🛠️ وضع الصيانة مفعّل حاليًا — المستخدمين العاديين مش شايفين الموقع غيرك.</span>
+            <button className="small" onClick={() => setView('admin')} type="button">
+              إدارة الإعدادات
+            </button>
+          </div>
+        )}
         <div className="top-bar">
           <h1>المهام الرئيسية</h1>
           <div className="user-info">

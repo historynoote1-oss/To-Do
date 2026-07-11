@@ -4,8 +4,10 @@ import { sounds } from '../lib/sounds';
 
 export default function AuthForm({
   onSuccess,
+  hideRegister,
 }: {
   onSuccess: (username: string, isAdmin: boolean) => void;
+  hideRegister?: boolean;
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
@@ -100,31 +102,33 @@ export default function AuthForm({
   return (
     <div className="auth-container">
       <h1>قائمة المهام</h1>
-      <div className="auth-tabs">
-        <span className={`auth-tabs-indicator ${mode === 'register' ? 'mode-register' : ''}`} />
-        <button
-          className={mode === 'login' ? 'active' : ''}
-          onClick={() => {
-            sounds.click();
-            setMode('login');
-            setError(null);
-          }}
-          type="button"
-        >
-          تسجيل دخول
-        </button>
-        <button
-          className={mode === 'register' ? 'active' : ''}
-          onClick={() => {
-            sounds.click();
-            setMode('register');
-            setError(null);
-          }}
-          type="button"
-        >
-          حساب جديد
-        </button>
-      </div>
+      {!hideRegister && (
+        <div className="auth-tabs">
+          <span className={`auth-tabs-indicator ${mode === 'register' ? 'mode-register' : ''}`} />
+          <button
+            className={mode === 'login' ? 'active' : ''}
+            onClick={() => {
+              sounds.click();
+              setMode('login');
+              setError(null);
+            }}
+            type="button"
+          >
+            تسجيل دخول
+          </button>
+          <button
+            className={mode === 'register' ? 'active' : ''}
+            onClick={() => {
+              sounds.click();
+              setMode('register');
+              setError(null);
+            }}
+            type="button"
+          >
+            حساب جديد
+          </button>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="auth-form">
         <input
           value={username}

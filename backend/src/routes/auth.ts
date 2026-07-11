@@ -8,11 +8,20 @@ import {
   MAX_FAILED_LOGIN_ATTEMPTS,
   LOCKOUT_DURATION_MS,
 } from '../lib/auth';
+import { getSiteSettings } from '../lib/siteSettings';
 
 const router = Router();
 
 router.post('/register', async (req, res) => {
   const { username, password } = req.body as { username?: string; password?: string };
+
+  const settings = await getSiteSettings();
+  if (settings.maintenanceMode === 'true') {
+    return res.status(503).json({ error: settings.maintenanceMessage || 'الموقع تحت الصيانة حاليًا', maintenance: true });
+  }
+  if (settings.registrationEnabled === 'false') {
+    return res.status(403).json({ error: 'تسجيل حسابات جديدة متوقف مؤقتًا' });
+  }
 
   if (!username?.trim() || !password) {
     return res.status(400).json({ error: 'اسم المستخدم وكلمة المرور مطلوبين' });
@@ -51,6 +60,17 @@ router.post('/login', async (req, res) => {
   }
   if (!user.isActive) {
     return res.status(403).json({ error: 'الحساب ده متعلّق، تواصل مع إدارة الموقع' });
+  }
+
+  // وضع الصيانة بيمنع دخول أي حساب عادي، لكن بيسيب الباب مفتوح للأدمن
+  // عشان يقدر يدخل يلغي الصيانة بنفسه من غير ما يحتاج وصول مباشر لقاعدة البيانات.
+  if (!user.isAdmin) {
+    const settings = await getSiteSettings();
+    if (settings.maintenanceMode === 'true') {
+      return res
+        .status(503)
+        .json({ error: settings.maintenanceMessage || 'الموقع تحت الصيانة حاليًا', maintenance: true });
+    }
   }
 
   // الحساب مقفول مؤقتًا بسبب محاولات فاشلة كتيرة، حتى لو الباسورد المُدخل صح

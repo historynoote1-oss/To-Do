@@ -11,9 +11,21 @@ function authHeaders() {
   };
 }
 
+// خطأ مخصوص لوضع الصيانة عشان الواجهة تقدر تفرّق بينه وبين أي خطأ عادي
+// وتحوّل المستخدم لصفحة الصيانة فورًا بدل ما تعرضله toast عادي بس.
+export class MaintenanceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MaintenanceError';
+  }
+}
+
 async function handle(res: Response) {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
+    if (res.status === 503 && data.maintenance) {
+      throw new MaintenanceError(data.error || 'الموقع تحت الصيانة حاليًا');
+    }
     throw new Error(data.error || `خطأ (${res.status})`);
   }
   return res.json();
@@ -469,6 +481,7 @@ export interface SiteSettings {
   registrationEnabled: string;
   maintenanceMode: string;
   maintenanceMessage: string;
+  maintenanceEmoji: string;
   maxListsPerUser: string;
   maxItemsPerList: string;
   announcementBanner: string;
@@ -487,4 +500,20 @@ export async function updateAdminSettings(settings: Partial<SiteSettings>, admin
     body: JSON.stringify({ settings, adminPassword }),
   });
   return handle(res) as Promise<{ settings: SiteSettings }>;
+}
+
+// ===== حالة الموقع العامة (وضع الصيانة) =====
+
+export interface SiteStatus {
+  siteName: string;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  maintenanceEmoji: string;
+  registrationEnabled: boolean;
+  announcementBanner: string;
+}
+
+export async function getSiteStatus(): Promise<SiteStatus> {
+  const res = await fetch(`${API_URL}/api/site/status`);
+  return handle(res);
 }

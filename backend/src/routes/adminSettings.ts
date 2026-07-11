@@ -2,20 +2,14 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import { requireAdminPassword } from '../middleware/requireAdminPassword';
+import { SITE_SETTINGS_DEFAULTS, invalidateSiteSettingsCache } from '../lib/siteSettings';
 
 const router = Router();
 
-// القيم الافتراضية لكل إعداد — لو مفيش صف في قاعدة البيانات لسه، بيترجع الافتراضي ده
-// عشان اللوحة تشتغل صح من أول تشغيل من غير أي إعداد يدوي مسبق.
-const DEFAULTS: Record<string, string> = {
-  siteName: 'قوائم المهام',
-  registrationEnabled: 'true',
-  maintenanceMode: 'false',
-  maintenanceMessage: 'الموقع تحت الصيانة حاليًا، هنرجع قريب 🛠️',
-  maxListsPerUser: '0', // 0 = بدون حد أقصى
-  maxItemsPerList: '0',
-  announcementBanner: '',
-};
+// القيم الافتراضية لكل إعداد — مصدرها الموحّد lib/siteSettings.ts، عشان
+// middleware الصيانة والـ route العام (site.ts) يستخدموا نفس الافتراضيات
+// بالظبط من غير تكرار.
+const DEFAULTS = SITE_SETTINGS_DEFAULTS;
 
 router.get('/', async (_req, res) => {
   const rows = await prisma.siteSetting.findMany();
@@ -52,6 +46,10 @@ router.put('/', requireAdminPassword, async (req: AuthRequest, res) => {
       ip: req.ip,
     },
   });
+
+  // بدون ده، أي زائر تاني كان ممكن يستنى لحد 3 ثواني (عمر الكاش) قبل ما
+  // يشوف إن الصيانة اتفعّلت أو اتلغت — إلغاء الكاش هنا بيخلي التغيير فوري.
+  invalidateSiteSettingsCache();
 
   const rows = await prisma.siteSetting.findMany();
   const map: Record<string, string> = { ...DEFAULTS };

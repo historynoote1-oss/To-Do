@@ -10,9 +10,11 @@ import adminRoutes from './routes/admin';
 import adminAnalyticsRoutes from './routes/adminAnalytics';
 import adminContentRoutes from './routes/adminContent';
 import adminSettingsRoutes from './routes/adminSettings';
+import siteRoutes from './routes/site';
 import twoFactorRoutes from './routes/twoFactor';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
+import { maintenanceGate } from './middleware/maintenanceGate';
 
 const app = express();
 
@@ -65,6 +67,16 @@ const adminLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// قراءة عامة (بدون تسجيل دخول) لحالة الموقع (وضع الصيانة، إلخ) — بتحتاج
+// حد معقول برضو عشان محدش يضرب الـ endpoint ده بعدد ضخم من الطلبات.
+const siteStatusLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 300,
+  message: { error: 'طلبات كتير جدًا، حاول تاني بعد شوية' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // حماية إضافية صارمة لمسارات التحقق بخطوتين: تخمين كود مكوّن من 6 أرقام ممكن
 // نظريًا لو الحد الأقصى للمحاولات مش ضيّق كفاية، فهنا الحد أقل بكتير من باقي
 // المسارات (8 محاولات كل 15 دقيقة لكل جهاز) — سواء أثناء الدخول أو الإعداد.
@@ -78,14 +90,15 @@ const twoFactorLimiter = rateLimit({
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
+app.use('/api/site', siteStatusLimiter, siteRoutes);
 
-app.use('/api/lists', verifyUser, listsRoutes);
+app.use('/api/lists', verifyUser, maintenanceGate, listsRoutes);
 app.use('/api/admin/analytics', verifyUser, requireAdmin, adminLimiter, adminAnalyticsRoutes);
 app.use('/api/admin/content', verifyUser, requireAdmin, adminLimiter, adminContentRoutes);
 app.use('/api/admin/settings', verifyUser, requireAdmin, adminLimiter, adminSettingsRoutes);
 app.use('/api/admin', verifyUser, requireAdmin, adminLimiter, adminRoutes);
 // المسار العام ده لازم يكون آخر واحد، لأنه بيتطابق مع أي حاجة تبدأ بـ /api
-app.use('/api', verifyUser, itemsRoutes);
+app.use('/api', verifyUser, maintenanceGate, itemsRoutes);
 
 app.get('/', (_req, res) => res.send('Todo Backend يعمل ✅'));
 
