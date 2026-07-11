@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { getLists, createList, deleteList, getSiteStatus, MaintenanceError, SiteStatus } from './lib/api';
+import { getLists, createList, deleteList, getSiteStatus, getProfile, MaintenanceError, SiteStatus } from './lib/api';
 import { sounds } from './lib/sounds';
 import { toast } from './lib/toast';
 import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
 import AdminDashboard from './components/AdminDashboard';
+import Profile from './components/Profile';
 import MaintenancePage from './components/MaintenancePage';
 import ToastContainer from './components/ToastContainer';
 import { PriorityPicker } from './components/Priority';
@@ -22,7 +23,8 @@ export default function App() {
     localStorage.getItem('token') ? localStorage.getItem('username') : null
   );
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
-  const [view, setView] = useState<'todos' | 'admin'>('todos');
+  const [view, setView] = useState<'todos' | 'admin' | 'profile'>('todos');
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [lists, setLists] = useState<List[]>([]);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [newTitle, setNewTitle] = useState('');
@@ -33,8 +35,16 @@ export default function App() {
   const [statusChecked, setStatusChecked] = useState(false);
 
   useEffect(() => {
-    if (username) refresh();
-    else setLoading(false);
+    if (username) {
+      refresh();
+      getProfile()
+        .then((data) => setDisplayName(data.profile.displayName))
+        .catch(() => {
+          // اسم العرض تجميلي بس، لو فشل الطلب نسيب اسم المستخدم العادي يظهر بدله
+        });
+    } else {
+      setLoading(false);
+    }
   }, [username]);
 
   // بنتأكد من حالة الموقع (وضع الصيانة) أول ما التطبيق يفتح، وبعدين كل 15
@@ -90,6 +100,7 @@ export default function App() {
     localStorage.removeItem('isAdmin');
     setUsername(null);
     setIsAdmin(false);
+    setDisplayName(null);
     setLists([]);
     sounds.click();
   }
@@ -212,6 +223,15 @@ export default function App() {
     );
   }
 
+  if (view === 'profile') {
+    return (
+      <>
+        <ToastContainer />
+        <Profile onBack={() => setView('todos')} onDisplayNameChange={setDisplayName} />
+      </>
+    );
+  }
+
   return (
     <>
       <ToastContainer />
@@ -246,10 +266,15 @@ export default function App() {
                 لوحة التحكم
               </button>
             )}
-            <div className="user-chip">
-              <span className="user-chip-avatar">{username?.trim().charAt(0).toUpperCase()}</span>
-              <span className="user-chip-name">{username}</span>
-            </div>
+            <button
+              className="user-chip user-chip-button"
+              onClick={() => setView('profile')}
+              type="button"
+              title="الملف الشخصي"
+            >
+              <span className="user-chip-avatar">{(displayName || username)?.trim().charAt(0).toUpperCase()}</span>
+              <span className="user-chip-name">{displayName || username}</span>
+            </button>
             <button className="danger small" onClick={handleLogout}>
               خروج
             </button>

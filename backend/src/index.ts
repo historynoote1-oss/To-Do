@@ -10,6 +10,7 @@ import adminRoutes from './routes/admin';
 import adminAnalyticsRoutes from './routes/adminAnalytics';
 import adminContentRoutes from './routes/adminContent';
 import adminSettingsRoutes from './routes/adminSettings';
+import profileRoutes from './routes/profile';
 import siteRoutes from './routes/site';
 import twoFactorRoutes from './routes/twoFactor';
 import { verifyUser } from './middleware/verifyUser';
@@ -78,6 +79,17 @@ const siteStatusLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// حماية لمسارات الملف الشخصي: فيها عمليات بتتحقق من كلمة المرور الحالية
+// (تغيير الباسورد، تولّيد كود استرجاع جديد)، فمحتاجة حد معقول برضو حتى لو
+// التوكن نفسه سليم ومسجّل دخول بالفعل.
+const profileLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  message: { error: 'عدد كبير من العمليات في وقت قصير، حاول تاني بعد شوية' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // حماية إضافية صارمة لمسارات التحقق بخطوتين: تخمين كود مكوّن من 6 أرقام ممكن
 // نظريًا لو الحد الأقصى للمحاولات مش ضيّق كفاية، فهنا الحد أقل بكتير من باقي
 // المسارات (8 محاولات كل 15 دقيقة لكل جهاز) — سواء أثناء الدخول أو الإعداد.
@@ -94,6 +106,7 @@ app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 app.use('/api/site', siteStatusLimiter, siteRoutes);
 
 app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRoutes);
+app.use('/api/profile', verifyUser, rehabilitationGate, maintenanceGate, profileLimiter, profileRoutes);
 app.use('/api/admin/analytics', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminAnalyticsRoutes);
 app.use('/api/admin/content', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminContentRoutes);
 app.use('/api/admin/settings', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminSettingsRoutes);

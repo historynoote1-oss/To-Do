@@ -534,6 +534,77 @@ export async function updateAdminSettings(settings: Partial<SiteSettings>, admin
   return handle(res) as Promise<{ settings: SiteSettings }>;
 }
 
+// ===== الملف الشخصي =====
+
+export interface ProfileData {
+  username: string;
+  displayName: string | null;
+  bio: string | null;
+  avatarColor: string;
+  avatarEmoji: string | null;
+  isAdmin: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+  twoFactorEnabled: boolean;
+  legacyAccount: boolean;
+}
+
+export interface ProfileStats {
+  totalLists: number;
+  completedLists: number;
+  totalItems: number;
+  doneItems: number;
+  completionRate: number;
+  priority: { NONE: number; LOW: number; MEDIUM: number; HIGH: number; CRITICAL: number };
+}
+
+export interface ProfileResponse {
+  profile: ProfileData;
+  stats: ProfileStats;
+  avatarOptions: { colors: string[]; emojis: string[] };
+}
+
+export async function getProfile(): Promise<ProfileResponse> {
+  const res = await fetch(`${API_URL}/api/profile`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function updateProfile(data: {
+  displayName?: string | null;
+  bio?: string | null;
+  avatarColor?: string | null;
+  avatarEmoji?: string | null;
+}): Promise<{ profile: ProfileData }> {
+  const res = await fetch(`${API_URL}/api/profile`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+export async function changeOwnPassword(
+  currentPassword: string,
+  newPassword: string,
+  confirmNewPassword: string
+): Promise<{ token: string; message: string }> {
+  const res = await fetch(`${API_URL}/api/profile/change-password`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword }),
+  });
+  return handle(res);
+}
+
+export async function regenerateOwnRecoveryCode(currentPassword: string): Promise<{ recoveryCode: string }> {
+  const res = await fetch(`${API_URL}/api/profile/regenerate-recovery-code`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ currentPassword }),
+  });
+  return handle(res);
+}
+
 // ===== حالة الموقع العامة (وضع الصيانة) =====
 
 export interface SiteStatus {
