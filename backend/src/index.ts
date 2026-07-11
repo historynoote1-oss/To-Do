@@ -10,12 +10,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// /api/token مفتوح (مفيش توكن لسه في الخطوة دي)
-app.use('/api', authRoutes);
+// /token مفتوح (مفيش توكن لسه في الخطوة دي)
+app.use('/', authRoutes);
 
 // كل حاجة تانية لازم تتحقق من هوية اليوزر الأول
-app.use('/api/lists', verifyUser, listsRoutes);
-app.use('/api', verifyUser, itemsRoutes);
+app.use('/lists', verifyUser, listsRoutes);
+app.use('/', verifyUser, itemsRoutes);
 
 app.get('/', (_req, res) => res.send('Todo Activity Backend يعمل ✅'));
 
