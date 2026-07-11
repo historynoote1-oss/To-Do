@@ -103,3 +103,13 @@ model Update {
   @@index([isPublished, pinned, publishedAt, id])
   @@index([version])
 }
+
+// إعدادات الموقع العامة، مخزّنة كـ key/value عشان نقدر نضيف إعدادات جديدة
+// في المستقبل من غير ما نحتاج migration جديد لكل إعداد. لوحة تحكم الأدمن
+// (تبويب "الإعدادات") هي المصدر الوحيد لتعديلها.
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}

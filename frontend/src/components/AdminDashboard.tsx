@@ -1,594 +1,77 @@
-import { useEffect, useState } from 'react';
-import {
-  AdminUserEntry,
-  LogEntry,
-  getAdminStats,
-  getAdminUsers,
-  deleteAdminUser,
-  suspendAdminUser,
-  forceLogoutAdminUser,
-  resetAdminUserPassword,
-  unlockAdminUser,
-  getAdminAuditLog,
-  downloadAdminUsersCsv,
-  downloadAdminAuditLogCsv,
-  getAdminGrowthStats,
-} from '../lib/api';
-import { sounds } from '../lib/sounds';
-import { toast } from '../lib/toast';
+import { useState } from 'react';
+import AdminOverview from './AdminOverview';
+import AdminAnalytics from './AdminAnalytics';
+import AdminUsersPanel from './AdminUsersPanel';
+import AdminContentPanel from './AdminContentPanel';
 import AdminUpdatesManager from './AdminUpdatesManager';
+import AdminSettingsPanel from './AdminSettingsPanel';
 import TwoFactorSettings from './TwoFactorSettings';
 
-interface Stats {
-  usersCount: number;
-  listsCount: number;
-  itemsCount: number;
-  doneItemsCount: number;
-  activeCount: number;
-  lockedCount: number;
-  adminCount: number;
-}
+type Tab = 'overview' | 'analytics' | 'users' | 'content' | 'updates' | 'settings' | 'security';
 
-type ActionType = 'suspend' | 'delete' | 'forceLogout' | 'resetPassword' | 'unlock';
-
-interface PendingAction {
-  type: ActionType;
-  id: string;
-  username: string;
-  currentlyActive?: boolean;
-}
-
-const ACTION_LABELS: Record<ActionType, string> = {
-  suspend: 'تعليق/تفعيل الحساب',
-  delete: 'حذف الحساب نهائيًا',
-  forceLogout: 'تسجيل خروج إجباري',
-  resetPassword: 'إعادة تعيين كلمة المرور',
-  unlock: 'فك قفل الحساب',
-};
-
-function isLocked(u: AdminUserEntry) {
-  return !!u.lockedUntil && new Date(u.lockedUntil) > new Date();
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-const STAT_ICONS = ['👤', '✅', '📋', '🗂️', '🛡️', '🔒'];
+const NAV: { key: Tab; label: string; icon: string }[] = [
+  { key: 'overview', label: 'نظرة عامة', icon: '🏠' },
+  { key: 'analytics', label: 'التحليلات', icon: '📊' },
+  { key: 'users', label: 'المستخدمين', icon: '👥' },
+  { key: 'content', label: 'المحتوى', icon: '🗂️' },
+  { key: 'updates', label: 'التحديثات', icon: '📢' },
+  { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
+  { key: 'security', label: 'الأمان', icon: '🔐' },
+];
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
-  const [tab, setTab] = useState<'users' | 'updates' | 'security'>('users');
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [growth, setGrowth] = useState<{ date: string; count: number }[]>([]);
+  const [tab, setTab] = useState<Tab>('overview');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // ===== المستخدمين: بحث + تصفح بالصفحات =====
-  const [users, setUsers] = useState<AdminUserEntry[]>([]);
-  const [userQuery, setUserQuery] = useState('');
-  const [userPage, setUserPage] = useState(1);
-  const [userTotalPages, setUserTotalPages] = useState(1);
-  const [userTotal, setUserTotal] = useState(0);
-  const [usersLoading, setUsersLoading] = useState(true);
-  const [exportingUsers, setExportingUsers] = useState(false);
-
-  // ===== سجل عمليات الأدمن: فلاتر + تصفح =====
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [showLogs, setShowLogs] = useState(false);
-  const [logPage, setLogPage] = useState(1);
-  const [logTotalPages, setLogTotalPages] = useState(1);
-  const [logTotal, setLogTotal] = useState(0);
-  const [logAdminFilter, setLogAdminFilter] = useState('');
-  const [logActionFilter, setLogActionFilter] = useState('');
-  const [availableActions, setAvailableActions] = useState<string[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [exportingLogs, setExportingLogs] = useState(false);
-
-  const [error, setError] = useState<string | null>(null);
-
-  const [pending, setPending] = useState<PendingAction | null>(null);
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [confirmError, setConfirmError] = useState<string | null>(null);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-
-  useEffect(() => {
-    loadOverview();
-  }, []);
-
-  // البحث بيرجّع لأول صفحة تلقائيًا، مع تأخير بسيط (debounce) عشان مانضربش
-  // السيرفر بطلب مع كل حرف يتكتب
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setUserPage(1);
-      loadUsers(1, userQuery);
-    }, 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userQuery]);
-
-  useEffect(() => {
-    loadUsers(userPage, userQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userPage]);
-
-  useEffect(() => {
-    if (showLogs) loadLogs(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLogs, logAdminFilter, logActionFilter]);
-
-  useEffect(() => {
-    if (showLogs) loadLogs(logPage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [logPage]);
-
-  async function loadOverview() {
-    setUsersLoading(true);
-    try {
-      const [s, g] = await Promise.all([getAdminStats(), getAdminGrowthStats()]);
-      setStats(s);
-      setGrowth(g.days);
-      await loadUsers(1, '');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'حصل خطأ');
-    } finally {
-      setUsersLoading(false);
-    }
-  }
-
-  async function loadUsers(page: number, q: string) {
-    setUsersLoading(true);
-    try {
-      const data = await getAdminUsers({ q, page, pageSize: 20 });
-      setUsers(data.users);
-      setUserTotalPages(data.totalPages);
-      setUserTotal(data.total);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'تعذّر تحميل المستخدمين');
-    } finally {
-      setUsersLoading(false);
-    }
-  }
-
-  async function loadLogs(page: number) {
-    setLogsLoading(true);
-    try {
-      const data = await getAdminAuditLog({
-        page,
-        pageSize: 50,
-        adminUsername: logAdminFilter || undefined,
-        action: logActionFilter || undefined,
-      });
-      setLogs(data.logs);
-      setLogTotalPages(data.totalPages);
-      setLogTotal(data.total);
-      setAvailableActions(data.availableActions);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'تعذّر تحميل سجل العمليات');
-    } finally {
-      setLogsLoading(false);
-    }
-  }
-
-  async function handleExportUsers() {
-    setExportingUsers(true);
-    try {
-      const blob = await downloadAdminUsersCsv(userQuery || undefined);
-      downloadBlob(blob, `users-${Date.now()}.csv`);
-      sounds.success();
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر التصدير');
-    } finally {
-      setExportingUsers(false);
-    }
-  }
-
-  async function handleExportLogs() {
-    setExportingLogs(true);
-    try {
-      const blob = await downloadAdminAuditLogCsv({
-        adminUsername: logAdminFilter || undefined,
-        action: logActionFilter || undefined,
-      });
-      downloadBlob(blob, `audit-log-${Date.now()}.csv`);
-      sounds.success();
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر التصدير');
-    } finally {
-      setExportingLogs(false);
-    }
-  }
-
-  function openConfirm(action: PendingAction) {
-    setPending(action);
-    setConfirmPassword('');
-    setConfirmError(null);
-  }
-
-  function closeConfirm() {
-    setPending(null);
-    setConfirmPassword('');
-    setConfirmError(null);
-  }
-
-  async function handleConfirm() {
-    if (!pending || !confirmPassword) return;
-    setConfirmLoading(true);
-    setConfirmError(null);
-    try {
-      switch (pending.type) {
-        case 'delete':
-          await deleteAdminUser(pending.id, confirmPassword);
-          sounds.deleteItem();
-          break;
-        case 'suspend':
-          await suspendAdminUser(pending.id, confirmPassword);
-          sounds.click();
-          break;
-        case 'forceLogout':
-          await forceLogoutAdminUser(pending.id, confirmPassword);
-          sounds.click();
-          break;
-        case 'unlock':
-          await unlockAdminUser(pending.id, confirmPassword);
-          sounds.click();
-          break;
-        case 'resetPassword': {
-          const { tempPassword } = await resetAdminUserPassword(pending.id, confirmPassword);
-          sounds.success();
-          alert(
-            `كلمة المرور المؤقتة لـ "${pending.username}" هي:\n\n${tempPassword}\n\nابعتها له يدويًا دلوقتي — مش هتظهر تاني بعد ما تقفل الرسالة دي.`
-          );
-          break;
-        }
-      }
-      closeConfirm();
-      await loadUsers(userPage, userQuery);
-      if (showLogs) await loadLogs(logPage);
-    } catch (err) {
-      sounds.error();
-      setConfirmError(err instanceof Error ? err.message : 'فشلت العملية');
-    } finally {
-      setConfirmLoading(false);
-    }
-  }
-
-  if (usersLoading && users.length === 0 && !error) {
-    return (
-      <div className="container admin-container">
-        <div className="top-bar">
-          <h1>لوحة تحكم الأدمن</h1>
-        </div>
-        <div className="stats-grid">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: 92 }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-  if (error) return <div className="container error">⚠️ {error}</div>;
-
-  const maxGrowth = Math.max(1, ...growth.map((d) => d.count));
+  const activeLabel = NAV.find((n) => n.key === tab)?.label || '';
 
   return (
-    <div className="container admin-container">
-      <div className="top-bar">
-        <h1>لوحة تحكم الأدمن</h1>
-        <button className="small" onClick={onBack}>
-          رجوع
-        </button>
-      </div>
-
-      <div className="admin-tabs">
-        <button
-          type="button"
-          className={`admin-tab ${tab === 'users' ? 'active' : ''}`}
-          onClick={() => setTab('users')}
-        >
-          👥 المستخدمين
-        </button>
-        <button
-          type="button"
-          className={`admin-tab ${tab === 'updates' ? 'active' : ''}`}
-          onClick={() => setTab('updates')}
-        >
-          📢 التحديثات
-        </button>
-        <button
-          type="button"
-          className={`admin-tab ${tab === 'security' ? 'active' : ''}`}
-          onClick={() => setTab('security')}
-        >
-          🔐 الأمان
-        </button>
-      </div>
-
-      {tab === 'updates' && <AdminUpdatesManager />}
-      {tab === 'security' && <TwoFactorSettings />}
-
-      {tab === 'users' && (
-        <>
-          {stats && (
-            <div className="stats-grid">
-              <div className="stat-card">
-                <span className="stat-icon">{STAT_ICONS[0]}</span>
-                <span className="stat-value">{stats.usersCount}</span>
-                <span className="stat-label">مستخدم</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">{STAT_ICONS[1]}</span>
-                <span className="stat-value">{stats.activeCount}</span>
-                <span className="stat-label">حساب مفعّل</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">{STAT_ICONS[2]}</span>
-                <span className="stat-value">{stats.listsCount}</span>
-                <span className="stat-label">قائمة</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">{STAT_ICONS[3]}</span>
-                <span className="stat-value">{stats.itemsCount}</span>
-                <span className="stat-label">مهمة</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">{STAT_ICONS[4]}</span>
-                <span className="stat-value">{stats.adminCount}</span>
-                <span className="stat-label">أدمن</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-icon">{STAT_ICONS[5]}</span>
-                <span className="stat-value" style={stats.lockedCount > 0 ? { color: 'var(--danger)' } : undefined}>
-                  {stats.lockedCount}
-                </span>
-                <span className="stat-label">حساب مقفول حاليًا</span>
-              </div>
-            </div>
-          )}
-
-          {growth.length > 0 && (
-            <div className="growth-chart">
-              <h2>تسجيلات جديدة (آخر 30 يوم)</h2>
-              <div className="growth-chart-bars">
-                {growth.map((d) => (
-                  <div className="growth-bar-wrap" key={d.date} title={`${d.date}: ${d.count}`}>
-                    <div
-                      className="growth-bar"
-                      style={{ height: `${Math.max((d.count / maxGrowth) * 100, d.count > 0 ? 6 : 2)}%` }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="admin-section-header">
-            <h2>كل المستخدمين ({userTotal})</h2>
-            <div className="admin-section-actions">
-              <button className="small" onClick={handleExportUsers} disabled={exportingUsers}>
-                {exportingUsers ? 'جاري التصدير...' : '⬇️ تصدير CSV'}
-              </button>
-              <button className="small" onClick={() => setShowLogs((v) => !v)}>
-                سجل عمليات الأدمن
-              </button>
-            </div>
-          </div>
-
-          <input
-            className="admin-search"
-            value={userQuery}
-            onChange={(e) => setUserQuery(e.target.value)}
-            placeholder="ابحث باسم المستخدم..."
-          />
-
-          <div className="users-table">
-            {usersLoading && (
-              <div className="skeleton" style={{ height: 60, marginBottom: 10 }} />
-            )}
-            {!usersLoading && users.length === 0 && <p className="empty">مفيش نتائج مطابقة</p>}
-            {users.map((u) => (
-              <div className="user-row" key={u.id}>
-                <div className="user-row-info">
-                  <strong>
-                    {u.username} {!u.isActive && <span className="suspended-badge">متعلّق</span>}
-                    {isLocked(u) && <span className="suspended-badge">مقفول مؤقتًا</span>}
-                  </strong>
-                  {u.isAdmin && <span className="admin-badge">أدمن</span>}
-                  <span className="user-row-meta">
-                    {u._count.lists} قائمة · انضم {new Date(u.createdAt).toLocaleDateString('ar-EG')}
-                  </span>
-                  <span className="user-row-meta">
-                    آخر دخول:{' '}
-                    {u.lastLoginAt
-                      ? `${new Date(u.lastLoginAt).toLocaleString('ar-EG')} (${u.lastLoginIp || 'غير معروف'})`
-                      : 'لسه ماسجلش دخول'}
-                  </span>
-                  {u.lastLoginUserAgent && (
-                    <span className="user-row-meta">الجهاز: {u.lastLoginUserAgent}</span>
-                  )}
-                  {u.failedLoginAttempts > 0 && !isLocked(u) && (
-                    <span className="user-row-meta" style={{ color: 'var(--accent)' }}>
-                      {u.failedLoginAttempts} محاولة دخول فاشلة مؤخرًا
-                    </span>
-                  )}
-                  {isLocked(u) && (
-                    <span className="user-row-meta" style={{ color: 'var(--danger)' }}>
-                      مقفول لحد {new Date(u.lockedUntil!).toLocaleString('ar-EG')} بسبب محاولات فاشلة كتيرة
-                    </span>
-                  )}
-                </div>
-                {!u.isAdmin && (
-                  <div className="user-row-actions">
-                    {isLocked(u) && (
-                      <button
-                        className="small"
-                        onClick={() => openConfirm({ type: 'unlock', id: u.id, username: u.username })}
-                      >
-                        فك القفل
-                      </button>
-                    )}
-                    <button
-                      className="small"
-                      onClick={() => openConfirm({ type: 'resetPassword', id: u.id, username: u.username })}
-                    >
-                      إعادة تعيين الباسورد
-                    </button>
-                    <button
-                      className="small"
-                      onClick={() => openConfirm({ type: 'forceLogout', id: u.id, username: u.username })}
-                    >
-                      خروج إجباري
-                    </button>
-                    <button
-                      className="small"
-                      onClick={() =>
-                        openConfirm({
-                          type: 'suspend',
-                          id: u.id,
-                          username: u.username,
-                          currentlyActive: u.isActive,
-                        })
-                      }
-                    >
-                      {u.isActive ? 'تعليق' : 'تفعيل'}
-                    </button>
-                    <button
-                      className="danger small"
-                      onClick={() => openConfirm({ type: 'delete', id: u.id, username: u.username })}
-                    >
-                      حذف
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {userTotalPages > 1 && (
-            <div className="pagination">
-              <button className="small" disabled={userPage <= 1} onClick={() => setUserPage((p) => p - 1)}>
-                السابق
-              </button>
-              <span className="pagination-label">
-                صفحة {userPage} من {userTotalPages}
-              </span>
-              <button
-                className="small"
-                disabled={userPage >= userTotalPages}
-                onClick={() => setUserPage((p) => p + 1)}
-              >
-                التالي
-              </button>
-            </div>
-          )}
-
-          {showLogs && (
-            <div className="audit-log">
-              <div className="admin-section-header">
-                <h2>سجل عمليات الأدمن ({logTotal})</h2>
-                <button className="small" onClick={handleExportLogs} disabled={exportingLogs}>
-                  {exportingLogs ? 'جاري التصدير...' : '⬇️ تصدير CSV'}
-                </button>
-              </div>
-
-              <div className="audit-log-filters">
-                <input
-                  className="admin-search"
-                  value={logAdminFilter}
-                  onChange={(e) => setLogAdminFilter(e.target.value)}
-                  placeholder="فلترة باسم الأدمن..."
-                />
-                <select
-                  className="admin-select"
-                  value={logActionFilter}
-                  onChange={(e) => setLogActionFilter(e.target.value)}
-                >
-                  <option value="">كل أنواع العمليات</option>
-                  {availableActions.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {logsLoading && <div className="skeleton" style={{ height: 60, marginBottom: 10 }} />}
-              {!logsLoading && logs.length === 0 && <p className="empty">مفيش عمليات مطابقة</p>}
-              {logs.map((l) => (
-                <div className="log-row" key={l.id}>
-                  <span>
-                    <strong>{l.adminUsername}</strong> — {l.action}
-                    {l.targetUsername && ` — ${l.targetUsername}`}
-                  </span>
-                  <span className="user-row-meta">
-                    {new Date(l.createdAt).toLocaleString('ar-EG')}
-                    {l.ip && ` · IP: ${l.ip}`}
-                  </span>
-                </div>
-              ))}
-
-              {logTotalPages > 1 && (
-                <div className="pagination">
-                  <button className="small" disabled={logPage <= 1} onClick={() => setLogPage((p) => p - 1)}>
-                    السابق
-                  </button>
-                  <span className="pagination-label">
-                    صفحة {logPage} من {logTotalPages}
-                  </span>
-                  <button
-                    className="small"
-                    disabled={logPage >= logTotalPages}
-                    onClick={() => setLogPage((p) => p + 1)}
-                  >
-                    التالي
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
-      {pending && (
-        <div className="modal-overlay" onClick={closeConfirm}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <h2>تأكيد الإجراء</h2>
-            <p className="modal-text">
-              أنت على وشك تنفيذ <strong>{ACTION_LABELS[pending.type]}</strong> لحساب{' '}
-              <strong>"{pending.username}"</strong>.
-            </p>
-            <p className="modal-text modal-hint">اكتب كلمة مرورك انت (الأدمن) للتأكيد:</p>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="كلمة مرور الأدمن"
-              autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
-            />
-            {confirmError && <p className="error">{confirmError}</p>}
-            <div className="modal-actions">
-              <button className="small" onClick={closeConfirm} type="button">
-                إلغاء
-              </button>
-              <button
-                className="danger small"
-                onClick={handleConfirm}
-                disabled={!confirmPassword || confirmLoading}
-                type="button"
-              >
-                {confirmLoading ? 'جاري التنفيذ...' : 'تأكيد وتنفيذ'}
-              </button>
-            </div>
-          </div>
+    <div className="admin-shell">
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="admin-sidebar-header">
+          <h1>لوحة التحكم</h1>
+          <button className="small" onClick={onBack}>
+            رجوع
+          </button>
         </div>
-      )}
+        <nav className="admin-sidebar-nav">
+          {NAV.map((n) => (
+            <button
+              key={n.key}
+              type="button"
+              className={`admin-nav-item ${tab === n.key ? 'active' : ''}`}
+              onClick={() => {
+                setTab(n.key);
+                setSidebarOpen(false);
+              }}
+            >
+              <span className="admin-nav-icon">{n.icon}</span>
+              {n.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="admin-main">
+        <div className="admin-mobile-bar">
+          <button className="small" onClick={() => setSidebarOpen((v) => !v)}>
+            ☰ الأقسام
+          </button>
+          <strong>{activeLabel}</strong>
+        </div>
+
+        <div className="admin-main-content">
+          {tab === 'overview' && <AdminOverview />}
+          {tab === 'analytics' && <AdminAnalytics />}
+          {tab === 'users' && <AdminUsersPanel />}
+          {tab === 'content' && <AdminContentPanel />}
+          {tab === 'updates' && <AdminUpdatesManager />}
+          {tab === 'settings' && <AdminSettingsPanel />}
+          {tab === 'security' && <TwoFactorSettings />}
+        </div>
+      </div>
+
+      {sidebarOpen && <div className="admin-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
     </div>
   );
 }

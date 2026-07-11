@@ -9,6 +9,9 @@ import itemsRoutes from './routes/items';
 import adminRoutes from './routes/admin';
 import updatesRoutes from './routes/updates';
 import adminUpdatesRoutes from './routes/adminUpdates';
+import adminAnalyticsRoutes from './routes/adminAnalytics';
+import adminContentRoutes from './routes/adminContent';
+import adminSettingsRoutes from './routes/adminSettings';
 import twoFactorRoutes from './routes/twoFactor';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
@@ -91,6 +94,9 @@ app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 app.use('/api/lists', verifyUser, listsRoutes);
 app.use('/api/updates', updatesLimiter, updatesRoutes);
 app.use('/api/admin/updates', verifyUser, requireAdmin, adminLimiter, adminUpdatesRoutes);
+app.use('/api/admin/analytics', verifyUser, requireAdmin, adminLimiter, adminAnalyticsRoutes);
+app.use('/api/admin/content', verifyUser, requireAdmin, adminLimiter, adminContentRoutes);
+app.use('/api/admin/settings', verifyUser, requireAdmin, adminLimiter, adminSettingsRoutes);
 app.use('/api/admin', verifyUser, requireAdmin, adminLimiter, adminRoutes);
 // المسار العام ده لازم يكون آخر واحد، لأنه بيتطابق مع أي حاجة تبدأ بـ /api
 // (زي /api/updates)، فلو اتحط قبل المسارات المحددة هيمنعها ويطلب تسجيل دخول

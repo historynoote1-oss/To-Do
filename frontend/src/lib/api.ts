@@ -269,6 +269,199 @@ export async function getAdminGrowthStats(): Promise<{ days: { date: string; cou
   return handle(res);
 }
 
+export async function updateAdminUser(
+  id: string,
+  data: { username?: string; isAdmin?: boolean },
+  adminPassword: string
+) {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ ...data, adminPassword }),
+  });
+  return handle(res);
+}
+
+// ===== لوحة التحكم: التحليلات =====
+
+export type AnalyticsRange = '7d' | '30d' | '90d' | '365d';
+
+export interface TimeseriesPoint {
+  date: string;
+  count: number;
+}
+
+export interface AdminTimeseries {
+  range: number;
+  users: TimeseriesPoint[];
+  itemsCreated: TimeseriesPoint[];
+  itemsCompleted: TimeseriesPoint[];
+}
+
+export async function getAdminTimeseries(range: AnalyticsRange): Promise<AdminTimeseries> {
+  const res = await fetch(`${API_URL}/api/admin/analytics/timeseries?range=${range}`, {
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export interface AdminDistribution {
+  priority: { NONE: number; LOW: number; MEDIUM: number; HIGH: number };
+  completionRate: number;
+  avgItemsPerList: number;
+  avgListsPerUser: number;
+  emptyLists: number;
+  totalItems: number;
+  doneItems: number;
+  totalLists: number;
+  totalUsers: number;
+}
+
+export async function getAdminDistribution(): Promise<AdminDistribution> {
+  const res = await fetch(`${API_URL}/api/admin/analytics/distribution`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export interface AdminTopUser {
+  id: string;
+  username: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+  listsCount: number;
+  itemsCount: number;
+}
+
+export async function getAdminTopUsers(): Promise<{ users: AdminTopUser[] }> {
+  const res = await fetch(`${API_URL}/api/admin/analytics/top-users`, { headers: authHeaders() });
+  return handle(res);
+}
+
+// ===== لوحة التحكم: إدارة المحتوى (قوائم/مهام كل المستخدمين) =====
+
+export interface AdminListEntry {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  user: { id: string; username: string };
+  _count: { items: number };
+}
+
+export interface AdminListsPage {
+  lists: AdminListEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export async function getAdminLists(params: { q?: string; page?: number; pageSize?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set('q', params.q);
+  qs.set('page', String(params.page || 1));
+  qs.set('pageSize', String(params.pageSize || 20));
+  const res = await fetch(`${API_URL}/api/admin/content/lists?${qs.toString()}`, { headers: authHeaders() });
+  return handle(res) as Promise<AdminListsPage>;
+}
+
+export async function updateAdminList(id: string, title: string) {
+  const res = await fetch(`${API_URL}/api/admin/content/lists/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ title }),
+  });
+  return handle(res);
+}
+
+export async function deleteAdminList(id: string, adminPassword: string) {
+  const res = await fetch(`${API_URL}/api/admin/content/lists/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    body: JSON.stringify({ adminPassword }),
+  });
+  return handle(res);
+}
+
+export interface AdminItemEntry {
+  id: string;
+  content: string;
+  isDone: boolean;
+  priority: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  list: { id: string; title: string; user: { id: string; username: string } };
+}
+
+export interface AdminItemsPage {
+  items: AdminItemEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export async function getAdminItems(
+  params: { q?: string; priority?: string; status?: 'done' | 'pending' | ''; page?: number; pageSize?: number } = {}
+) {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set('q', params.q);
+  if (params.priority) qs.set('priority', params.priority);
+  if (params.status) qs.set('status', params.status);
+  qs.set('page', String(params.page || 1));
+  qs.set('pageSize', String(params.pageSize || 20));
+  const res = await fetch(`${API_URL}/api/admin/content/items?${qs.toString()}`, { headers: authHeaders() });
+  return handle(res) as Promise<AdminItemsPage>;
+}
+
+export async function updateAdminItem(
+  id: string,
+  data: { content?: string; isDone?: boolean; priority?: string; dueDate?: string | null }
+) {
+  const res = await fetch(`${API_URL}/api/admin/content/items/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+export async function deleteAdminItem(id: string, adminPassword: string) {
+  const res = await fetch(`${API_URL}/api/admin/content/items/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    body: JSON.stringify({ adminPassword }),
+  });
+  return handle(res);
+}
+
+// ===== لوحة التحكم: إعدادات الموقع =====
+
+export interface SiteSettings {
+  siteName: string;
+  registrationEnabled: string;
+  maintenanceMode: string;
+  maintenanceMessage: string;
+  maxListsPerUser: string;
+  maxItemsPerList: string;
+  announcementBanner: string;
+  [key: string]: string;
+}
+
+export async function getAdminSettings(): Promise<{ settings: SiteSettings }> {
+  const res = await fetch(`${API_URL}/api/admin/settings`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function updateAdminSettings(settings: Partial<SiteSettings>, adminPassword: string) {
+  const res = await fetch(`${API_URL}/api/admin/settings`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ settings, adminPassword }),
+  });
+  return handle(res) as Promise<{ settings: SiteSettings }>;
+}
+
 // ===== Updates (سجل التحديثات) =====
 
 export interface UpdateEntry {

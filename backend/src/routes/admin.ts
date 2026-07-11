@@ -165,6 +165,40 @@ router.get('/users/:id', async (req, res) => {
   res.json(user);
 });
 
+// تعديل شامل لبيانات أي حساب (اسم المستخدم + صلاحية الأدمن) — تحكم كامل
+// من اللوحة بدل ما يحتاج أي وصول مباشر لقاعدة البيانات. إجراء حساس فمحتاج
+// تأكيد بكلمة مرور الأدمن زي باقي العمليات الخطيرة.
+router.patch('/users/:id', requireAdminPassword, async (req: AuthRequest, res) => {
+  const { username, isAdmin } = req.body as { username?: string; isAdmin?: boolean };
+  const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!target) return res.status(404).json({ error: 'المستخدم غير موجود' });
+
+  if (isAdmin !== undefined && target.id === req.userId && isAdmin === false) {
+    return res.status(400).json({ error: 'متقدرش تشيل صلاحية الأدمن من حسابك انت بنفسك' });
+  }
+
+  const data: any = {};
+  if (username && username.trim() && username.trim() !== target.username) {
+    const clash = await prisma.user.findUnique({ where: { username: username.trim() } });
+    if (clash) return res.status(400).json({ error: 'اسم المستخدم ده مستخدم بالفعل' });
+    data.username = username.trim();
+  }
+  if (isAdmin !== undefined) data.isAdmin = isAdmin;
+
+  if (Object.keys(data).length === 0) return res.status(400).json({ error: 'مفيش أي تعديل' });
+
+  const updated = await prisma.user.update({ where: { id: target.id }, data, select: userListSelect });
+  await logAction(
+    req.userId!,
+    target.id,
+    `تعديل بيانات حساب${data.username ? ` (الاسم ← ${data.username})` : ''}${
+      isAdmin !== undefined ? (isAdmin ? ' (تفعيل صلاحية أدمن)' : ' (إلغاء صلاحية أدمن)') : ''
+    }`,
+    req.ip!
+  );
+  res.json(updated);
+});
+
 // تعليق / إعادة تفعيل الحساب — يحتاج تأكيد بكلمة مرور الأدمن
 router.patch('/users/:id/suspend', requireAdminPassword, async (req: AuthRequest, res) => {
   const target = await prisma.user.findUnique({ where: { id: req.params.id } });
