@@ -99,7 +99,7 @@ router.get('/items', async (req, res) => {
 
   const where: Record<string, unknown> = {};
   if (q) where.content = { contains: q, mode: 'insensitive' as const };
-  if (priority && ['NONE', 'LOW', 'MEDIUM', 'HIGH'].includes(priority)) where.priority = priority;
+  if (priority && ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priority)) where.priority = priority;
   if (status === 'done') where.isDone = true;
   if (status === 'pending') where.isDone = false;
 
@@ -131,7 +131,7 @@ router.patch('/items/:id', async (req: AuthRequest, res) => {
   const { content, isDone, priority, dueDate } = req.body as {
     content?: string;
     isDone?: boolean;
-    priority?: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
+    priority?: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
     dueDate?: string | null;
   };
 

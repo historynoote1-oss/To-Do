@@ -3,15 +3,19 @@ import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 
 const router = Router();
+const VALID_PRIORITIES = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 router.post('/items', async (req: AuthRequest, res) => {
   const { listId, content, priority, dueDate } = req.body;
-  if (!content?.trim()) return res.status(400).json({ error: 'محتوى المهمة مطلوب' });
+  if (!content?.trim()) return res.status(400).json({ error: 'محتوى المهمة الفرعية مطلوب' });
+  if (priority && !VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: 'أولوية غير صحيحة' });
+  }
 
   const list = await prisma.todoList.findFirst({
     where: { id: listId, userId: req.userId! },
   });
-  if (!list) return res.status(404).json({ error: 'القائمة غير موجودة' });
+  if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
 
   const count = await prisma.todoItem.count({ where: { listId: list.id } });
 
@@ -31,7 +35,10 @@ router.patch('/items/:id', async (req: AuthRequest, res) => {
   const item = await prisma.todoItem.findFirst({
     where: { id: req.params.id, list: { userId: req.userId! } },
   });
-  if (!item) return res.status(404).json({ error: 'المهمة غير موجودة' });
+  if (!item) return res.status(404).json({ error: 'المهمة الفرعية غير موجودة' });
+  if (req.body.priority !== undefined && !VALID_PRIORITIES.includes(req.body.priority)) {
+    return res.status(400).json({ error: 'أولوية غير صحيحة' });
+  }
 
   const updated = await prisma.todoItem.update({
     where: { id: item.id },
@@ -54,7 +61,7 @@ router.delete('/items/:id', async (req: AuthRequest, res) => {
   const item = await prisma.todoItem.findFirst({
     where: { id: req.params.id, list: { userId: req.userId! } },
   });
-  if (!item) return res.status(404).json({ error: 'المهمة غير موجودة' });
+  if (!item) return res.status(404).json({ error: 'المهمة الفرعية غير موجودة' });
 
   await prisma.todoItem.delete({ where: { id: item.id } });
   res.json({ success: true });

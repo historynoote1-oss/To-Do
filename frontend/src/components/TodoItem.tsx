@@ -1,4 +1,6 @@
-export default function TodoItemRow({ item, onToggle, onDelete, delay = 0, leaving = false }: any) {
+import { PriorityBadge } from './Priority';
+
+export default function TodoItemRow({ item, onToggle, onDelete, onPriorityChange, delay = 0, leaving = false }: any) {
   return (
     <li
       className={`${item.isDone ? 'done' : ''} ${leaving ? 'leaving' : ''}`}
@@ -18,9 +20,14 @@ export default function TodoItemRow({ item, onToggle, onDelete, delay = 0, leavi
         </span>
         <span>{item.content}</span>
       </label>
-      <button className="danger small row-delete" onClick={onDelete} aria-label="حذف المهمة">
-        ✕
-      </button>
+      <div className="row-actions">
+        {onPriorityChange && (
+          <PriorityBadge value={item.priority || 'NONE'} onChange={onPriorityChange} size="sm" />
+        )}
+        <button className="danger small row-delete" onClick={onDelete} aria-label="حذف المهمة الفرعية">
+          ✕
+        </button>
+      </div>
     </li>
   );
 }

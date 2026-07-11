@@ -17,12 +17,13 @@ const RANGES: { key: AnalyticsRange; label: string }[] = [
   { key: '365d', label: 'سنة' },
 ];
 
-const PRIORITY_LABELS: Record<string, string> = { NONE: 'بدون', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'عالية' };
+const PRIORITY_LABELS: Record<string, string> = { NONE: 'بدون', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'مرتفعة', CRITICAL: 'حرجة' };
 const PRIORITY_COLORS: Record<string, string> = {
   NONE: '#6b7280',
   LOW: '#3b82f6',
   MEDIUM: '#f59e0b',
-  HIGH: '#ef4444',
+  HIGH: '#e8873d',
+  CRITICAL: '#ef4444',
 };
 
 function MiniBarChart({ title, points, color }: { title: string; points: { date: string; count: number }[]; color: string }) {
@@ -70,7 +71,9 @@ export default function AdminAnalytics() {
     })();
   }, [range]);
 
-  const totalPriority = dist ? dist.priority.NONE + dist.priority.LOW + dist.priority.MEDIUM + dist.priority.HIGH : 0;
+  const totalPriority = dist
+    ? dist.priority.NONE + dist.priority.LOW + dist.priority.MEDIUM + dist.priority.HIGH + (dist.priority as any).CRITICAL
+    : 0;
 
   return (
     <div className="admin-analytics">
@@ -104,7 +107,7 @@ export default function AdminAnalytics() {
         <div className="admin-panel">
           <h2>توزيع المهام حسب الأولوية</h2>
           <div className="priority-bars">
-            {(['HIGH', 'MEDIUM', 'LOW', 'NONE'] as const).map((p) => {
+            {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'] as const).map((p) => {
               const count = dist.priority[p];
               const pct = totalPriority > 0 ? Math.round((count / totalPriority) * 100) : 0;
               return (

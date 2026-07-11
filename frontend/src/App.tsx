@@ -7,10 +7,13 @@ import AuthForm from './components/AuthForm';
 import AdminDashboard from './components/AdminDashboard';
 import UpdatesLog from './components/UpdatesLog';
 import ToastContainer from './components/ToastContainer';
+import { PriorityPicker } from './components/Priority';
+import { PriorityKey } from './lib/priority';
 
 interface List {
   id: string;
   title: string;
+  priority?: string;
   items: any[];
 }
 
@@ -22,6 +25,7 @@ export default function App() {
   const [view, setView] = useState<'todos' | 'admin' | 'updates'>('todos');
   const [lists, setLists] = useState<List[]>([]);
   const [newTitle, setNewTitle] = useState('');
+  const [newPriority, setNewPriority] = useState<PriorityKey>('NONE');
   const [loading, setLoading] = useState(true);
   const [muted, setMuted] = useState(() => sounds.isMuted());
 
@@ -35,7 +39,7 @@ export default function App() {
       const data = await getLists();
       setLists(data);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'حصل خطأ في تحميل القوائم');
+      toast.error(err instanceof Error ? err.message : 'حصل خطأ في تحميل المهام الرئيسية');
     } finally {
       setLoading(false);
     }
@@ -66,18 +70,20 @@ export default function App() {
   async function handleCreate() {
     if (!newTitle.trim()) return;
     const title = newTitle.trim();
+    const priority = newPriority;
     sounds.addItem();
     setNewTitle('');
-    // تحديث تفاؤلي: القائمة بتظهر فورًا من غير ما ننتظر السيرفر
+    setNewPriority('NONE');
+    // تحديث تفاؤلي: المهمة الرئيسية بتظهر فورًا من غير ما ننتظر السيرفر
     const tempId = `temp-${Date.now()}`;
-    setLists((prev) => [...prev, { id: tempId, title, items: [] }]);
+    setLists((prev) => [...prev, { id: tempId, title, priority, items: [] }]);
     try {
-      await createList(title);
+      await createList(title, priority);
       await refresh();
     } catch (err) {
       setLists((prev) => prev.filter((l) => l.id !== tempId));
       sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر إنشاء القائمة');
+      toast.error(err instanceof Error ? err.message : 'تعذّر إنشاء المهمة الرئيسية');
     }
   }
 
@@ -90,7 +96,7 @@ export default function App() {
     } catch (err) {
       setLists(snapshot);
       sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر حذف القائمة');
+      toast.error(err instanceof Error ? err.message : 'تعذّر حذف المهمة الرئيسية');
     }
   }
 
@@ -135,7 +141,7 @@ export default function App() {
       <ToastContainer />
       <div className="container view-fade">
         <div className="top-bar">
-          <h1>قائمة المهام</h1>
+          <h1>المهام الرئيسية</h1>
           <div className="user-info">
             <span>مرحبًا، {username}</span>
             <button
@@ -161,13 +167,19 @@ export default function App() {
         </div>
 
         <div className="new-list">
-          <input
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="اسم قائمة جديدة"
-            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-          />
-          <button onClick={handleCreate}>إضافة قائمة</button>
+          <div className="new-list-row">
+            <input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="اسم المهمة الرئيسية الجديدة"
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+            />
+            <button onClick={handleCreate}>إضافة مهمة رئيسية</button>
+          </div>
+          <div className="new-list-priority">
+            <span className="new-list-priority-label">الأولوية:</span>
+            <PriorityPicker value={newPriority} onChange={setNewPriority} />
+          </div>
         </div>
 
         {loading && (
@@ -180,7 +192,7 @@ export default function App() {
         {!loading && lists.length === 0 && (
           <p className="empty">
             <span className="empty-icon">🗒️</span>
-            مفيش قوائم لسه، ابدأ بإنشاء واحدة
+            مفيش مهام رئيسية لسه، ابدأ بإنشاء أول مهمة
           </p>
         )}
 

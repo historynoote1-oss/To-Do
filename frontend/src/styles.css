@@ -412,13 +412,35 @@ button:disabled {
 .new-list,
 .new-item {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 18px;
 }
 
-.new-list input,
-.new-item input {
+.new-list-row,
+.new-item-row {
+  display: flex;
+  gap: 8px;
+}
+
+.new-list-row input,
+.new-item-row input {
   flex: 1;
+}
+
+.new-list-priority,
+.new-item-priority {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  animation: pop-in var(--dur) var(--ease-out) both;
+}
+
+.new-list-priority-label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 /* ===== List cards ===== */
@@ -451,6 +473,14 @@ button:disabled {
   align-items: center;
   margin-bottom: 14px;
   gap: 10px;
+}
+
+.list-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .list-header h2 {
@@ -533,6 +563,13 @@ li label {
 li label > span:last-child {
   overflow-wrap: anywhere;
   transition: color var(--dur) var(--ease-out);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 li .row-delete {
@@ -621,6 +658,153 @@ li.done span {
 
 li input[type='checkbox'] {
   display: none;
+}
+
+/* ===== Priority: icon, badge, dropdown menu, inline picker ===== */
+.priority-icon {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.priority-badge-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-spring), filter var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease;
+}
+
+.priority-badge-wrap.sm .priority-badge {
+  padding: 3px 8px;
+  font-size: 11px;
+  gap: 5px;
+}
+
+.priority-badge:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.priority-badge:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.priority-badge.critical-pulse {
+  animation: priority-critical-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes priority-critical-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--glow, rgba(240, 85, 74, 0));
+  }
+  50% {
+    box-shadow: 0 0 0 5px var(--glow, rgba(240, 85, 74, 0));
+  }
+}
+
+.priority-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  min-width: 150px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+  box-shadow: var(--shadow-lift);
+  list-style: none;
+  margin: 0;
+  animation: priority-menu-in var(--dur-fast) var(--ease-out) both;
+}
+
+@keyframes priority-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.priority-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--dur-fast) ease;
+}
+
+.priority-menu-item:hover {
+  background: var(--surface-2);
+}
+
+.priority-menu-item.selected {
+  color: var(--pcolor);
+  font-weight: 700;
+}
+
+.priority-check {
+  margin-inline-start: auto;
+  color: var(--pcolor);
+  font-size: 12px;
+}
+
+.priority-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.priority-picker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease, background var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-spring);
+}
+
+.priority-picker-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--pcolor);
+}
+
+.priority-picker-item.selected {
+  background: var(--pbg);
+  border-color: var(--pcolor);
+  color: var(--pcolor);
+  font-weight: 700;
 }
 
 /* ===== Auth screen ===== */

@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
-import { addItem, toggleItem, deleteItem } from '../lib/api';
+import { addItem, toggleItem, deleteItem, updateItemPriority, updateList } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import TodoItemRow from './TodoItem';
+import { PriorityBadge, PriorityPicker } from './Priority';
+import { PriorityKey } from '../lib/priority';
 
 const CONFETTI_COLORS = ['#e8a33d', '#f4c878', '#5fd9b4', '#e8615c', '#f3efe7'];
 
 export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: any) {
   const [newItem, setNewItem] = useState('');
+  const [newItemPriority, setNewItemPriority] = useState<PriorityKey>('NONE');
+  const [showItemPriority, setShowItemPriority] = useState(false);
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [burstKey, setBurstKey] = useState(0);
   const [confettiOn, setConfettiOn] = useState(false);
@@ -33,20 +37,43 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
   async function handleAdd() {
     if (!newItem.trim()) return;
     const content = newItem.trim();
+    const priority = newItemPriority;
     sounds.addItem();
     setNewItem('');
+    setNewItemPriority('NONE');
+    setShowItemPriority(false);
     try {
-      await addItem(list.id, content);
+      await addItem(list.id, content, priority);
       onChange();
     } catch (err) {
       sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّرت إضافة المهمة');
+      toast.error(err instanceof Error ? err.message : 'تعذّرت إضافة المهمة الفرعية');
     }
   }
 
   function handleDeleteList() {
     sounds.deleteItem();
     onDeleteList(list.id);
+  }
+
+  async function handleListPriorityChange(priority: PriorityKey) {
+    try {
+      await updateList(list.id, { priority });
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تحديث أولوية المهمة');
+    }
+  }
+
+  async function handleItemPriorityChange(item: any, priority: PriorityKey) {
+    try {
+      await updateItemPriority(item.id, priority);
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تحديث أولوية المهمة الفرعية');
+    }
   }
 
   async function handleToggle(item: any) {
@@ -115,9 +142,12 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
       )}
 
       <div className="list-header">
-        <h2>{list.title}</h2>
+        <div className="list-header-title">
+          <h2>{list.title}</h2>
+          <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="md" />
+        </div>
         <button className="danger small" onClick={handleDeleteList}>
-          حذف القائمة
+          حذف المهمة الرئيسية
         </button>
       </div>
 
@@ -126,22 +156,32 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
           <div className="list-progress">
             <div className="list-progress-fill" style={{ width: `${progress}%` }} />
           </div>
-          <span className="list-progress-label">{progress}٪</span>
+          <span className="list-progress-label">
+            {done}/{total} · {progress}٪
+          </span>
         </div>
       )}
 
       <div className="new-item">
-        <input
-          value={newItem}
-          onChange={(e) => setNewItem(e.target.value)}
-          placeholder="مهمة جديدة"
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        />
-        <button onClick={handleAdd}>+</button>
+        <div className="new-item-row">
+          <input
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+            placeholder="مهمة فرعية جديدة"
+            onFocus={() => setShowItemPriority(true)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          />
+          <button onClick={handleAdd}>+</button>
+        </div>
+        {showItemPriority && (
+          <div className="new-item-priority">
+            <PriorityPicker value={newItemPriority} onChange={setNewItemPriority} />
+          </div>
+        )}
       </div>
 
       {total === 0 ? (
-        <p className="empty">لسه مفيش مهام هنا</p>
+        <p className="empty">لسه مفيش مهام فرعية هنا</p>
       ) : (
         <ul>
           {list.items.map((item: any, i: number) => (
@@ -152,6 +192,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
               leaving={leavingIds.has(item.id)}
               onToggle={() => handleToggle(item)}
               onDelete={() => handleDeleteItem(item)}
+              onPriorityChange={(p: PriorityKey) => handleItemPriorityChange(item, p)}
             />
           ))}
         </ul>

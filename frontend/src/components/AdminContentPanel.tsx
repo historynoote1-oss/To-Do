@@ -13,7 +13,7 @@ import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import AdminConfirmModal from './AdminConfirmModal';
 
-const PRIORITY_LABELS: Record<string, string> = { NONE: 'بدون', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'عالية' };
+const PRIORITY_LABELS: Record<string, string> = { NONE: 'بدون', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'مرتفعة', CRITICAL: 'حرجة' };
 
 export default function AdminContentPanel() {
   const [subTab, setSubTab] = useState<'lists' | 'items'>('lists');
@@ -262,7 +262,8 @@ function ItemsManager() {
         <input className="admin-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث في نص المهمة..." />
         <select className="admin-select" value={priority} onChange={(e) => setPriority(e.target.value)}>
           <option value="">كل الأولويات</option>
-          <option value="HIGH">عالية</option>
+          <option value="CRITICAL">حرجة</option>
+          <option value="HIGH">مرتفعة</option>
           <option value="MEDIUM">متوسطة</option>
           <option value="LOW">منخفضة</option>
           <option value="NONE">بدون</option>
@@ -328,7 +329,8 @@ function ItemsManager() {
             <h2>تعديل المهمة</h2>
             <input value={editContent} onChange={(e) => setEditContent(e.target.value)} autoFocus />
             <select className="admin-select" value={editPriority} onChange={(e) => setEditPriority(e.target.value)} style={{ marginTop: 10 }}>
-              <option value="HIGH">عالية</option>
+              <option value="CRITICAL">حرجة</option>
+              <option value="HIGH">مرتفعة</option>
               <option value="MEDIUM">متوسطة</option>
               <option value="LOW">منخفضة</option>
               <option value="NONE">بدون</option>

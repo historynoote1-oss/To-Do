@@ -84,11 +84,20 @@ export async function getLists() {
   return handle(res);
 }
 
-export async function createList(title: string) {
+export async function createList(title: string, priority?: string) {
   const res = await fetch(`${API_URL}/api/lists`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, priority }),
+  });
+  return handle(res);
+}
+
+export async function updateList(id: string, data: { title?: string; priority?: string }) {
+  const res = await fetch(`${API_URL}/api/lists/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
   });
   return handle(res);
 }
@@ -101,11 +110,11 @@ export async function deleteList(id: string) {
   return handle(res);
 }
 
-export async function addItem(listId: string, content: string) {
+export async function addItem(listId: string, content: string, priority?: string) {
   const res = await fetch(`${API_URL}/api/items`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ listId, content }),
+    body: JSON.stringify({ listId, content, priority }),
   });
   return handle(res);
 }
@@ -115,6 +124,15 @@ export async function toggleItem(id: string, isDone: boolean) {
     method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify({ isDone }),
+  });
+  return handle(res);
+}
+
+export async function updateItemPriority(id: string, priority: string) {
+  const res = await fetch(`${API_URL}/api/items/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ priority }),
   });
   return handle(res);
 }
@@ -306,7 +324,7 @@ export async function getAdminTimeseries(range: AnalyticsRange): Promise<AdminTi
 }
 
 export interface AdminDistribution {
-  priority: { NONE: number; LOW: number; MEDIUM: number; HIGH: number };
+  priority: { NONE: number; LOW: number; MEDIUM: number; HIGH: number; CRITICAL: number };
   completionRate: number;
   avgItemsPerList: number;
   avgListsPerUser: number;
@@ -386,7 +404,7 @@ export interface AdminItemEntry {
   id: string;
   content: string;
   isDone: boolean;
-  priority: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
+  priority: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   dueDate: string | null;
   createdAt: string;
   updatedAt: string;

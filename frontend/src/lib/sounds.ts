@@ -96,39 +96,48 @@ export const sounds = {
   },
 
   click() {
-    tone({ freq: 720, duration: 0.05, type: 'sine', gainPeak: 0.045 });
+    tone({ freq: 720, duration: 0.055, type: 'sine', gainPeak: 0.09 });
   },
   hover() {
-    tone({ freq: 950, duration: 0.03, type: 'sine', gainPeak: 0.015 });
+    tone({ freq: 950, duration: 0.035, type: 'sine', gainPeak: 0.032 });
   },
   taskDone() {
-    tone({ freq: 587, duration: 0.09, type: 'sine', gainPeak: 0.07, filterFreq: 2400 });
-    tone({ freq: 880, duration: 0.15, type: 'sine', gainPeak: 0.055, delay: 0.05, filterFreq: 3200 });
+    tone({ freq: 587, duration: 0.1, type: 'sine', gainPeak: 0.13, filterFreq: 2600 });
+    tone({ freq: 880, duration: 0.16, type: 'sine', gainPeak: 0.1, delay: 0.05, filterFreq: 3400 });
   },
   taskUndone() {
-    tone({ freq: 440, duration: 0.08, type: 'sine', gainPeak: 0.045, pitchGlideTo: 340 });
+    tone({ freq: 440, duration: 0.09, type: 'sine', gainPeak: 0.085, pitchGlideTo: 340 });
   },
   addItem() {
-    tone({ freq: 480, duration: 0.07, type: 'triangle', gainPeak: 0.05 });
-    tone({ freq: 720, duration: 0.09, type: 'sine', gainPeak: 0.035, delay: 0.03 });
+    tone({ freq: 480, duration: 0.08, type: 'triangle', gainPeak: 0.095 });
+    tone({ freq: 720, duration: 0.1, type: 'sine', gainPeak: 0.065, delay: 0.03 });
   },
   deleteItem() {
-    tone({ freq: 340, duration: 0.1, type: 'sine', gainPeak: 0.045, pitchGlideTo: 180 });
-    tone({ freq: 220, duration: 0.12, type: 'sine', gainPeak: 0.03, delay: 0.04 });
+    tone({ freq: 340, duration: 0.11, type: 'sine', gainPeak: 0.085, pitchGlideTo: 180 });
+    tone({ freq: 220, duration: 0.13, type: 'sine', gainPeak: 0.055, delay: 0.04 });
   },
   success() {
-    tone({ freq: 523, duration: 0.1, type: 'sine', gainPeak: 0.06 });
-    tone({ freq: 659, duration: 0.1, type: 'sine', gainPeak: 0.055, delay: 0.08 });
-    tone({ freq: 784, duration: 0.18, type: 'sine', gainPeak: 0.055, delay: 0.16 });
+    tone({ freq: 523, duration: 0.11, type: 'sine', gainPeak: 0.11 });
+    tone({ freq: 659, duration: 0.11, type: 'sine', gainPeak: 0.1, delay: 0.08 });
+    tone({ freq: 784, duration: 0.19, type: 'sine', gainPeak: 0.1, delay: 0.16 });
   },
   error() {
-    tone({ freq: 210, duration: 0.14, type: 'square', gainPeak: 0.025, filterFreq: 800 });
-    tone({ freq: 170, duration: 0.16, type: 'square', gainPeak: 0.02, delay: 0.06, filterFreq: 700 });
+    tone({ freq: 210, duration: 0.15, type: 'square', gainPeak: 0.05, filterFreq: 850 });
+    tone({ freq: 170, duration: 0.17, type: 'square', gainPeak: 0.04, delay: 0.06, filterFreq: 750 });
   },
   celebrate() {
     const notes = [523, 659, 784, 1046];
     notes.forEach((freq, i) => {
-      tone({ freq, duration: 0.22, type: 'sine', gainPeak: 0.05, delay: i * 0.08, filterFreq: 3800 });
+      tone({ freq, duration: 0.24, type: 'sine', gainPeak: 0.095, delay: i * 0.08, filterFreq: 4000 });
     });
+  },
+  // صوت بيتغيّر طبقته حسب مستوى الأولوية المُختارة (0 بدون → 4 حرجة):
+  // كل ما الأولوية أعلى، النغمة أعلى وأوضح، فالودن نفسه بيدّي إحساس بالخطورة.
+  priorityChange(level: number) {
+    const base = 380 + level * 95;
+    tone({ freq: base, duration: 0.075, type: 'triangle', gainPeak: 0.08 + level * 0.012, filterFreq: 3000 });
+    if (level >= 4) {
+      tone({ freq: base * 1.5, duration: 0.09, type: 'sine', gainPeak: 0.075, delay: 0.05, filterFreq: 4200 });
+    }
   },
 };

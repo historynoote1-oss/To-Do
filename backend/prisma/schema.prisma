@@ -46,11 +46,15 @@ model AdminAuditLog {
   createdAt      DateTime @default(now())
 }
 
+// TodoList بتمثّل "المهمة الرئيسية" في واجهة المستخدم — عنوانها وأولويتها
+// بيوصفوا الهدف الكبير، وكل عناصرها (TodoItem) دي المهام الفرعية اللي بتتحقق
+// بيها المهمة الرئيسية خطوة خطوة.
 model TodoList {
   id        String     @id @default(cuid())
   userId    String
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String     @default("قائمتي")
+  priority  Priority   @default(NONE)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   items     TodoItem[]
@@ -59,6 +63,7 @@ model TodoList {
   @@index([userId])
 }
 
+// TodoItem بتمثّل "المهمة الفرعية" جوه المهمة الرئيسية.
 model TodoItem {
   id        String    @id @default(cuid())
   listId    String
@@ -79,6 +84,7 @@ enum Priority {
   LOW
   MEDIUM
   HIGH
+  CRITICAL
 }
 
 // سجل تحديثات الموقع — مصمم عشان يستحمل عدد ضخم من التحديثات (مئات الآلاف)

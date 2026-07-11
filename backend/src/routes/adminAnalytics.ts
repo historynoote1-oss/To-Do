@@ -76,7 +76,7 @@ router.get('/distribution', async (_req, res) => {
     prisma.todoList.findMany({ select: { _count: { select: { items: true } } } }),
   ]);
 
-  const priorityMap: Record<string, number> = { NONE: 0, LOW: 0, MEDIUM: 0, HIGH: 0 };
+  const priorityMap: Record<string, number> = { NONE: 0, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
   for (const g of priorityGroups) priorityMap[g.priority] = g._count._all;
 
   const itemCounts = listsWithItems.map((l) => l._count.items).sort((a, b) => a - b);
