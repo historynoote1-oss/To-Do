@@ -24,6 +24,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
   const [view, setView] = useState<'todos' | 'admin'>('todos');
   const [lists, setLists] = useState<List[]>([]);
+  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [newTitle, setNewTitle] = useState('');
   const [newPriority, setNewPriority] = useState<PriorityKey>('NONE');
   const [loading, setLoading] = useState(true);
@@ -132,6 +133,17 @@ export default function App() {
 
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
 
+  const totalLists = lists.length;
+  const completedLists = lists.filter((l) => l.items.length > 0 && l.items.every((i: any) => i.isDone)).length;
+  const totalItems = lists.reduce((sum, l) => sum + l.items.length, 0);
+  const doneItems = lists.reduce((sum, l) => sum + l.items.filter((i: any) => i.isDone).length, 0);
+
+  const visibleLists = lists.filter((l) => {
+    if (filter === 'all') return true;
+    const isDone = l.items.length > 0 && l.items.every((i: any) => i.isDone);
+    return filter === 'completed' ? isDone : !isDone;
+  });
+
   if (!statusChecked) {
     return (
       <>
@@ -161,8 +173,29 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <div className="view-fade">
-          <AuthForm onSuccess={handleAuthSuccess} />
+        <div className="auth-shell view-fade">
+          <div className="auth-shell-brand">
+            <span className="auth-shell-mark" aria-hidden="true">📋</span>
+            <h2 className="auth-shell-name">قائمة المهام</h2>
+            <p className="auth-shell-tagline">مساحتك لتنظيم مهامك، بتصميم بسيط وسريع يخليك تركّز على اللي محتاج تخلّصه.</p>
+            <ul className="auth-shell-points">
+              <li>
+                <span className="auth-shell-point-icon">✓</span>
+                قوائم رئيسية ومهام فرعية بترتيب أولويات واضح
+              </li>
+              <li>
+                <span className="auth-shell-point-icon">✓</span>
+                تتبّع تقدمك بنسب مئوية ومؤشرات حية
+              </li>
+              <li>
+                <span className="auth-shell-point-icon">✓</span>
+                حماية بخطوتين وكود استرجاع لحسابك
+              </li>
+            </ul>
+          </div>
+          <div className="auth-shell-form">
+            <AuthForm onSuccess={handleAuthSuccess} />
+          </div>
         </div>
       </>
     );
@@ -192,9 +225,14 @@ export default function App() {
           </div>
         )}
         <div className="top-bar">
-          <h1>📋 المهام الرئيسية</h1>
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true">📋</span>
+            <div className="brand-text">
+              <h1>المهام الرئيسية</h1>
+              <span className="brand-subtitle">مساحتك لتنظيم مهامك اليومية</span>
+            </div>
+          </div>
           <div className="user-info">
-            <span>مرحبًا، {username}</span>
             <button
               className={`icon-btn ${muted ? '' : 'active'}`}
               onClick={handleToggleMute}
@@ -208,9 +246,28 @@ export default function App() {
                 لوحة التحكم
               </button>
             )}
+            <div className="user-chip">
+              <span className="user-chip-avatar">{username?.trim().charAt(0).toUpperCase()}</span>
+              <span className="user-chip-name">{username}</span>
+            </div>
             <button className="danger small" onClick={handleLogout}>
               خروج
             </button>
+          </div>
+        </div>
+
+        <div className="stats-row">
+          <div className="stat-card">
+            <span className="stat-card-value">{totalLists}</span>
+            <span className="stat-card-label">إجمالي المهام الرئيسية</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-card-value stat-card-success">{completedLists}</span>
+            <span className="stat-card-label">مكتملة بالكامل</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-card-value">{doneItems}/{totalItems}</span>
+            <span className="stat-card-label">مهام فرعية منجزة</span>
           </div>
         </div>
 
@@ -244,11 +301,51 @@ export default function App() {
           </p>
         )}
 
-        {!loading && lists.length > 0 && <div className="section-heading">قوائمك ({lists.length})</div>}
+        {!loading && lists.length > 0 && (
+          <div className="list-toolbar">
+            <div className="section-heading">قوائمك ({visibleLists.length})</div>
+            <div className="filter-tabs" role="tablist" aria-label="فلترة القوائم">
+              <button
+                className={filter === 'all' ? 'active' : ''}
+                onClick={() => setFilter('all')}
+                type="button"
+                role="tab"
+                aria-selected={filter === 'all'}
+              >
+                الكل
+              </button>
+              <button
+                className={filter === 'active' ? 'active' : ''}
+                onClick={() => setFilter('active')}
+                type="button"
+                role="tab"
+                aria-selected={filter === 'active'}
+              >
+                نشطة
+              </button>
+              <button
+                className={filter === 'completed' ? 'active' : ''}
+                onClick={() => setFilter('completed')}
+                type="button"
+                role="tab"
+                aria-selected={filter === 'completed'}
+              >
+                مكتملة
+              </button>
+            </div>
+          </div>
+        )}
 
-        {!loading && (
+        {!loading && lists.length > 0 && visibleLists.length === 0 && (
+          <p className="empty">
+            <span className="empty-icon">🔍</span>
+            مفيش قوائم مطابقة للفلتر ده حاليًا
+          </p>
+        )}
+
+        {!loading && visibleLists.length > 0 && (
           <div className="lists-grid">
-            {lists.map((list, i) => (
+            {visibleLists.map((list, i) => (
               <TodoList
                 key={list.id}
                 list={list}

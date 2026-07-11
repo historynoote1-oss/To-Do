@@ -5,7 +5,7 @@ import { toast } from '../lib/toast';
 import TodoItemRow from './TodoItem';
 import ConfirmModal from './ConfirmModal';
 import { PriorityBadge, PriorityPicker } from './Priority';
-import { PriorityKey } from '../lib/priority';
+import { PriorityKey, priorityOf } from '../lib/priority';
 
 const CONFETTI_COLORS = ['#e8a33d', '#f4c878', '#1f8f5e', '#d6473f', '#7b5ce8'];
 
@@ -33,6 +33,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
   const done = list.items.filter((i: any) => i.isDone).length;
   const progress = total === 0 ? 0 : Math.round((done / total) * 100);
   const isComplete = total > 0 && done === total;
+  const priorityColor = priorityOf(list.priority).color;
 
   const confettiPieces = useMemo(
     () =>
@@ -178,7 +179,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
   return (
     <div
       className={`list-card ${isComplete ? 'list-complete' : ''}`}
-      style={{ position: 'relative', animationDelay: `${delay}ms` }}
+      style={{ position: 'relative', animationDelay: `${delay}ms`, ['--card-accent' as any]: isComplete ? 'var(--success)' : priorityColor }}
     >
       {confettiOn && (
         <div className="confetti-layer">

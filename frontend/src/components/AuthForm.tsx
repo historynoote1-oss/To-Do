@@ -199,7 +199,8 @@ export default function AuthForm({
 
   return (
     <div className="auth-container">
-      <h1>قائمة المهام</h1>
+      <h1>أهلاً بيك 👋</h1>
+      <p className="auth-container-subtitle">{mode === 'login' ? 'سجّل دخولك عشان تكمل شغلك' : 'اعمل حساب جديد وابدأ تنظيم مهامك'}</p>
       {!hideRegister && (
         <div className="auth-tabs">
           <span className={`auth-tabs-indicator ${mode === 'register' ? 'mode-register' : ''}`} />
