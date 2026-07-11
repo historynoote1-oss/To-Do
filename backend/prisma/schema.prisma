@@ -22,6 +22,34 @@ model User {
   createdAt           DateTime   @default(now())
   lists               TodoList[]
 
+  // ===== البريد الإلكتروني + استرجاع كلمة المرور =====
+  // email nullable عشان الحسابات القديمة (النظام القديم اسم مستخدم+باسورد بس)
+  // بتتسجّل من غير إيميل مبدئيًا لحد ما تكمّل "إعادة التأهيل" (rehabilitation)؛
+  // أي حساب جديد من دلوقتي لازم يبقى معاه إيميل من لحظة التسجيل.
+  email                       String?   @unique
+  emailVerified               Boolean   @default(false)
+  emailVerificationTokenHash  String?
+  emailVerificationExpiresAt  DateTime?
+  emailVerificationSentAt     DateTime?
+
+  // بيتخزن الـ hash بتاع توكن استرجاع كلمة المرور بس (مش التوكن نفسه)،
+  // زي ما بيتعمل بالظبط مع الباسورد — لو حصل تسريب لقاعدة البيانات، التوكن
+  // الخام لسه محتاج معرفة الرابط الأصلي اللي اتبعت في الإيميل.
+  resetTokenHash        String?
+  resetTokenExpiresAt   DateTime?
+  resetTokenRequestedAt DateTime?
+
+  passwordUpdatedAt DateTime?
+
+  // ===== إعادة تأهيل الحسابات القديمة (Username+Password بسيط، من غير إيميل) =====
+  // legacyAccount: علامة تاريخية دايمة إن الحساب ده أصله من النظام القديم.
+  // mustRehabilitate: طالما true، الحساب ممنوع يستخدم أي حاجة في الموقع غير
+  // مسار إعادة التأهيل نفسه (شوف middleware/rehabilitationGate.ts)، وده بيتصفّر
+  // تلقائيًا أول ما المستخدم يضيف إيميل صحيح وكلمة مرور جديدة قوية.
+  legacyAccount    Boolean   @default(false)
+  mustRehabilitate Boolean   @default(false)
+  rehabilitatedAt  DateTime?
+
   // ===== التحقق بخطوتين (2FA / TOTP) — لحسابات الأدمن =====
   // twoFactorSecret بيتفعّل بس بعد ما الأدمن يأكّد بكود صحيح من تطبيق المصادقة.
   // pendingTwoFactorSecret ده تخزين مؤقت أثناء خطوة الإعداد نفسها، قبل التأكيد،

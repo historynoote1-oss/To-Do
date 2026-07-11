@@ -15,6 +15,7 @@ import twoFactorRoutes from './routes/twoFactor';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
+import { rehabilitationGate } from './middleware/rehabilitationGate';
 
 const app = express();
 
@@ -92,13 +93,13 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 app.use('/api/site', siteStatusLimiter, siteRoutes);
 
-app.use('/api/lists', verifyUser, maintenanceGate, listsRoutes);
-app.use('/api/admin/analytics', verifyUser, requireAdmin, adminLimiter, adminAnalyticsRoutes);
-app.use('/api/admin/content', verifyUser, requireAdmin, adminLimiter, adminContentRoutes);
-app.use('/api/admin/settings', verifyUser, requireAdmin, adminLimiter, adminSettingsRoutes);
-app.use('/api/admin', verifyUser, requireAdmin, adminLimiter, adminRoutes);
+app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRoutes);
+app.use('/api/admin/analytics', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminAnalyticsRoutes);
+app.use('/api/admin/content', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminContentRoutes);
+app.use('/api/admin/settings', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminSettingsRoutes);
+app.use('/api/admin', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminRoutes);
 // المسار العام ده لازم يكون آخر واحد، لأنه بيتطابق مع أي حاجة تبدأ بـ /api
-app.use('/api', verifyUser, maintenanceGate, itemsRoutes);
+app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, itemsRoutes);
 
 app.get('/', (_req, res) => res.send('Todo Backend يعمل ✅'));
 

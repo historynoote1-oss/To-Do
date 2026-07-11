@@ -1,6 +1,28 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { login, register, verifyLoginTwoFactor } from '../lib/api';
 import { sounds } from '../lib/sounds';
+import RehabilitationForm from './RehabilitationForm';
+import ForgotPasswordForm from './ForgotPasswordForm';
+
+// لازم يفضل متطابق مع MIN_PASSWORD_LENGTH في backend/src/lib/auth.ts
+const MIN_PASSWORD_LENGTH = 10;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// تقييم بسيط لقوة كلمة المرور على جهاز المستخدم نفسه (مفيش أي إرسال أو
+// تخزين) — مجرد مؤشر بصري يساعده يختار كلمة مرور أقوى قبل ما يبعتها أصلاً.
+function passwordStrength(password: string): { score: 0 | 1 | 2 | 3; label: string } {
+  if (!password) return { score: 0, label: '' };
+  let score = 0;
+  if (password.length >= MIN_PASSWORD_LENGTH) score++;
+  if (password.length >= 12) score++;
+  const varietyCount = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter((r) => r.test(password)).length;
+  if (varietyCount >= 3) score++;
+
+  if (password.length < MIN_PASSWORD_LENGTH) return { score: 0, label: 'قصيرة جدًا' };
+  if (score <= 1) return { score: 1, label: 'ضعيفة' };
+  if (score === 2) return { score: 2, label: 'متوسطة' };
+  return { score: 3, label: 'قوية' };
+}
 
 export default function AuthForm({
   onSuccess,
@@ -11,10 +33,30 @@ export default function AuthForm({
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const strength = useMemo(() => passwordStrength(password), [password]);
+  const usernameTooShort = mode === 'register' && username.length > 0 && username.trim().length < 3;
+  const emailInvalid = mode === 'register' && email.length > 0 && !EMAIL_REGEX.test(email.trim());
+  const passwordTooShort = mode === 'register' && password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+  const passwordsMismatch =
+    mode === 'register' && confirmPassword.length > 0 && confirmPassword !== password;
+  const canSubmit =
+    mode === 'login'
+      ? username.trim().length > 0 && password.length > 0
+      : username.trim().length >= 3 &&
+        EMAIL_REGEX.test(email.trim()) &&
+        password.length >= MIN_PASSWORD_LENGTH &&
+        confirmPassword === password;
+
+  // ===== حساب قديم محتاج إعادة تأهيل — بيظهر بدل النموذج العادي بعد login =====
+  const [rehabToken, setRehabToken] = useState<string | null>(null);
 
   // ===== خطوة التحقق بخطوتين (2FA) — بتظهر بس لو الحساب أدمن ومفعّل عليه =====
   const [pendingToken, setPendingToken] = useState<string | null>(null);
@@ -25,10 +67,36 @@ export default function AuthForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (mode === 'register') {
+      if (username.trim().length < 3) {
+        setError('اسم المستخدم لازم يكون 3 أحرف على الأقل');
+        return;
+      }
+      if (!EMAIL_REGEX.test(email.trim())) {
+        setError('صيغة الإيميل مش صحيحة');
+        return;
+      }
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        setError(`كلمة المرور لازم تكون ${MIN_PASSWORD_LENGTH} أحرف على الأقل`);
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('كلمة المرور وتأكيدها مش متطابقين');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const fn = mode === 'login' ? login : register;
-      const data = await fn(username.trim(), password);
+      const data =
+        mode === 'login' ? await login(username.trim(), password) : await register(username.trim(), email.trim(), password);
+
+      if (data.requiresRehabilitation) {
+        sounds.click();
+        setRehabToken(data.rehabToken);
+        return;
+      }
       if (data.requiresTwoFactor) {
         sounds.click();
         setPendingToken(data.pendingToken);
@@ -61,6 +129,20 @@ export default function AuthForm({
     } finally {
       setTwoFactorLoading(false);
     }
+  }
+
+  if (rehabToken) {
+    return (
+      <RehabilitationForm
+        rehabToken={rehabToken}
+        onSuccess={onSuccess}
+        onCancel={() => setRehabToken(null)}
+      />
+    );
+  }
+
+  if (showForgotPassword) {
+    return <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />;
   }
 
   if (pendingToken) {
@@ -111,6 +193,7 @@ export default function AuthForm({
               sounds.click();
               setMode('login');
               setError(null);
+              setConfirmPassword('');
             }}
             type="button"
           >
@@ -129,37 +212,118 @@ export default function AuthForm({
           </button>
         </div>
       )}
-      <form onSubmit={handleSubmit} className="auth-form">
-        <input
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="اسم المستخدم"
-          autoComplete="username"
-          required
-        />
-        <div className="input-wrapper">
+      <form onSubmit={handleSubmit} className="auth-form" noValidate>
+        <div className="field-group">
+          <label htmlFor="auth-username" className="sr-only">
+            اسم المستخدم
+          </label>
           <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="كلمة المرور"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            id="auth-username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="اسم المستخدم"
+            autoComplete="username"
+            autoFocus
+            aria-invalid={usernameTooShort}
             required
           />
-          <button
-            type="button"
-            className="input-eye"
-            onClick={() => setShowPassword((v) => !v)}
-            aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-            tabIndex={-1}
-          >
-            {showPassword ? '🙈' : '👁️'}
-          </button>
+          {usernameTooShort && <p className="field-hint">لازم 3 أحرف على الأقل</p>}
         </div>
+
+        {mode === 'register' && (
+          <div className="field-group">
+            <label htmlFor="auth-email" className="sr-only">
+              البريد الإلكتروني
+            </label>
+            <input
+              id="auth-email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="البريد الإلكتروني"
+              type="email"
+              autoComplete="email"
+              aria-invalid={emailInvalid}
+              required
+            />
+            {emailInvalid && <p className="field-hint field-hint-error">صيغة الإيميل مش صحيحة</p>}
+            <p className="field-hint">هيُستخدم لاسترجاع كلمة المرور لو نسيتها</p>
+          </div>
+        )}
+
+        <div className="field-group">
+          <label htmlFor="auth-password" className="sr-only">
+            كلمة المرور
+          </label>
+          <div className="input-wrapper">
+            <input
+              id="auth-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="كلمة المرور"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              aria-invalid={passwordTooShort}
+              required
+            />
+            <button
+              type="button"
+              className="input-eye"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+              tabIndex={-1}
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
+          {mode === 'register' && password.length > 0 && (
+            <div className={`password-strength strength-${strength.score}`}>
+              <span className="password-strength-bar">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="password-strength-label">{strength.label}</span>
+            </div>
+          )}
+        </div>
+
+        {mode === 'register' && (
+          <div className="field-group">
+            <label htmlFor="auth-confirm-password" className="sr-only">
+              تأكيد كلمة المرور
+            </label>
+            <input
+              id="auth-confirm-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="تأكيد كلمة المرور"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              aria-invalid={passwordsMismatch}
+              required
+            />
+            {passwordsMismatch && <p className="field-hint field-hint-error">كلمة المرور مش متطابقة</p>}
+          </div>
+        )}
+
         {error && <p className="error">⚠️ {error}</p>}
-        <button type="submit" disabled={loading}>
+
+        <button type="submit" disabled={loading || !canSubmit}>
           {loading ? 'جاري التحميل...' : mode === 'login' ? 'دخول' : 'إنشاء حساب'}
         </button>
+
+        {mode === 'login' && (
+          <button
+            type="button"
+            className="auth-forgot-hint auth-forgot-link"
+            onClick={() => {
+              sounds.click();
+              setShowForgotPassword(true);
+            }}
+          >
+            نسيت كلمة المرور؟
+          </button>
+        )}
       </form>
     </div>
   );

@@ -245,6 +245,19 @@ export default function AdminUsersPanel() {
                 {isLocked(u) && <span className="suspended-badge">مقفول مؤقتًا</span>}
               </strong>
               {u.isAdmin && <span className="admin-badge">أدمن</span>}
+              {u.mustRehabilitate && (
+                <span className="suspended-badge" title="لسه محتاج يعمل إعادة تأهيل عشان يقدر يستخدم الموقع">
+                  محتاج إعادة تأهيل
+                </span>
+              )}
+              {u.legacyAccount && !u.mustRehabilitate && (
+                <span className="user-row-meta" title="اتسجّل أصلًا بالنظام القديم وخلّص إعادة التأهيل">
+                  ✅ حساب قديم اتأهّل
+                </span>
+              )}
+              <span className="user-row-meta">
+                {u.email ? `${u.email}${u.emailVerified ? ' ✅' : ' (مش متأكد)'}` : 'بدون إيميل'}
+              </span>
               <span className="user-row-meta">
                 {u._count.lists} قائمة · انضم {new Date(u.createdAt).toLocaleDateString('ar-EG')}
               </span>

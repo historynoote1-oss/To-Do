@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 export interface AuthRequest extends Request {
   userId?: string;
   isAdmin?: boolean;
+  mustRehabilitate?: boolean;
 }
 
 // بيتحقق من التوكن، وكمان بيراجع القاعدة في كل طلب عشان يتأكد إن الحساب
@@ -20,7 +21,7 @@ export async function verifyUser(req: AuthRequest, res: Response, next: NextFunc
     const payload = verifyToken(token);
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, isActive: true, tokenVersion: true, isAdmin: true },
+      select: { id: true, isActive: true, tokenVersion: true, isAdmin: true, mustRehabilitate: true },
     });
 
     if (!user || !user.isActive) {
@@ -32,6 +33,7 @@ export async function verifyUser(req: AuthRequest, res: Response, next: NextFunc
 
     req.userId = user.id;
     req.isAdmin = user.isAdmin;
+    req.mustRehabilitate = user.mustRehabilitate;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'الجلسة انتهت، سجل دخول تاني' });
