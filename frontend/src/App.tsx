@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { getLists, createList, deleteList, getSiteStatus, getProfile, MaintenanceError, SiteStatus } from './lib/api';
+import {
+  getLists,
+  createList,
+  deleteList,
+  getSiteStatus,
+  getProfile,
+  resolveAvatarUrl,
+  MaintenanceError,
+  SiteStatus,
+} from './lib/api';
 import { sounds } from './lib/sounds';
 import { toast } from './lib/toast';
 import TodoList from './components/TodoList';
@@ -25,6 +34,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
   const [view, setView] = useState<'todos' | 'admin' | 'profile'>('todos');
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [lists, setLists] = useState<List[]>([]);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [newTitle, setNewTitle] = useState('');
@@ -38,9 +48,13 @@ export default function App() {
     if (username) {
       refresh();
       getProfile()
-        .then((data) => setDisplayName(data.profile.displayName))
+        .then((data) => {
+          setDisplayName(data.profile.displayName);
+          setAvatarUrl(data.profile.avatarUrl);
+        })
         .catch(() => {
-          // اسم العرض تجميلي بس، لو فشل الطلب نسيب اسم المستخدم العادي يظهر بدله
+          // اسم العرض والأفتار تجميليين بس، لو فشل الطلب نسيب اسم المستخدم
+          // العادي وحرفه الأول يظهروا بدلهم
         });
     } else {
       setLoading(false);
@@ -101,6 +115,7 @@ export default function App() {
     setUsername(null);
     setIsAdmin(false);
     setDisplayName(null);
+    setAvatarUrl(null);
     setLists([]);
     sounds.click();
   }
@@ -227,7 +242,11 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <Profile onBack={() => setView('todos')} onDisplayNameChange={setDisplayName} />
+        <Profile
+          onBack={() => setView('todos')}
+          onDisplayNameChange={setDisplayName}
+          onAvatarChange={setAvatarUrl}
+        />
       </>
     );
   }
@@ -253,30 +272,39 @@ export default function App() {
             </div>
           </div>
           <div className="user-info">
-            <button
-              className={`icon-btn ${muted ? '' : 'active'}`}
-              onClick={handleToggleMute}
-              title={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
-              aria-label={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
-            >
-              {muted ? '🔇' : '🔊'}
-            </button>
-            {isAdmin && (
-              <button className="small" onClick={() => setView('admin')}>
-                لوحة التحكم
+            <div className="user-actions">
+              <button
+                className={`icon-btn ${muted ? '' : 'active'}`}
+                onClick={handleToggleMute}
+                title={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
+                aria-label={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
+              >
+                {muted ? '🔇' : '🔊'}
               </button>
-            )}
+              {isAdmin && (
+                <button className="small" onClick={() => setView('admin')}>
+                  لوحة التحكم
+                </button>
+              )}
+              <button className="danger small" onClick={handleLogout}>
+                خروج
+              </button>
+            </div>
+            <span className="user-info-divider" aria-hidden="true" />
             <button
               className="user-chip user-chip-button"
               onClick={() => setView('profile')}
               type="button"
               title="الملف الشخصي"
             >
-              <span className="user-chip-avatar">{(displayName || username)?.trim().charAt(0).toUpperCase()}</span>
+              <span className="user-chip-avatar">
+                {avatarUrl ? (
+                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+                ) : (
+                  (displayName || username)?.trim().charAt(0).toUpperCase()
+                )}
+              </span>
               <span className="user-chip-name">{displayName || username}</span>
-            </button>
-            <button className="danger small" onClick={handleLogout}>
-              خروج
             </button>
           </div>
         </div>

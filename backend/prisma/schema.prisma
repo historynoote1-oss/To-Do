@@ -17,10 +17,11 @@ model User {
   // ===== الملف الشخصي (اسم عرض، نبذة، أفتار) =====
   // منفصلين تمامًا عن username (اللي بيستخدم للدخول وثابت)، عشان المستخدم
   // يقدر يخصّص شكل ظهوره من غير ما يأثر على حسابه أو أي بيانات مرتبطة بيه.
+  // avatarUrl: مسار صورة الأفتار اللي المستخدم رفعها بنفسه (بدل الألوان
+  // والإيموجي القديمة) — لو null، الواجهة بتعرض الحرف الأول من اسمه بدلها.
   displayName String?
   bio         String?
-  avatarColor String? @default("#1d6f73")
-  avatarEmoji String?
+  avatarUrl   String?
   tokenVersion        Int        @default(0)
   lastLoginAt         DateTime?
   lastLoginIp         String?

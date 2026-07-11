@@ -11,6 +11,15 @@ function authHeaders() {
   };
 }
 
+// من غير Content-Type عن قصد: لما بنبعت FormData (رفع صورة الأفتار)، لازم
+// المتصفح هو اللي يحدد الـ Content-Type بنفسه (multipart/form-data مع
+// boundary)، فلو ثبّتناه يدوي هنا هيبوّظ الطلب.
+function authHeadersNoContentType() {
+  return {
+    Authorization: `Bearer ${getToken()}`,
+  };
+}
+
 // خطأ مخصوص لوضع الصيانة عشان الواجهة تقدر تفرّق بينه وبين أي خطأ عادي
 // وتحوّل المستخدم لصفحة الصيانة فورًا بدل ما تعرضله toast عادي بس.
 export class MaintenanceError extends Error {
@@ -540,13 +549,20 @@ export interface ProfileData {
   username: string;
   displayName: string | null;
   bio: string | null;
-  avatarColor: string;
-  avatarEmoji: string | null;
+  avatarUrl: string | null;
   isAdmin: boolean;
   createdAt: string;
   lastLoginAt: string | null;
   twoFactorEnabled: boolean;
   legacyAccount: boolean;
+}
+
+// صور الأفتار بترجع من السيرفر كمسار نسبي (مثلًا /uploads/avatars/xxx.jpg)،
+// فلازم نضيف رابط السيرفر نفسه قبلها عشان نقدر نعرضها في <img>.
+export function resolveAvatarUrl(avatarUrl: string | null | undefined): string | null {
+  if (!avatarUrl) return null;
+  if (/^https?:\/\//.test(avatarUrl)) return avatarUrl;
+  return `${API_URL}${avatarUrl}`;
 }
 
 export interface ProfileStats {
@@ -561,7 +577,6 @@ export interface ProfileStats {
 export interface ProfileResponse {
   profile: ProfileData;
   stats: ProfileStats;
-  avatarOptions: { colors: string[]; emojis: string[] };
 }
 
 export async function getProfile(): Promise<ProfileResponse> {
@@ -572,13 +587,33 @@ export async function getProfile(): Promise<ProfileResponse> {
 export async function updateProfile(data: {
   displayName?: string | null;
   bio?: string | null;
-  avatarColor?: string | null;
-  avatarEmoji?: string | null;
 }): Promise<{ profile: ProfileData }> {
   const res = await fetch(`${API_URL}/api/profile`, {
     method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+// بيرفع صورة الأفتار الجديدة كـ multipart/form-data ويرجع الملف الشخصي
+// محدّث بمسار الصورة الجديدة.
+export async function uploadAvatar(file: File): Promise<{ profile: ProfileData }> {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  const res = await fetch(`${API_URL}/api/profile/avatar`, {
+    method: 'POST',
+    headers: authHeadersNoContentType(),
+    body: formData,
+  });
+  return handle(res);
+}
+
+// بيشيل صورة الأفتار الحالية ويرجّع العرض لحرف اسمك الأول بدلها.
+export async function removeAvatar(): Promise<{ profile: ProfileData }> {
+  const res = await fetch(`${API_URL}/api/profile/avatar`, {
+    method: 'DELETE',
+    headers: authHeadersNoContentType(),
   });
   return handle(res);
 }

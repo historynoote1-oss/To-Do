@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -48,6 +49,19 @@ app.use(
   })
 );
 app.use(express.json());
+
+// صور الأفتار المرفوعة بتتعرض من هنا كملفات ثابتة عامة (بدون تسجيل دخول،
+// زي أي رابط صورة عادي). الـ CSP اللي فوق مضيّق جدًا لأنه مبني على إن الـ
+// API كله JSON، فهنا بنستثني المسار ده فقط ونفتح Cross-Origin-Resource-Policy
+// عشان الفرونت إند (على دومين تاني غالبًا) يقدر يعرض الصور في <img> عادي.
+app.use(
+  '/uploads',
+  express.static(path.join(process.cwd(), 'uploads'), {
+    setHeaders: (res) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    },
+  })
+);
 
 // حماية ضد محاولات تخمين كلمة المرور المتكررة على مستوى الـ IP: 10 محاولات كل 15 دقيقة لكل جهاز
 // (وفي جانب الحساب نفسه، فيه حماية إضافية جوه routes/auth.ts بتقفل الحساب بعد محاولات فاشلة كتير)

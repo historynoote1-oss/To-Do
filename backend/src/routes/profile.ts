@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
+import multer from 'multer';
+import { avatarUpload, deleteAvatarFile } from '../lib/avatarUpload';
 import {
   hashPassword,
   comparePassword,
@@ -13,21 +15,6 @@ import {
 
 const router = Router();
 
-// نفس لوحة الألوان المسموحة في التصميم الجديد (Ink & Pine) — بنتحقق من القيمة
-// في السيرفر برضو عشان محدش يقدر يبعت أي لون عشوائي مباشرة للـ API.
-const AVATAR_COLORS = [
-  '#1d6f73', // pine (أساسي)
-  '#0f4649', // pine غامق
-  '#2e8b57', // نجاح
-  '#c1443a', // خطر
-  '#6b5fd1', // معلومة
-  '#b5652f', // طيني
-  '#3d6fbf', // أزرق
-  '#8a6a10', // كهرماني غامق
-];
-
-const AVATAR_EMOJIS = ['😀', '🚀', '🔥', '🌟', '🎯', '📚', '💡', '🎨', '🧠', '🌙', '🌱', '⚡'];
-
 const MAX_DISPLAY_NAME = 40;
 const MAX_BIO = 160;
 
@@ -35,8 +22,7 @@ function serializeProfile(user: {
   username: string;
   displayName: string | null;
   bio: string | null;
-  avatarColor: string | null;
-  avatarEmoji: string | null;
+  avatarUrl: string | null;
   isAdmin: boolean;
   createdAt: Date;
   lastLoginAt: Date | null;
@@ -47,8 +33,7 @@ function serializeProfile(user: {
     username: user.username,
     displayName: user.displayName,
     bio: user.bio,
-    avatarColor: user.avatarColor || AVATAR_COLORS[0],
-    avatarEmoji: user.avatarEmoji,
+    avatarUrl: user.avatarUrl,
     isAdmin: user.isAdmin,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt,
@@ -66,8 +51,7 @@ router.get('/', async (req: AuthRequest, res) => {
       username: true,
       displayName: true,
       bio: true,
-      avatarColor: true,
-      avatarEmoji: true,
+      avatarUrl: true,
       isAdmin: true,
       createdAt: true,
       lastLoginAt: true,
@@ -101,18 +85,15 @@ router.get('/', async (req: AuthRequest, res) => {
   res.json({
     profile: serializeProfile(user),
     stats: { totalLists, completedLists, totalItems, doneItems, completionRate, priority },
-    avatarOptions: { colors: AVATAR_COLORS, emojis: AVATAR_EMOJIS },
   });
 });
 
 // تحديث بيانات العرض بس (اسم عرض، نبذة، أفتار) — مفيش أي حقل حساس هنا
 // (مش username ولا باسورد)، فمش محتاجين تأكيد كلمة مرور للعملية دي.
 router.patch('/', async (req: AuthRequest, res) => {
-  const { displayName, bio, avatarColor, avatarEmoji } = req.body as {
+  const { displayName, bio } = req.body as {
     displayName?: string | null;
     bio?: string | null;
-    avatarColor?: string | null;
-    avatarEmoji?: string | null;
   };
 
   const data: Record<string, unknown> = {};
@@ -133,28 +114,13 @@ router.patch('/', async (req: AuthRequest, res) => {
     data.bio = trimmed;
   }
 
-  if (avatarColor !== undefined) {
-    if (avatarColor && !AVATAR_COLORS.includes(avatarColor)) {
-      return res.status(400).json({ error: 'لون غير متاح' });
-    }
-    data.avatarColor = avatarColor || AVATAR_COLORS[0];
-  }
-
-  if (avatarEmoji !== undefined) {
-    if (avatarEmoji && !AVATAR_EMOJIS.includes(avatarEmoji)) {
-      return res.status(400).json({ error: 'إيموجي غير متاح' });
-    }
-    data.avatarEmoji = avatarEmoji || null;
-  }
-
   const updated = await prisma.user.update({
     where: { id: req.userId! },
     select: {
       username: true,
       displayName: true,
       bio: true,
-      avatarColor: true,
-      avatarEmoji: true,
+      avatarUrl: true,
       isAdmin: true,
       createdAt: true,
       lastLoginAt: true,
@@ -163,6 +129,78 @@ router.patch('/', async (req: AuthRequest, res) => {
     },
     data,
   });
+
+  res.json({ profile: serializeProfile(updated) });
+});
+
+// رفع صورة أفتار جديدة (multipart/form-data، حقل اسمه "avatar") — بتحذف
+// الصورة القديمة من على القرص لو موجودة، وبترجع الملف الشخصي محدّث بمسار
+// الصورة الجديدة (avatarUrl) عشان الواجهة تعرضها فورًا من غير reload.
+router.post('/avatar', (req: AuthRequest, res) => {
+  avatarUpload(req, res, async (err: unknown) => {
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'حجم الصورة أكبر من الحد المسموح (3 ميجابايت)' });
+      }
+      const message = err instanceof Error ? err.message : 'تعذّر رفع الصورة';
+      return res.status(400).json({ error: message });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'لازم تختار صورة عشان ترفعها' });
+    }
+
+    const previous = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      select: { avatarUrl: true },
+    });
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const updated = await prisma.user.update({
+      where: { id: req.userId! },
+      select: {
+        username: true,
+        displayName: true,
+        bio: true,
+        avatarUrl: true,
+        isAdmin: true,
+        createdAt: true,
+        lastLoginAt: true,
+        twoFactorEnabled: true,
+        legacyAccount: true,
+      },
+      data: { avatarUrl },
+    });
+
+    if (previous?.avatarUrl) deleteAvatarFile(previous.avatarUrl);
+
+    res.json({ profile: serializeProfile(updated) });
+  });
+});
+
+// حذف صورة الأفتار الحالية والرجوع لعرض الحرف الأول من الاسم بدلها.
+router.delete('/avatar', async (req: AuthRequest, res) => {
+  const previous = await prisma.user.findUnique({
+    where: { id: req.userId! },
+    select: { avatarUrl: true },
+  });
+
+  const updated = await prisma.user.update({
+    where: { id: req.userId! },
+    select: {
+      username: true,
+      displayName: true,
+      bio: true,
+      avatarUrl: true,
+      isAdmin: true,
+      createdAt: true,
+      lastLoginAt: true,
+      twoFactorEnabled: true,
+      legacyAccount: true,
+    },
+    data: { avatarUrl: null },
+  });
+
+  if (previous?.avatarUrl) deleteAvatarFile(previous.avatarUrl);
 
   res.json({ profile: serializeProfile(updated) });
 });

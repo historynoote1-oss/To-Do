@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getProfile,
   updateProfile,
+  uploadAvatar,
+  removeAvatar,
+  resolveAvatarUrl,
   changeOwnPassword,
   regenerateOwnRecoveryCode,
   ProfileData,
@@ -12,25 +15,28 @@ import { toast } from '../lib/toast';
 import { sounds } from '../lib/sounds';
 
 const PRIORITY_ORDER: PriorityKey[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'];
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
 
 export default function Profile({
   onBack,
   onDisplayNameChange,
+  onAvatarChange,
 }: {
   onBack: () => void;
   onDisplayNameChange?: (name: string | null) => void;
+  onAvatarChange?: (avatarUrl: string | null) => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [stats, setStats] = useState<ProfileStats | null>(null);
-  const [colors, setColors] = useState<string[]>([]);
-  const [emojis, setEmojis] = useState<string[]>([]);
 
   // ---- نموذج تعديل الملف الشخصي ----
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
-  const [avatarColor, setAvatarColor] = useState('');
-  const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
   // ---- نموذج تغيير كلمة المرور ----
@@ -58,12 +64,9 @@ export default function Profile({
       const data = await getProfile();
       setProfile(data.profile);
       setStats(data.stats);
-      setColors(data.avatarOptions.colors);
-      setEmojis(data.avatarOptions.emojis);
       setDisplayName(data.profile.displayName || '');
       setBio(data.profile.bio || '');
-      setAvatarColor(data.profile.avatarColor);
-      setAvatarEmoji(data.profile.avatarEmoji);
+      setAvatarUrl(data.profile.avatarUrl);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر تحميل الملف الشخصي');
     } finally {
@@ -77,8 +80,6 @@ export default function Profile({
       const res = await updateProfile({
         displayName: displayName.trim() || null,
         bio: bio.trim() || null,
-        avatarColor,
-        avatarEmoji,
       });
       setProfile(res.profile);
       onDisplayNameChange?.(res.profile.displayName);
@@ -89,6 +90,53 @@ export default function Profile({
       toast.error(err instanceof Error ? err.message : 'تعذّر حفظ الملف الشخصي');
     } finally {
       setSavingProfile(false);
+    }
+  }
+
+  async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // يسمح باختيار نفس الملف تاني لو احتاج المستخدم كده
+    if (!file) return;
+
+    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+      sounds.error();
+      toast.error('الصورة لازم تكون JPG أو PNG أو WEBP أو GIF');
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      sounds.error();
+      toast.error('حجم الصورة أكبر من 3 ميجابايت');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const res = await uploadAvatar(file);
+      setAvatarUrl(res.profile.avatarUrl);
+      onAvatarChange?.(res.profile.avatarUrl);
+      sounds.success();
+      toast.success('اتغيّرت صورة الأفتار ✅');
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر رفع الصورة');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    setUploadingAvatar(true);
+    try {
+      const res = await removeAvatar();
+      setAvatarUrl(res.profile.avatarUrl);
+      onAvatarChange?.(res.profile.avatarUrl);
+      sounds.click();
+      toast.success('اتشالت صورة الأفتار');
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر حذف الصورة');
+    } finally {
+      setUploadingAvatar(false);
     }
   }
 
@@ -167,8 +215,12 @@ export default function Profile({
       </div>
 
       <div className="profile-hero">
-        <div className="profile-avatar" style={{ background: avatarColor }} aria-hidden="true">
-          {avatarEmoji || initials}
+        <div className="profile-avatar">
+          {avatarUrl ? (
+            <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+          ) : (
+            <span aria-hidden="true">{initials}</span>
+          )}
         </div>
         <div className="profile-hero-info">
           <h1>{profile.displayName || profile.username}</h1>
@@ -250,44 +302,44 @@ export default function Profile({
             />
           </div>
           <div className="settings-field">
-            <label>لون الأفتار</label>
-            <div className="avatar-color-picker">
-              {colors.map((c) => (
+            <label>صورة الأفتار</label>
+            <div className="avatar-upload-row">
+              <div className={`avatar-upload-preview ${uploadingAvatar ? 'is-loading' : ''}`}>
+                {avatarUrl ? (
+                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+                ) : (
+                  <span aria-hidden="true">{initials}</span>
+                )}
+                {uploadingAvatar && <span className="avatar-upload-spinner" aria-hidden="true" />}
+              </div>
+              <div className="avatar-upload-actions">
                 <button
-                  key={c}
                   type="button"
-                  className={`avatar-color-option ${avatarColor === c ? 'selected' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => {
-                    setAvatarColor(c);
-                    sounds.hover();
-                  }}
-                  aria-label={c}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="settings-field">
-            <label>إيموجي الأفتار (اختياري)</label>
-            <div className="emoji-picker">
-              <button
-                type="button"
-                className={`emoji-option ${!avatarEmoji ? 'selected' : ''}`}
-                onClick={() => setAvatarEmoji(null)}
-                title="الحروف الأولى من اسمك"
-              >
-                {initials}
-              </button>
-              {emojis.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  className={`emoji-option ${avatarEmoji === e ? 'selected' : ''}`}
-                  onClick={() => setAvatarEmoji(e)}
+                  className="small"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
                 >
-                  {e}
+                  {uploadingAvatar ? 'جاري الرفع...' : avatarUrl ? 'تغيير الصورة' : 'رفع صورة'}
                 </button>
-              ))}
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    className="small danger"
+                    onClick={handleRemoveAvatar}
+                    disabled={uploadingAvatar}
+                  >
+                    حذف الصورة
+                  </button>
+                )}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleAvatarSelect}
+                  hidden
+                />
+                <p className="modal-hint">JPG أو PNG أو WEBP أو GIF — أقل من 3 ميجابايت</p>
+              </div>
             </div>
           </div>
           <div className="modal-actions">
