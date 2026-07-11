@@ -64,10 +64,13 @@ const updatesLimiter = rateLimit({
 app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/api/lists', verifyUser, listsRoutes);
-app.use('/api', verifyUser, itemsRoutes);
 app.use('/api/updates', updatesLimiter, updatesRoutes);
 app.use('/api/admin/updates', verifyUser, requireAdmin, adminLimiter, adminUpdatesRoutes);
 app.use('/api/admin', verifyUser, requireAdmin, adminLimiter, adminRoutes);
+// المسار العام ده لازم يكون آخر واحد، لأنه بيتطابق مع أي حاجة تبدأ بـ /api
+// (زي /api/updates)، فلو اتحط قبل المسارات المحددة هيمنعها ويطلب تسجيل دخول
+// حتى لو المفروض تبقى عامة زي صفحة التحديثات.
+app.use('/api', verifyUser, itemsRoutes);
 
 app.get('/', (_req, res) => res.send('Todo Backend يعمل ✅'));
 
