@@ -14,11 +14,11 @@ export interface PriorityDef {
 }
 
 export const PRIORITIES: PriorityDef[] = [
-  { key: 'NONE', label: 'بدون', short: 'بدون', color: '#8b93a7', bg: 'rgba(139,147,167,0.14)', glow: 'rgba(139,147,167,0.0)', level: 0 },
-  { key: 'LOW', label: 'منخفضة', short: 'منخفضة', color: '#5db3e0', bg: 'rgba(93,179,224,0.14)', glow: 'rgba(93,179,224,0.35)', level: 1 },
-  { key: 'MEDIUM', label: 'متوسطة', short: 'متوسطة', color: '#e8c34d', bg: 'rgba(232,195,77,0.16)', glow: 'rgba(232,195,77,0.4)', level: 2 },
-  { key: 'HIGH', label: 'مرتفعة', short: 'مرتفعة', color: '#e8873d', bg: 'rgba(232,135,61,0.18)', glow: 'rgba(232,135,61,0.45)', level: 3 },
-  { key: 'CRITICAL', label: 'حرجة', short: 'حرجة', color: '#f0554a', bg: 'rgba(240,85,74,0.2)', glow: 'rgba(240,85,74,0.55)', level: 4 },
+  { key: 'NONE', label: 'بدون', short: 'بدون', color: '#5b6478', bg: 'rgba(91,100,120,0.12)', glow: 'rgba(91,100,120,0.0)', level: 0 },
+  { key: 'LOW', label: 'منخفضة', short: 'منخفضة', color: '#1f6fa0', bg: 'rgba(31,111,160,0.12)', glow: 'rgba(31,111,160,0.35)', level: 1 },
+  { key: 'MEDIUM', label: 'متوسطة', short: 'متوسطة', color: '#8a6a10', bg: 'rgba(138,106,16,0.14)', glow: 'rgba(138,106,16,0.4)', level: 2 },
+  { key: 'HIGH', label: 'مرتفعة', short: 'مرتفعة', color: '#a85c1e', bg: 'rgba(168,92,30,0.16)', glow: 'rgba(168,92,30,0.45)', level: 3 },
+  { key: 'CRITICAL', label: 'حرجة', short: 'حرجة', color: '#c13327', bg: 'rgba(193,51,39,0.18)', glow: 'rgba(193,51,39,0.5)', level: 4 },
 ];
 
 export const PRIORITY_MAP: Record<PriorityKey, PriorityDef> = PRIORITIES.reduce(

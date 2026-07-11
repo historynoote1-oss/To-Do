@@ -266,7 +266,7 @@ export default function AdminUsersPanel() {
               </span>
               {u.lastLoginUserAgent && <span className="user-row-meta">الجهاز: {u.lastLoginUserAgent}</span>}
               {u.failedLoginAttempts > 0 && !isLocked(u) && (
-                <span className="user-row-meta" style={{ color: 'var(--accent)' }}>
+                <span className="user-row-meta" style={{ color: 'var(--accent-soft)' }}>
                   {u.failedLoginAttempts} محاولة دخول فاشلة مؤخرًا
                 </span>
               )}

@@ -192,7 +192,7 @@ export default function App() {
           </div>
         )}
         <div className="top-bar">
-          <h1>المهام الرئيسية</h1>
+          <h1>📋 المهام الرئيسية</h1>
           <div className="user-info">
             <span>مرحبًا، {username}</span>
             <button
@@ -243,6 +243,8 @@ export default function App() {
             مفيش مهام رئيسية لسه، ابدأ بإنشاء أول مهمة
           </p>
         )}
+
+        {!loading && lists.length > 0 && <div className="section-heading">قوائمك ({lists.length})</div>}
 
         {!loading && (
           <div className="lists-grid">

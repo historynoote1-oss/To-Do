@@ -7,7 +7,7 @@ import ConfirmModal from './ConfirmModal';
 import { PriorityBadge, PriorityPicker } from './Priority';
 import { PriorityKey } from '../lib/priority';
 
-const CONFETTI_COLORS = ['#e8a33d', '#f4c878', '#5fd9b4', '#e8615c', '#f3efe7'];
+const CONFETTI_COLORS = ['#e8a33d', '#f4c878', '#1f8f5e', '#d6473f', '#7b5ce8'];
 
 export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: any) {
   const [newItem, setNewItem] = useState('');
