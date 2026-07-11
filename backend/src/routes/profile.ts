@@ -2,7 +2,13 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import multer from 'multer';
-import { avatarUpload, deleteAvatarFile } from '../lib/avatarUpload';
+import {
+  avatarUpload,
+  deleteAvatarFile,
+  CLOUDINARY_ENABLED,
+  uploadAvatarToCloudinary,
+  deleteAvatarFromCloudinary,
+} from '../lib/avatarUpload';
 import {
   hashPassword,
   comparePassword,
@@ -154,7 +160,16 @@ router.post('/avatar', (req: AuthRequest, res) => {
       select: { avatarUrl: true },
     });
 
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    let avatarUrl: string;
+    try {
+      avatarUrl = CLOUDINARY_ENABLED
+        ? await uploadAvatarToCloudinary(req.file.buffer, req.file.mimetype, req.userId!)
+        : `/uploads/avatars/${req.file.filename}`;
+    } catch (uploadErr) {
+      const message = uploadErr instanceof Error ? uploadErr.message : 'تعذّر رفع الصورة';
+      return res.status(502).json({ error: message });
+    }
+
     const updated = await prisma.user.update({
       where: { id: req.userId! },
       select: {
@@ -200,7 +215,11 @@ router.delete('/avatar', async (req: AuthRequest, res) => {
     data: { avatarUrl: null },
   });
 
-  if (previous?.avatarUrl) deleteAvatarFile(previous.avatarUrl);
+  if (CLOUDINARY_ENABLED) {
+    await deleteAvatarFromCloudinary(req.userId!);
+  } else if (previous?.avatarUrl) {
+    deleteAvatarFile(previous.avatarUrl);
+  }
 
   res.json({ profile: serializeProfile(updated) });
 });

@@ -404,12 +404,10 @@ button:disabled {
 /* ===== Top bar ===== */
 .top-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
   margin: -20px -16px 26px;
   padding: 18px 16px;
-  flex-wrap: wrap;
-  gap: 10px;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -426,17 +424,26 @@ button:disabled {
   }
 }
 
-.user-info {
+/* الصف الأساسي: الشعار على جنب وشريحة البروفايل (الأفتار) على الجنب التاني
+   من نفس الصف دايمًا — من غير ما تنزل تحت مع باقي الأزرار لو الشاشة ضاقت. */
+.top-bar-main {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
-  color: var(--text-muted);
-  flex-wrap: wrap;
+  width: 100%;
 }
 
-.user-info > span {
-  padding-inline-end: 2px;
+/* صف تاني منفصل لأزرار الإجراءات (صوت/لوحة تحكم/خروج)، بيلف لوحده لو
+   الشاشة ضاقت من غير ما يأثر على مكان شريحة البروفايل فوق. */
+.user-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
 /* ===== Brand mark ===== */
@@ -487,30 +494,6 @@ button:disabled {
 }
 
 /* ===== User chip ===== */
-.user-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* فاصل رفيع بيفصل بصريًا بين أزرار الإجراءات (صوت/لوحة تحكم/خروج) وبين
-   ركن الحساب (الأفتار + الاسم) — نفس الفكرة المستخدمة في مواقع احترافية
-   كتير عشان ركن الحساب يبان مميز ومنفصل عن باقي أزرار التنقل. */
-.user-info-divider {
-  width: 1px;
-  height: 22px;
-  background: var(--border);
-  flex-shrink: 0;
-  margin: 0 2px;
-}
-
-@media (max-width: 520px) {
-  .user-info-divider {
-    display: none;
-  }
-}
-
 .user-chip {
   display: flex;
   align-items: center;
@@ -2867,7 +2850,7 @@ li input[type='checkbox'] {
   display: flex;
   align-items: center;
   gap: 16px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .avatar-upload-preview {
@@ -2918,6 +2901,8 @@ li input[type='checkbox'] {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .avatar-upload-actions .modal-hint {

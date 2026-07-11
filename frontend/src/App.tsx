@@ -264,33 +264,14 @@ export default function App() {
           </div>
         )}
         <div className="top-bar">
-          <div className="brand">
-            <span className="brand-mark" aria-hidden="true">📋</span>
-            <div className="brand-text">
-              <h1>المهام الرئيسية</h1>
-              <span className="brand-subtitle">مساحتك لتنظيم مهامك اليومية</span>
+          <div className="top-bar-main">
+            <div className="brand">
+              <span className="brand-mark" aria-hidden="true">📋</span>
+              <div className="brand-text">
+                <h1>المهام الرئيسية</h1>
+                <span className="brand-subtitle">مساحتك لتنظيم مهامك اليومية</span>
+              </div>
             </div>
-          </div>
-          <div className="user-info">
-            <div className="user-actions">
-              <button
-                className={`icon-btn ${muted ? '' : 'active'}`}
-                onClick={handleToggleMute}
-                title={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
-                aria-label={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
-              >
-                {muted ? '🔇' : '🔊'}
-              </button>
-              {isAdmin && (
-                <button className="small" onClick={() => setView('admin')}>
-                  لوحة التحكم
-                </button>
-              )}
-              <button className="danger small" onClick={handleLogout}>
-                خروج
-              </button>
-            </div>
-            <span className="user-info-divider" aria-hidden="true" />
             <button
               className="user-chip user-chip-button"
               onClick={() => setView('profile')}
@@ -305,6 +286,24 @@ export default function App() {
                 )}
               </span>
               <span className="user-chip-name">{displayName || username}</span>
+            </button>
+          </div>
+          <div className="user-actions">
+            <button
+              className={`icon-btn ${muted ? '' : 'active'}`}
+              onClick={handleToggleMute}
+              title={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
+              aria-label={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
+            >
+              {muted ? '🔇' : '🔊'}
+            </button>
+            {isAdmin && (
+              <button className="small" onClick={() => setView('admin')}>
+                لوحة التحكم
+              </button>
+            )}
+            <button className="danger small" onClick={handleLogout}>
+              خروج
             </button>
           </div>
         </div>
