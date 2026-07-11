@@ -496,29 +496,29 @@ button:disabled {
 /* ===== User chip ===== */
 .user-chip {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 9px;
-  padding: 5px 14px 5px 6px;
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  box-shadow: var(--shadow-sm);
+  gap: 6px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 2px;
 }
 
 .user-chip-avatar {
-  width: 34px;
-  height: 34px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 22px;
   font-weight: 700;
   background: linear-gradient(160deg, var(--accent) 0%, var(--accent-strong) 100%);
   color: #f4fbfa;
   flex-shrink: 0;
   overflow: hidden;
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border-soft);
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--border-soft), var(--shadow-sm);
 }
 
 .user-chip-avatar img {
@@ -528,13 +528,14 @@ button:disabled {
 }
 
 .user-chip-name {
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text);
-  max-width: 110px;
+  max-width: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 }
 
 /* ===== Dashboard stats row ===== */
@@ -2846,11 +2847,56 @@ li input[type='checkbox'] {
   gap: 8px;
 }
 
-.avatar-upload-row {
+.avatar-edit-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+}
+
+.avatar-edit-wrap .avatar-upload-preview {
+  width: 88px;
+  height: 88px;
+  font-size: 30px;
+}
+
+.avatar-edit-icon-btn {
+  position: absolute;
+  bottom: -2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: nowrap;
+  justify-content: center;
+  font-size: 15px;
+  border: 2px solid var(--surface);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.avatar-edit-icon-btn:hover {
+  transform: scale(1.08);
+}
+
+.avatar-edit-icon-btn:active {
+  transform: scale(0.95);
+}
+
+.avatar-edit-icon-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+.avatar-edit-icon-btn-primary {
+  inset-inline-end: -2px;
+  background: var(--accent);
+}
+
+.avatar-edit-icon-btn-danger {
+  inset-inline-start: -2px;
+  background: #c0392b;
 }
 
 .avatar-upload-preview {
@@ -2894,18 +2940,4 @@ li input[type='checkbox'] {
   to {
     transform: rotate(360deg);
   }
-}
-
-.avatar-upload-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.avatar-upload-actions .modal-hint {
-  flex-basis: 100%;
-  margin: 4px 0 0;
 }

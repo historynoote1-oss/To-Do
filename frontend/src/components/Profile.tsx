@@ -303,7 +303,7 @@ export default function Profile({
           </div>
           <div className="settings-field">
             <label>صورة الأفتار</label>
-            <div className="avatar-upload-row">
+            <div className="avatar-edit-wrap">
               <div className={`avatar-upload-preview ${uploadingAvatar ? 'is-loading' : ''}`}>
                 {avatarUrl ? (
                   <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
@@ -312,35 +312,37 @@ export default function Profile({
                 )}
                 {uploadingAvatar && <span className="avatar-upload-spinner" aria-hidden="true" />}
               </div>
-              <div className="avatar-upload-actions">
+              <button
+                type="button"
+                className="avatar-edit-icon-btn avatar-edit-icon-btn-primary"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                title={avatarUrl ? 'تغيير الصورة' : 'رفع صورة'}
+                aria-label={avatarUrl ? 'تغيير الصورة' : 'رفع صورة'}
+              >
+                ✏️
+              </button>
+              {avatarUrl && (
                 <button
                   type="button"
-                  className="small"
-                  onClick={() => avatarInputRef.current?.click()}
+                  className="avatar-edit-icon-btn avatar-edit-icon-btn-danger"
+                  onClick={handleRemoveAvatar}
                   disabled={uploadingAvatar}
+                  title="حذف الصورة"
+                  aria-label="حذف الصورة"
                 >
-                  {uploadingAvatar ? 'جاري الرفع...' : avatarUrl ? 'تغيير الصورة' : 'رفع صورة'}
+                  🗑️
                 </button>
-                {avatarUrl && (
-                  <button
-                    type="button"
-                    className="small danger"
-                    onClick={handleRemoveAvatar}
-                    disabled={uploadingAvatar}
-                  >
-                    حذف الصورة
-                  </button>
-                )}
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  onChange={handleAvatarSelect}
-                  hidden
-                />
-                <p className="modal-hint">JPG أو PNG أو WEBP أو GIF — أقل من 3 ميجابايت</p>
-              </div>
+              )}
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={handleAvatarSelect}
+                hidden
+              />
             </div>
+            <p className="modal-hint">JPG أو PNG أو WEBP أو GIF — أقل من 3 ميجابايت</p>
           </div>
           <div className="modal-actions">
             <button onClick={handleSaveProfile} disabled={savingProfile} type="button">
