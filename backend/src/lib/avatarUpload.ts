@@ -98,7 +98,7 @@ export async function uploadAvatarToCloudinary(
   });
 
   const form = new FormData();
-  form.append('file', new Blob([buffer], { type: mimetype }));
+  form.append('file', new Blob([Uint8Array.from(buffer)], { type: mimetype }));
   form.append('api_key', CLOUDINARY_API_KEY!);
   form.append('timestamp', String(timestamp));
   form.append('public_id', publicId);
