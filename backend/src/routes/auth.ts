@@ -27,8 +27,8 @@ router.post('/register', async (req, res) => {
     data: { username: username.trim(), passwordHash },
   });
 
-  const token = signToken(user.id);
-  res.json({ token, username: user.username });
+  const token = signToken(user.id, user.tokenVersion);
+  res.json({ token, username: user.username, isAdmin: user.isAdmin });
 });
 
 router.post('/login', async (req, res) => {
@@ -42,14 +42,22 @@ router.post('/login', async (req, res) => {
   if (!user) {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غلط' });
   }
+  if (!user.isActive) {
+    return res.status(403).json({ error: 'الحساب ده متعلّق، تواصل مع إدارة الموقع' });
+  }
 
   const valid = await comparePassword(password, user.passwordHash);
   if (!valid) {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غلط' });
   }
 
-  const token = signToken(user.id);
-  res.json({ token, username: user.username });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date(), lastLoginIp: req.ip },
+  });
+
+  const token = signToken(user.id, user.tokenVersion);
+  res.json({ token, username: user.username, isAdmin: user.isAdmin });
 });
 
 export default router;

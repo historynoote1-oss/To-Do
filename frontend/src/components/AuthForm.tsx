@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { login, register } from '../lib/api';
+import { sounds } from '../lib/sounds';
 
-export default function AuthForm({ onSuccess }: { onSuccess: (username: string) => void }) {
+export default function AuthForm({
+  onSuccess,
+}: {
+  onSuccess: (username: string, isAdmin: boolean) => void;
+}) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -15,9 +20,11 @@ export default function AuthForm({ onSuccess }: { onSuccess: (username: string) 
     try {
       const fn = mode === 'login' ? login : register;
       const data = await fn(username.trim(), password);
+      sounds.success();
       localStorage.setItem('token', data.token);
-      onSuccess(data.username);
+      onSuccess(data.username, !!data.isAdmin);
     } catch (err) {
+      sounds.error();
       setError(err instanceof Error ? err.message : 'حصل خطأ غير متوقع');
     } finally {
       setLoading(false);
@@ -30,14 +37,20 @@ export default function AuthForm({ onSuccess }: { onSuccess: (username: string) 
       <div className="auth-tabs">
         <button
           className={mode === 'login' ? 'active' : ''}
-          onClick={() => setMode('login')}
+          onClick={() => {
+            sounds.click();
+            setMode('login');
+          }}
           type="button"
         >
           تسجيل دخول
         </button>
         <button
           className={mode === 'register' ? 'active' : ''}
-          onClick={() => setMode('register')}
+          onClick={() => {
+            sounds.click();
+            setMode('register');
+          }}
           type="button"
         >
           حساب جديد

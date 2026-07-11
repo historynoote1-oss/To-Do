@@ -84,3 +84,55 @@ export async function deleteItem(id: string) {
   });
   return handle(res);
 }
+
+export async function getAdminStats() {
+  const res = await fetch(`${API_URL}/api/admin/stats`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function getAdminUsers() {
+  const res = await fetch(`${API_URL}/api/admin/users`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function getAdminUserDetail(id: string) {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function deleteAdminUser(id: string) {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function suspendAdminUser(id: string) {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/suspend`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function forceLogoutAdminUser(id: string) {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/force-logout`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function resetAdminUserPassword(id: string) {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/reset-password`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function getAdminAuditLog() {
+  const res = await fetch(`${API_URL}/api/admin/audit-log`, { headers: authHeaders() });
+  return handle(res);
+}

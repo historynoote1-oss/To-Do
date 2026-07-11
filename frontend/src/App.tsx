@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getLists, createList, deleteList } from './lib/api';
+import { sounds } from './lib/sounds';
 import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
+import AdminDashboard from './components/AdminDashboard';
+import UpdatesLog from './components/UpdatesLog';
 
 interface List {
   id: string;
@@ -13,6 +16,8 @@ export default function App() {
   const [username, setUsername] = useState<string | null>(() =>
     localStorage.getItem('token') ? localStorage.getItem('username') : null
   );
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
+  const [view, setView] = useState<'todos' | 'admin' | 'updates'>('todos');
   const [lists, setLists] = useState<List[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -30,32 +35,53 @@ export default function App() {
     }
   }
 
-  function handleAuthSuccess(name: string) {
+  function handleAuthSuccess(name: string, admin: boolean) {
     localStorage.setItem('username', name);
+    localStorage.setItem('isAdmin', String(admin));
     setUsername(name);
+    setIsAdmin(admin);
   }
 
   function handleLogout() {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('isAdmin');
     setUsername(null);
+    setIsAdmin(false);
     setLists([]);
   }
 
   async function handleCreate() {
     if (!newTitle.trim()) return;
+    sounds.addItem();
     await createList(newTitle.trim());
     setNewTitle('');
     await refresh();
   }
 
   async function handleDelete(id: string) {
+    sounds.deleteItem();
     await deleteList(id);
     await refresh();
   }
 
+  if (view === 'updates') {
+    return <UpdatesLog onBack={() => setView('todos')} />;
+  }
+
   if (!username) {
-    return <AuthForm onSuccess={handleAuthSuccess} />;
+    return (
+      <>
+        <AuthForm onSuccess={handleAuthSuccess} />
+        <button className="updates-fab" onClick={() => setView('updates')}>
+          📢 التحديثات
+        </button>
+      </>
+    );
+  }
+
+  if (view === 'admin') {
+    return <AdminDashboard onBack={() => setView('todos')} />;
   }
 
   return (
@@ -64,6 +90,14 @@ export default function App() {
         <h1>قائمة المهام</h1>
         <div className="user-info">
           <span>مرحبًا، {username}</span>
+          <button className="small" onClick={() => setView('updates')}>
+            📢 التحديثات
+          </button>
+          {isAdmin && (
+            <button className="small" onClick={() => setView('admin')}>
+              لوحة التحكم
+            </button>
+          )}
           <button className="danger small" onClick={handleLogout}>
             خروج
           </button>
@@ -83,9 +117,11 @@ export default function App() {
       </div>
 
       {lists.length === 0 && <p className="empty">مفيش قوائم لسه، ابدأ بإنشاء واحدة</p>}
-      {lists.map((list) => (
-        <TodoList key={list.id} list={list} onChange={refresh} onDeleteList={handleDelete} />
-      ))}
+      <div className="lists-grid">
+        {lists.map((list) => (
+          <TodoList key={list.id} list={list} onChange={refresh} onDeleteList={handleDelete} />
+        ))}
+      </div>
     </div>
   );
 }

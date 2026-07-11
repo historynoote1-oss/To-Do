@@ -1,12 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../lib/auth';
+import { prisma } from '../lib/prisma';
 
 export interface AuthRequest extends Request {
   userId?: string;
 }
 
-// بيتحقق من الـ JWT token اللي بيبعته الفرونت إند مع كل طلب بعد تسجيل الدخول
-export function verifyUser(req: AuthRequest, res: Response, next: NextFunction) {
+// بيتحقق من التوكن، وكمان بيراجع القاعدة في كل طلب عشان يتأكد إن الحساب
+// لسه مفعّل (مش متعلّق) وإن التوكن ده لسه صالح (مش اتعمله force-logout).
+export async function verifyUser(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'لازم تسجل دخول الأول' });
@@ -15,7 +17,19 @@ export function verifyUser(req: AuthRequest, res: Response, next: NextFunction) 
 
   try {
     const payload = verifyToken(token);
-    req.userId = payload.userId;
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, isActive: true, tokenVersion: true },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(403).json({ error: 'الحساب ده متعلّق حاليًا' });
+    }
+    if (user.tokenVersion !== payload.tokenVersion) {
+      return res.status(401).json({ error: 'الجلسة انتهت، سجل دخول تاني' });
+    }
+
+    req.userId = user.id;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'الجلسة انتهت، سجل دخول تاني' });
