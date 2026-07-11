@@ -23,7 +23,7 @@ export default function App() {
         await refresh();
       } catch (err) {
         console.error(err);
-        setError('حصل خطأ في الاتصال بـ Discord');
+        setError(err instanceof Error ? err.message : 'حصل خطأ غير معروف في الاتصال بـ Discord');
       }
     })();
   }, []);
