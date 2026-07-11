@@ -4,10 +4,9 @@ import { AuthRequest } from '../middleware/verifyUser';
 
 const router = Router();
 
-// كل القوائم بتاعة اليوزر الحالي في السيرفر الحالي
 router.get('/', async (req: AuthRequest, res) => {
   const lists = await prisma.todoList.findMany({
-    where: { userId: req.userId!, guildId: req.guildId! },
+    where: { userId: req.userId! },
     include: { items: { orderBy: { position: 'asc' } } },
     orderBy: { createdAt: 'asc' },
   });
@@ -19,7 +18,6 @@ router.post('/', async (req: AuthRequest, res) => {
     const list = await prisma.todoList.create({
       data: {
         userId: req.userId!,
-        guildId: req.guildId!,
         title: req.body.title || 'قائمتي',
       },
     });

@@ -1,36 +1,55 @@
 import { Router } from 'express';
+import { prisma } from '../lib/prisma';
+import { hashPassword, comparePassword, signToken } from '../lib/auth';
 
 const router = Router();
 
-// الخطوة الأولى: الفرونت إند بيبعت الـ code اللي جه من Discord، وإحنا بنستبدله
-// بـ access_token باستخدام الـ client_secret (اللي محدش غير السيرفر يشوفه)
-router.post('/token', async (req, res) => {
-  const { code } = req.body;
-  if (!code) return res.status(400).json({ error: 'code مطلوب' });
+router.post('/register', async (req, res) => {
+  const { username, password } = req.body as { username?: string; password?: string };
 
-  try {
-    const response = await fetch('https://discord.com/api/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: process.env.DISCORD_CLIENT_ID!,
-        client_secret: process.env.DISCORD_CLIENT_SECRET!,
-        grant_type: 'authorization_code',
-        code,
-      }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('Discord token exchange failed:', data);
-      return res.status(400).json(data);
-    }
-
-    res.json({ access_token: data.access_token });
-  } catch (err) {
-    console.error('token exchange error:', err);
-    res.status(500).json({ error: 'فشل تبادل الكود' });
+  if (!username?.trim() || !password) {
+    return res.status(400).json({ error: 'اسم المستخدم وكلمة المرور مطلوبين' });
   }
+  if (username.trim().length < 3) {
+    return res.status(400).json({ error: 'اسم المستخدم لازم يكون 3 أحرف على الأقل' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'كلمة المرور لازم تكون 6 أحرف على الأقل' });
+  }
+
+  const existing = await prisma.user.findUnique({ where: { username: username.trim() } });
+  if (existing) {
+    return res.status(409).json({ error: 'اسم المستخدم ده مستخدم بالفعل' });
+  }
+
+  const passwordHash = await hashPassword(password);
+  const user = await prisma.user.create({
+    data: { username: username.trim(), passwordHash },
+  });
+
+  const token = signToken(user.id);
+  res.json({ token, username: user.username });
+});
+
+router.post('/login', async (req, res) => {
+  const { username, password } = req.body as { username?: string; password?: string };
+
+  if (!username?.trim() || !password) {
+    return res.status(400).json({ error: 'اسم المستخدم وكلمة المرور مطلوبين' });
+  }
+
+  const user = await prisma.user.findUnique({ where: { username: username.trim() } });
+  if (!user) {
+    return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غلط' });
+  }
+
+  const valid = await comparePassword(password, user.passwordHash);
+  if (!valid) {
+    return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غلط' });
+  }
+
+  const token = signToken(user.id);
+  res.json({ token, username: user.username });
 });
 
 export default router;

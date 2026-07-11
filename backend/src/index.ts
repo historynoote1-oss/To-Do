@@ -7,17 +7,22 @@ import itemsRoutes from './routes/items';
 import { verifyUser } from './middleware/verifyUser';
 
 const app = express();
-app.use(cors());
+
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || '*',
+  })
+);
 app.use(express.json());
 
-// /token مفتوح (مفيش توكن لسه في الخطوة دي)
-app.use('/', authRoutes);
+// تسجيل الدخول وإنشاء الحساب مفتوحين (مفيش توكن لسه)
+app.use('/api/auth', authRoutes);
 
-// كل حاجة تانية لازم تتحقق من هوية اليوزر الأول
-app.use('/lists', verifyUser, listsRoutes);
-app.use('/', verifyUser, itemsRoutes);
+// كل حاجة تانية لازم تسجيل دخول
+app.use('/api/lists', verifyUser, listsRoutes);
+app.use('/api', verifyUser, itemsRoutes);
 
-app.get('/', (_req, res) => res.send('Todo Activity Backend يعمل ✅'));
+app.get('/', (_req, res) => res.send('Todo Backend يعمل ✅'));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

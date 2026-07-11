@@ -1,54 +1,93 @@
-# Todo Activity — دليل التشغيل من الموبايل
+# Todo Website — دليل التشغيل من الموبايل
 
-المشروع فيه مجلدين: `backend` (API + قاعدة بيانات) و `frontend` (الواجهة اللي هتفتح جوه Discord).
+موقع فيه تسجيل دخول (username + password)، وكل حساب شايف بياناته بس.
+المشروع فيه مجلدين: `backend` (API + قاعدة بيانات) و `frontend` (الموقع).
 
-## 1) ارفع الكود على GitHub
-1. افتح تطبيق GitHub أو الموقع من المتصفح، وسجل دخول.
-2. اعمل Repository جديد (خليه Private).
-3. فك ضغط الملف اللي بعتهولك، وارفع كل المجلدات (backend + frontend + README) عن طريق "Add file → Upload files".
+---
 
-## 2) استضافة الباك إند + قاعدة البيانات (Railway)
-1. ادخل railway.app من المتصفح وسجل دخول بحساب GitHub.
-2. New Project → Deploy from GitHub repo → اختار الريبو بتاعك.
-3. من إعدادات الـ Service، حدد **Root Directory** = `backend`.
-4. ضيف قاعدة بيانات: New → Database → PostgreSQL. Railway هيربط `DATABASE_URL` تلقائيًا للـ Service.
-5. في تبويب Variables ضيف:
-   - `DISCORD_CLIENT_ID`
-   - `DISCORD_CLIENT_SECRET`
-   (هتجيبهم من الخطوة 4 تحت)
-6. في Settings، خلي:
+## الخطوة 1: ارفع الكود على GitHub
+
+1. افتح تطبيق GitHub (أو المتصفح) وسجل دخول.
+2. **+** → **New repository** → اكتب اسم (مثلاً `todo-app`) → خليه **Private** → **Create repository**.
+3. فك ضغط الملف اللي معاك، وارفع فولدرين `backend` و `frontend` وملف `README.md` عن طريق **Add file → Upload files**.
+4. اكتب أي commit message ودوس **Commit changes**.
+
+✅ تأكد إن فولدرين `backend` و `frontend` ظاهرين في صفحة الريبو.
+
+---
+
+## الخطوة 2: الباك إند + قاعدة البيانات (Railway)
+
+1. افتح **railway.app** → **Login with GitHub**.
+2. **New Project** → **Deploy from GitHub repo** → اختار الريبو `todo-app`.
+3. دوس على الـ Service اللي اتعمل → **Settings** → في **Root Directory** اكتب `backend`.
+4. من نفس المشروع في Railway، دوس **New** → **Database** → **PostgreSQL**.
+   Railway هيربط متغير `DATABASE_URL` تلقائيًا للـ Service بتاع الباك إند — مفيش حاجة تعملها يدوي هنا.
+5. ارجع للـ Service بتاع الباك إند → تبويب **Variables** → ضيف:
+   - `JWT_SECRET` = أي نص عشوائي طويل (30-40 حرف/رقم عشوائي)
+   - `FRONTEND_URL` = سيبها فاضية دلوقتي، هنرجعلها في الخطوة 4
+6. تأكد من **Settings**:
    - Build Command: `npm run build`
    - Start Command: `npm start`
-   - Deploy → بعد أول نجاح، افتح الـ Shell (تبويب داخل Railway) ونفذ: `npx prisma migrate deploy` (أو `npm run migrate`) عشان يعمل جداول قاعدة البيانات.
-7. هتاخد رابط زي `https://your-backend.up.railway.app` — احفظه.
+7. دوس **Deploy** واستنى لحد ما ينجح.
+8. افتح تبويب **Shell** جوه الـ Service ونفّذ:
+   ```
+   npx prisma migrate deploy
+   ```
+   ده بيعمل جداول `User` و `TodoList` و `TodoItem` في القاعدة.
+9. من **Settings → Networking → Generate Domain**، هتاخد رابط زي:
+   ```
+   todo-backend-production.up.railway.app
+   ```
+   احفظه، هتحتاجه في الخطوتين الجايين.
 
-## 3) استضافة الفرونت إند (Vercel)
-1. ادخل vercel.com وسجل دخول بحساب GitHub.
-2. Add New → Project → اختار نفس الريبو.
-3. Root Directory = `frontend`.
-4. Framework Preset: Vite (بيتعرف تلقائي).
-5. Environment Variables: ضيف `VITE_DISCORD_CLIENT_ID` (هتجيبه من الخطوة 4).
-6. Deploy. هتاخد رابط زي `https://your-frontend.vercel.app`.
+---
 
-## 4) إعداد التطبيق في Discord Developer Portal
-1. من الموبايل افتح discord.com/developers/applications.
-2. New Application → سمّيه.
-3. من General Information خد الـ **Application ID** (ده هو `DISCORD_CLIENT_ID`).
-4. من OAuth2 → خد الـ **Client Secret** (ده هو `DISCORD_CLIENT_SECRET`). ارجع خطوة 2 و 6 وحط القيم دي.
-5. من قايمة اليسار: Activities → Settings → فعّل **Enable Activities**.
-6. حط **Target/Root Mapping**:
-   - Root Mapping: رابط الفرونت إند بتاعك من Vercel (بدون https://).
-   - URL Mapping: `/api` → رابط الباك إند بتاعك من Railway (بدون https://).
-   هي دي اللي بتخلي `/.proxy/api/...` في الكود يوصل فعليًا للباك إند.
-7. من OAuth2 → Redirects ضيف رابط الفرونت إند بتاعك.
+## الخطوة 3: الفرونت إند (Vercel)
 
-## 5) التجربة
-1. من تطبيق Discord على الموبايل، ادخل أي فويس تشانل في سيرفرك.
-2. دوس على زرار الـ Activities (الصاروخ 🚀) جنب زرار الشات.
-3. بما إن التطبيق لسه مش verified، هيظهرلك بس لو انت عضو في فريق التطبيق على Developer Portal — تأكد إنك مضاف Owner/Developer.
-4. دوس عليه، هيفتح الـ Activity، وهيطلب منك صلاحية (OAuth) أول مرة، وبعدها هتظهر واجهة قائمة المهام.
+1. افتح **vercel.com** → **Login with GitHub**.
+2. **Add New...** → **Project** → اختار نفس الريبو `todo-app` → **Import**.
+3. قبل الـ Deploy: دوس **Edit** بجانب **Root Directory** واختار `frontend`.
+4. افتح **Environment Variables** وضيف:
+   - Name: `VITE_API_URL`
+   - Value: رابط الباك إند **كامل مع https://**، مثلاً:
+     ```
+     https://todo-backend-production.up.railway.app
+     ```
+5. دوس **Deploy** واستنى دقيقة/دقيقتين.
+6. هتاخد رابط زي `todo-app.vercel.app` — احفظه.
 
-## ملاحظات مهمة
-- كل قائمة بتبقى خاصة باليوزر وبالسيرفر (guild) اللي فتح منه الـ Activity.
-- التحقق من الهوية بيحصل عن طريق سؤال Discord نفسه بالـ access_token، مفيش تزوير ممكن لهوية اليوزر.
-- لو غيرت الكود، كفاية تعمل `git push` تاني — Railway و Vercel بيعملوا Deploy تلقائي مع كل push.
+---
+
+## الخطوة 4: اربط الفرونت إند بالباك إند (CORS)
+
+1. ارجع لـ Railway → الـ Service بتاع الباك إند → **Variables**.
+2. عدّل `FRONTEND_URL` وحط فيها رابط Vercel **كامل مع https://**، مثلاً:
+   ```
+   https://todo-app.vercel.app
+   ```
+3. دوس **Deploy** تاني عشان يتحدث.
+
+---
+
+## الخطوة 5: التجربة
+
+1. افتح رابط Vercel بتاعك من أي متصفح (موبايل أو كمبيوتر، عادي زي أي موقع).
+2. دوس تبويب **حساب جديد**، اكتب اسم مستخدم وكلمة مرور (6 أحرف على الأقل)، ودوس **إنشاء حساب**.
+3. هتدخل على طول لواجهة قائمة المهام. جرب تضيف قائمة ومهمة.
+4. لو عايز تتأكد إن الفصل بين الحسابات شغال، افتح الرابط من متصفح تاني (أو نافذة تصفح خفي) واعمل حساب تاني — هتلاقيه شايف قوائم فاضية، مش قوائمك.
+
+---
+
+## لو حصلت مشكلة
+
+- **الصفحة مش بتفتح خالص** → افتح رابط الباك إند لوحده في المتصفح (`https://todo-backend-production.up.railway.app`)، لازم تشوف "Todo Backend يعمل ✅". لو ظهرت رسالة تانية، المشكلة في الباك إند مش الفرونت إند.
+- **رسالة "Network Error" أو الطلبات بتفشل** → غالبًا `FRONTEND_URL` في Railway مش متظبط صح أو الـ Deploy الأخير معملوش، ارجع الخطوة 4.
+- **رسالة عن كلمة المرور أو اسم المستخدم** → دي رسائل واضحة بتتولد من الكود نفسه (زي "اسم المستخدم ده مستخدم بالفعل")، مش مشكلة تقنية.
+
+---
+
+## ملاحظات
+- الباسورد بيتخزن مشفّر (bcrypt)، مش نص عادي، حتى لو حد شاف قاعدة البيانات مش هيقدر يقرأه.
+- تسجيل الدخول شغال بـ JWT token محفوظ في المتصفح، صالح لمدة 30 يوم.
+- لو غيرت الكود بعد كده، كفاية `git push` تاني على GitHub — Railway و Vercel بيعملوا Deploy تلقائي مع كل تحديث.

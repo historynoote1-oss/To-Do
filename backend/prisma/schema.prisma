@@ -3,22 +3,29 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  lists        TodoList[]
 }
 
 model TodoList {
   id        String     @id @default(cuid())
-  guildId   String
   userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String     @default("قائمتي")
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   items     TodoItem[]
 
-  @@unique([guildId, userId, title])
-  @@index([guildId, userId])
+  @@unique([userId, title])
+  @@index([userId])
 }
 
 model TodoItem {

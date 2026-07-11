@@ -1,56 +1,86 @@
-import { setupDiscordAuth } from './discord';
+const API_URL = import.meta.env.VITE_API_URL as string;
 
-async function authHeaders() {
-  const auth = await setupDiscordAuth();
+function getToken() {
+  return localStorage.getItem('token');
+}
+
+function authHeaders() {
   return {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${auth.access_token}`,
-    'X-Guild-Id': auth.guildId || 'dm',
+    Authorization: `Bearer ${getToken()}`,
   };
 }
 
-export async function getLists() {
-  const headers = await authHeaders();
-  const res = await fetch('/.proxy/api/lists', { headers });
+async function handle(res: Response) {
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `خطأ (${res.status})`);
+  }
   return res.json();
+}
+
+export async function register(username: string, password: string) {
+  const res = await fetch(`${API_URL}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  return handle(res);
+}
+
+export async function login(username: string, password: string) {
+  const res = await fetch(`${API_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+  return handle(res);
+}
+
+export async function getLists() {
+  const res = await fetch(`${API_URL}/api/lists`, { headers: authHeaders() });
+  return handle(res);
 }
 
 export async function createList(title: string) {
-  const headers = await authHeaders();
-  const res = await fetch('/.proxy/api/lists', {
+  const res = await fetch(`${API_URL}/api/lists`, {
     method: 'POST',
-    headers,
+    headers: authHeaders(),
     body: JSON.stringify({ title }),
   });
-  return res.json();
+  return handle(res);
 }
 
 export async function deleteList(id: string) {
-  const headers = await authHeaders();
-  await fetch(`/.proxy/api/lists/${id}`, { method: 'DELETE', headers });
+  const res = await fetch(`${API_URL}/api/lists/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handle(res);
 }
 
 export async function addItem(listId: string, content: string) {
-  const headers = await authHeaders();
-  const res = await fetch('/.proxy/api/items', {
+  const res = await fetch(`${API_URL}/api/items`, {
     method: 'POST',
-    headers,
+    headers: authHeaders(),
     body: JSON.stringify({ listId, content }),
   });
-  return res.json();
+  return handle(res);
 }
 
 export async function toggleItem(id: string, isDone: boolean) {
-  const headers = await authHeaders();
-  const res = await fetch(`/.proxy/api/items/${id}`, {
+  const res = await fetch(`${API_URL}/api/items/${id}`, {
     method: 'PATCH',
-    headers,
+    headers: authHeaders(),
     body: JSON.stringify({ isDone }),
   });
-  return res.json();
+  return handle(res);
 }
 
 export async function deleteItem(id: string) {
-  const headers = await authHeaders();
-  await fetch(`/.proxy/api/items/${id}`, { method: 'DELETE', headers });
+  const res = await fetch(`${API_URL}/api/items/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handle(res);
 }
