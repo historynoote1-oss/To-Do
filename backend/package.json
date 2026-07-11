@@ -8,8 +8,7 @@
     "start": "prisma db push --accept-data-loss --skip-generate && node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "postinstall": "prisma generate",
-    "make-admin": "node dist/scripts/makeAdmin.js",
-    "seed:updates": "tsx src/scripts/seedUpdates.ts"
+    "make-admin": "node dist/scripts/makeAdmin.js"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

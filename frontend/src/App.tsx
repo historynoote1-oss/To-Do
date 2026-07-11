@@ -5,7 +5,6 @@ import { toast } from './lib/toast';
 import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
 import AdminDashboard from './components/AdminDashboard';
-import UpdatesLog from './components/UpdatesLog';
 import ToastContainer from './components/ToastContainer';
 import { PriorityPicker } from './components/Priority';
 import { PriorityKey } from './lib/priority';
@@ -22,7 +21,7 @@ export default function App() {
     localStorage.getItem('token') ? localStorage.getItem('username') : null
   );
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
-  const [view, setView] = useState<'todos' | 'admin' | 'updates'>('todos');
+  const [view, setView] = useState<'todos' | 'admin'>('todos');
   const [lists, setLists] = useState<List[]>([]);
   const [newTitle, setNewTitle] = useState('');
   const [newPriority, setNewPriority] = useState<PriorityKey>('NONE');
@@ -100,17 +99,6 @@ export default function App() {
     }
   }
 
-  if (view === 'updates') {
-    return (
-      <>
-        <ToastContainer />
-        <div className="view-fade">
-          <UpdatesLog onBack={() => setView('todos')} />
-        </div>
-      </>
-    );
-  }
-
   if (!username) {
     return (
       <>
@@ -118,9 +106,6 @@ export default function App() {
         <div className="view-fade">
           <AuthForm onSuccess={handleAuthSuccess} />
         </div>
-        <button className="updates-fab" onClick={() => setView('updates')}>
-          📢 التحديثات
-        </button>
       </>
     );
   }
@@ -151,9 +136,6 @@ export default function App() {
               aria-label={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
             >
               {muted ? '🔇' : '🔊'}
-            </button>
-            <button className="small" onClick={() => setView('updates')}>
-              📢 التحديثات
             </button>
             {isAdmin && (
               <button className="small" onClick={() => setView('admin')}>

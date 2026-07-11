@@ -7,8 +7,6 @@ import authRoutes from './routes/auth';
 import listsRoutes from './routes/lists';
 import itemsRoutes from './routes/items';
 import adminRoutes from './routes/admin';
-import updatesRoutes from './routes/updates';
-import adminUpdatesRoutes from './routes/adminUpdates';
 import adminAnalyticsRoutes from './routes/adminAnalytics';
 import adminContentRoutes from './routes/adminContent';
 import adminSettingsRoutes from './routes/adminSettings';
@@ -67,16 +65,6 @@ const adminLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// قراءة عامة (بدون تسجيل دخول) لسجل التحديثات، بحد معقول عشان محدش يقدر
-// يضرب الـ endpoint ده بعدد ضخم من الطلبات في وقت قصير.
-const updatesLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  limit: 300,
-  message: { error: 'طلبات كتير جدًا، حاول تاني بعد شوية' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // حماية إضافية صارمة لمسارات التحقق بخطوتين: تخمين كود مكوّن من 6 أرقام ممكن
 // نظريًا لو الحد الأقصى للمحاولات مش ضيّق كفاية، فهنا الحد أقل بكتير من باقي
 // المسارات (8 محاولات كل 15 دقيقة لكل جهاز) — سواء أثناء الدخول أو الإعداد.
@@ -92,15 +80,11 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 
 app.use('/api/lists', verifyUser, listsRoutes);
-app.use('/api/updates', updatesLimiter, updatesRoutes);
-app.use('/api/admin/updates', verifyUser, requireAdmin, adminLimiter, adminUpdatesRoutes);
 app.use('/api/admin/analytics', verifyUser, requireAdmin, adminLimiter, adminAnalyticsRoutes);
 app.use('/api/admin/content', verifyUser, requireAdmin, adminLimiter, adminContentRoutes);
 app.use('/api/admin/settings', verifyUser, requireAdmin, adminLimiter, adminSettingsRoutes);
 app.use('/api/admin', verifyUser, requireAdmin, adminLimiter, adminRoutes);
 // المسار العام ده لازم يكون آخر واحد، لأنه بيتطابق مع أي حاجة تبدأ بـ /api
-// (زي /api/updates)، فلو اتحط قبل المسارات المحددة هيمنعها ويطلب تسجيل دخول
-// حتى لو المفروض تبقى عامة زي صفحة التحديثات.
 app.use('/api', verifyUser, itemsRoutes);
 
 app.get('/', (_req, res) => res.send('Todo Backend يعمل ✅'));

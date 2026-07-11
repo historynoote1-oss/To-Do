@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
-import { addItem, toggleItem, deleteItem, updateItemPriority, updateList } from '../lib/api';
+import { useMemo, useRef, useState, useEffect } from 'react';
+import { addItem, toggleItem, deleteItem, updateItemPriority, updateItemContent, updateList } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import TodoItemRow from './TodoItem';
+import ConfirmModal from './ConfirmModal';
 import { PriorityBadge, PriorityPicker } from './Priority';
 import { PriorityKey } from '../lib/priority';
 
@@ -15,6 +16,18 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [burstKey, setBurstKey] = useState(0);
   const [confettiOn, setConfettiOn] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(list.title);
+  const [confirmDeleteList, setConfirmDeleteList] = useState(false);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<any>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingTitle) {
+      setTitleDraft(list.title);
+      requestAnimationFrame(() => titleInputRef.current?.select());
+    }
+  }, [editingTitle]);
 
   const total = list.items.length;
   const done = list.items.filter((i: any) => i.isDone).length;
@@ -52,8 +65,45 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
   }
 
   function handleDeleteList() {
+    setConfirmDeleteList(true);
+  }
+
+  async function confirmDeleteListNow() {
+    setConfirmDeleteList(false);
     sounds.deleteItem();
     onDeleteList(list.id);
+  }
+
+  async function commitTitle() {
+    const trimmed = titleDraft.trim();
+    setEditingTitle(false);
+    if (!trimmed || trimmed === list.title) {
+      setTitleDraft(list.title);
+      return;
+    }
+    try {
+      await updateList(list.id, { title: trimmed });
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تعديل اسم المهمة الرئيسية');
+      setTitleDraft(list.title);
+    }
+  }
+
+  function cancelTitleEdit() {
+    setTitleDraft(list.title);
+    setEditingTitle(false);
+  }
+
+  async function handleItemEdit(item: any, content: string) {
+    try {
+      await updateItemContent(item.id, content);
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تعديل المهمة الفرعية');
+    }
   }
 
   async function handleListPriorityChange(priority: PriorityKey) {
@@ -99,6 +149,13 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
   }
 
   function handleDeleteItem(item: any) {
+    setConfirmDeleteItem(item);
+  }
+
+  function confirmDeleteItemNow() {
+    const item = confirmDeleteItem;
+    setConfirmDeleteItem(null);
+    if (!item) return;
     sounds.deleteItem();
     setLeavingIds((prev) => new Set(prev).add(item.id));
     window.setTimeout(async () => {
@@ -143,12 +200,34 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
 
       <div className="list-header">
         <div className="list-header-title">
-          <h2>{list.title}</h2>
+          {editingTitle ? (
+            <input
+              ref={titleInputRef}
+              className="list-title-input"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitTitle();
+                if (e.key === 'Escape') cancelTitleEdit();
+              }}
+              onBlur={commitTitle}
+              autoFocus
+            />
+          ) : (
+            <h2 onDoubleClick={() => setEditingTitle(true)}>{list.title}</h2>
+          )}
           <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="md" />
         </div>
-        <button className="danger small" onClick={handleDeleteList}>
-          حذف المهمة الرئيسية
-        </button>
+        <div className="row-actions">
+          {!editingTitle && (
+            <button className="icon-btn small" onClick={() => setEditingTitle(true)} aria-label="تعديل المهمة الرئيسية" type="button">
+              ✎
+            </button>
+          )}
+          <button className="danger small" onClick={handleDeleteList}>
+            حذف المهمة الرئيسية
+          </button>
+        </div>
       </div>
 
       {total > 0 && (
@@ -193,9 +272,37 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
               onToggle={() => handleToggle(item)}
               onDelete={() => handleDeleteItem(item)}
               onPriorityChange={(p: PriorityKey) => handleItemPriorityChange(item, p)}
+              onEdit={(content: string) => handleItemEdit(item, content)}
             />
           ))}
         </ul>
+      )}
+      {confirmDeleteList && (
+        <ConfirmModal
+          title="حذف المهمة الرئيسية؟"
+          description={
+            <>
+              هيتم حذف "<strong>{list.title}</strong>" وكل مهامها الفرعية ({total}) نهائيًا. الإجراء ده مينفعش يترجع.
+            </>
+          }
+          confirmLabel="حذف نهائيًا"
+          onCancel={() => setConfirmDeleteList(false)}
+          onConfirm={confirmDeleteListNow}
+        />
+      )}
+
+      {confirmDeleteItem && (
+        <ConfirmModal
+          title="حذف المهمة الفرعية؟"
+          description={
+            <>
+              هيتم حذف "<strong>{confirmDeleteItem.content}</strong>" نهائيًا.
+            </>
+          }
+          confirmLabel="حذف"
+          onCancel={() => setConfirmDeleteItem(null)}
+          onConfirm={confirmDeleteItemNow}
+        />
       )}
     </div>
   );

@@ -3,18 +3,16 @@ import AdminOverview from './AdminOverview';
 import AdminAnalytics from './AdminAnalytics';
 import AdminUsersPanel from './AdminUsersPanel';
 import AdminContentPanel from './AdminContentPanel';
-import AdminUpdatesManager from './AdminUpdatesManager';
 import AdminSettingsPanel from './AdminSettingsPanel';
 import TwoFactorSettings from './TwoFactorSettings';
 
-type Tab = 'overview' | 'analytics' | 'users' | 'content' | 'updates' | 'settings' | 'security';
+type Tab = 'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security';
 
 const NAV: { key: Tab; label: string; icon: string }[] = [
   { key: 'overview', label: 'نظرة عامة', icon: '🏠' },
   { key: 'analytics', label: 'التحليلات', icon: '📊' },
   { key: 'users', label: 'المستخدمين', icon: '👥' },
   { key: 'content', label: 'المحتوى', icon: '🗂️' },
-  { key: 'updates', label: 'التحديثات', icon: '📢' },
   { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
   { key: 'security', label: 'الأمان', icon: '🔐' },
 ];
@@ -76,7 +74,6 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
           {tab === 'analytics' && <AdminAnalytics />}
           {tab === 'users' && <AdminUsersPanel />}
           {tab === 'content' && <AdminContentPanel />}
-          {tab === 'updates' && <AdminUpdatesManager />}
           {tab === 'settings' && <AdminSettingsPanel />}
           {tab === 'security' && <TwoFactorSettings />}
         </div>
