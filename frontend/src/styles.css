@@ -826,12 +826,13 @@ li input[type='checkbox'] {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 18px 16px;
+  padding: 16px;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  gap: 12px;
   transition: transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
   animation: pop-in var(--dur) var(--ease-out) both;
+  min-width: 0;
 }
 
 .stat-card:hover {
@@ -840,21 +841,38 @@ li input[type='checkbox'] {
 }
 
 .stat-icon {
-  font-size: 18px;
-  margin-bottom: 6px;
-  opacity: 0.85;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius);
+  background: var(--accent-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  opacity: 1;
+}
+
+.stat-card > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .stat-value {
   font-family: var(--font-num);
-  font-size: 30px;
+  font-size: 24px;
+  line-height: 1.1;
   color: var(--accent);
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .users-table {
@@ -2019,6 +2037,8 @@ li input[type='checkbox'] {
   display: flex;
   min-height: 100vh;
   align-items: stretch;
+  width: 100%;
+  max-width: 100vw;
 }
 
 .admin-sidebar {
@@ -2068,6 +2088,7 @@ li input[type='checkbox'] {
   box-shadow: none;
   transform: none;
   justify-content: flex-start;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .admin-nav-item:hover {
@@ -2090,6 +2111,7 @@ li input[type='checkbox'] {
 .admin-main {
   flex: 1;
   min-width: 0;
+  width: 100%;
 }
 
 .admin-main-content {
@@ -2099,34 +2121,33 @@ li input[type='checkbox'] {
   animation: fade-up var(--dur-slow) var(--ease-out) both;
 }
 
-.admin-mobile-bar {
+/* Sticky top bar + horizontally scrollable tab strip — mobile nav only, no drawers/transforms */
+.admin-topbar {
   display: none;
 }
 
-.admin-sidebar-backdrop {
+.admin-tabbar {
   display: none;
 }
 
 @media (max-width: 860px) {
   .admin-sidebar {
-    position: fixed;
-    inset-inline-start: 0;
-    top: 0;
-    z-index: 40;
-    transform: translateX(105%);
-    transition: transform var(--dur) var(--ease-out);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    display: none;
   }
-  [dir='rtl'] .admin-sidebar {
-    transform: translateX(-105%);
+
+  .admin-shell {
+    flex-direction: column;
   }
-  .admin-sidebar.open {
-    transform: translateX(0);
+
+  .admin-main {
+    width: 100%;
   }
-  .admin-mobile-bar {
+
+  .admin-topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
     padding: 14px 16px;
     border-bottom: 1px solid var(--border-soft);
     position: sticky;
@@ -2134,15 +2155,75 @@ li input[type='checkbox'] {
     background: var(--bg);
     z-index: 10;
   }
+
+  .admin-topbar-title {
+    font-size: 15px;
+    flex: 1;
+    text-align: center;
+  }
+
+  .admin-topbar-back {
+    flex-shrink: 0;
+  }
+
+  .admin-topbar-spacer {
+    width: 52px;
+    flex-shrink: 0;
+  }
+
+  .admin-tabbar {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 10px 14px;
+    position: sticky;
+    top: 49px;
+    background: var(--bg);
+    z-index: 9;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .admin-tabbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .admin-tab:hover {
+    transform: none;
+    box-shadow: none;
+    color: var(--text);
+  }
+
+  .admin-tab.active {
+    background: var(--accent-dim);
+    color: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  .admin-tab-icon {
+    font-size: 14px;
+  }
+
   .admin-main-content {
     padding: 18px 14px 70px;
-  }
-  .admin-sidebar-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 30;
   }
 }
 

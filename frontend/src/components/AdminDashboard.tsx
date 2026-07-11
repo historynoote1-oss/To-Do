@@ -21,13 +21,12 @@ const NAV: { key: Tab; label: string; icon: string }[] = [
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<Tab>('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const activeLabel = NAV.find((n) => n.key === tab)?.label || '';
 
   return (
     <div className="admin-shell">
-      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <h1>لوحة التحكم</h1>
           <button className="small" onClick={onBack}>
@@ -40,10 +39,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
               key={n.key}
               type="button"
               className={`admin-nav-item ${tab === n.key ? 'active' : ''}`}
-              onClick={() => {
-                setTab(n.key);
-                setSidebarOpen(false);
-              }}
+              onClick={() => setTab(n.key)}
             >
               <span className="admin-nav-icon">{n.icon}</span>
               {n.label}
@@ -53,12 +49,27 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
       </aside>
 
       <div className="admin-main">
-        <div className="admin-mobile-bar">
-          <button className="small" onClick={() => setSidebarOpen((v) => !v)}>
-            ☰ الأقسام
+        <div className="admin-topbar">
+          <button className="small admin-topbar-back" onClick={onBack} aria-label="رجوع">
+            رجوع
           </button>
-          <strong>{activeLabel}</strong>
+          <strong className="admin-topbar-title">{activeLabel}</strong>
+          <span className="admin-topbar-spacer" aria-hidden="true" />
         </div>
+
+        <nav className="admin-tabbar">
+          {NAV.map((n) => (
+            <button
+              key={n.key}
+              type="button"
+              className={`admin-tab ${tab === n.key ? 'active' : ''}`}
+              onClick={() => setTab(n.key)}
+            >
+              <span className="admin-tab-icon">{n.icon}</span>
+              {n.label}
+            </button>
+          ))}
+        </nav>
 
         <div className="admin-main-content">
           {tab === 'overview' && <AdminOverview />}
@@ -70,8 +81,6 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
           {tab === 'security' && <TwoFactorSettings />}
         </div>
       </div>
-
-      {sidebarOpen && <div className="admin-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
     </div>
   );
 }
