@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
-import { hashPassword, comparePassword, signToken } from '../lib/auth';
+import {
+  hashPassword,
+  comparePassword,
+  signToken,
+  MAX_FAILED_LOGIN_ATTEMPTS,
+  LOCKOUT_DURATION_MS,
+} from '../lib/auth';
 
 const router = Router();
 
@@ -46,14 +52,42 @@ router.post('/login', async (req, res) => {
     return res.status(403).json({ error: 'الحساب ده متعلّق، تواصل مع إدارة الموقع' });
   }
 
+  // الحساب مقفول مؤقتًا بسبب محاولات فاشلة كتيرة، حتى لو الباسورد المُدخل صح
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+    return res
+      .status(423)
+      .json({ error: `الحساب مقفول مؤقتًا بسبب محاولات دخول فاشلة، حاول تاني بعد ${minutesLeft} دقيقة` });
+  }
+
   const valid = await comparePassword(password, user.passwordHash);
   if (!valid) {
+    const attempts = user.failedLoginAttempts + 1;
+    const lockingNow = attempts >= MAX_FAILED_LOGIN_ATTEMPTS;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: lockingNow ? 0 : attempts,
+        lockedUntil: lockingNow ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null,
+      },
+    });
+    if (lockingNow) {
+      return res.status(423).json({
+        error: `تم قفل الحساب مؤقتًا بعد ${MAX_FAILED_LOGIN_ATTEMPTS} محاولات فاشلة، حاول تاني بعد 15 دقيقة`,
+      });
+    }
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غلط' });
   }
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { lastLoginAt: new Date(), lastLoginIp: req.ip },
+    data: {
+      lastLoginAt: new Date(),
+      lastLoginIp: req.ip,
+      lastLoginUserAgent: req.headers['user-agent']?.slice(0, 200) || null,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    },
   });
 
   const token = signToken(user.id, user.tokenVersion);

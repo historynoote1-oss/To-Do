@@ -100,34 +100,47 @@ export async function getAdminUserDetail(id: string) {
   return handle(res);
 }
 
-export async function deleteAdminUser(id: string) {
+export async function deleteAdminUser(id: string, adminPassword: string) {
   const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
+    body: JSON.stringify({ adminPassword }),
   });
   return handle(res);
 }
 
-export async function suspendAdminUser(id: string) {
+export async function suspendAdminUser(id: string, adminPassword: string) {
   const res = await fetch(`${API_URL}/api/admin/users/${id}/suspend`, {
     method: 'PATCH',
     headers: authHeaders(),
+    body: JSON.stringify({ adminPassword }),
   });
   return handle(res);
 }
 
-export async function forceLogoutAdminUser(id: string) {
+export async function forceLogoutAdminUser(id: string, adminPassword: string) {
   const res = await fetch(`${API_URL}/api/admin/users/${id}/force-logout`, {
     method: 'POST',
     headers: authHeaders(),
+    body: JSON.stringify({ adminPassword }),
   });
   return handle(res);
 }
 
-export async function resetAdminUserPassword(id: string) {
+export async function resetAdminUserPassword(id: string, adminPassword: string) {
   const res = await fetch(`${API_URL}/api/admin/users/${id}/reset-password`, {
     method: 'POST',
     headers: authHeaders(),
+    body: JSON.stringify({ adminPassword }),
+  });
+  return handle(res);
+}
+
+export async function unlockAdminUser(id: string, adminPassword: string) {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/unlock`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ adminPassword }),
   });
   return handle(res);
 }

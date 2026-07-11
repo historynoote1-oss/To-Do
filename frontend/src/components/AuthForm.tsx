@@ -10,6 +10,7 @@ export default function AuthForm({
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -35,11 +36,13 @@ export default function AuthForm({
     <div className="auth-container">
       <h1>قائمة المهام</h1>
       <div className="auth-tabs">
+        <span className={`auth-tabs-indicator ${mode === 'register' ? 'mode-register' : ''}`} />
         <button
           className={mode === 'login' ? 'active' : ''}
           onClick={() => {
             sounds.click();
             setMode('login');
+            setError(null);
           }}
           type="button"
         >
@@ -50,6 +53,7 @@ export default function AuthForm({
           onClick={() => {
             sounds.click();
             setMode('register');
+            setError(null);
           }}
           type="button"
         >
@@ -64,15 +68,26 @@ export default function AuthForm({
           autoComplete="username"
           required
         />
-        <input
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="كلمة المرور"
-          type="password"
-          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          required
-        />
-        {error && <p className="error">{error}</p>}
+        <div className="input-wrapper">
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="كلمة المرور"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            required
+          />
+          <button
+            type="button"
+            className="input-eye"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+            tabIndex={-1}
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
+        {error && <p className="error">⚠️ {error}</p>}
         <button type="submit" disabled={loading}>
           {loading ? 'جاري التحميل...' : mode === 'login' ? 'دخول' : 'إنشاء حساب'}
         </button>

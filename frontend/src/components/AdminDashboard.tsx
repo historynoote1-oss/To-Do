@@ -6,6 +6,7 @@ import {
   suspendAdminUser,
   forceLogoutAdminUser,
   resetAdminUserPassword,
+  unlockAdminUser,
   getAdminAuditLog,
 } from '../lib/api';
 import { sounds } from '../lib/sounds';
@@ -16,6 +17,8 @@ interface Stats {
   itemsCount: number;
   doneItemsCount: number;
   activeCount: number;
+  lockedCount: number;
+  adminCount: number;
 }
 
 interface AdminUser {
@@ -25,6 +28,9 @@ interface AdminUser {
   isActive: boolean;
   lastLoginAt: string | null;
   lastLoginIp: string | null;
+  lastLoginUserAgent: string | null;
+  failedLoginAttempts: number;
+  lockedUntil: string | null;
   createdAt: string;
   _count: { lists: number };
 }
@@ -34,8 +40,32 @@ interface LogEntry {
   adminUsername: string;
   targetUsername: string | null;
   action: string;
+  ip: string | null;
   createdAt: string;
 }
+
+type ActionType = 'suspend' | 'delete' | 'forceLogout' | 'resetPassword' | 'unlock';
+
+interface PendingAction {
+  type: ActionType;
+  id: string;
+  username: string;
+  currentlyActive?: boolean;
+}
+
+const ACTION_LABELS: Record<ActionType, string> = {
+  suspend: 'تعليق/تفعيل الحساب',
+  delete: 'حذف الحساب نهائيًا',
+  forceLogout: 'تسجيل خروج إجباري',
+  resetPassword: 'إعادة تعيين كلمة المرور',
+  unlock: 'فك قفل الحساب',
+};
+
+function isLocked(u: AdminUser) {
+  return !!u.lockedUntil && new Date(u.lockedUntil) > new Date();
+}
+
+const STAT_ICONS = ['👤', '✅', '📋', '🗂️', '🛡️', '🔒'];
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -44,6 +74,11 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [showLogs, setShowLogs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   useEffect(() => {
     load();
@@ -68,64 +103,74 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
     setShowLogs(true);
   }
 
-  async function handleDelete(id: string, username: string) {
-    if (!confirm(`متأكد إنك عايز تحذف حساب "${username}"؟ الإجراء ده نهائي.`)) return;
+  function openConfirm(action: PendingAction) {
+    setPending(action);
+    setConfirmPassword('');
+    setConfirmError(null);
+  }
+
+  function closeConfirm() {
+    setPending(null);
+    setConfirmPassword('');
+    setConfirmError(null);
+  }
+
+  async function handleConfirm() {
+    if (!pending || !confirmPassword) return;
+    setConfirmLoading(true);
+    setConfirmError(null);
     try {
-      await deleteAdminUser(id);
-      sounds.deleteItem();
+      switch (pending.type) {
+        case 'delete':
+          await deleteAdminUser(pending.id, confirmPassword);
+          sounds.deleteItem();
+          break;
+        case 'suspend':
+          await suspendAdminUser(pending.id, confirmPassword);
+          sounds.click();
+          break;
+        case 'forceLogout':
+          await forceLogoutAdminUser(pending.id, confirmPassword);
+          sounds.click();
+          break;
+        case 'unlock':
+          await unlockAdminUser(pending.id, confirmPassword);
+          sounds.click();
+          break;
+        case 'resetPassword': {
+          const { tempPassword } = await resetAdminUserPassword(pending.id, confirmPassword);
+          sounds.success();
+          alert(
+            `كلمة المرور المؤقتة لـ "${pending.username}" هي:\n\n${tempPassword}\n\nابعتها له يدويًا دلوقتي — مش هتظهر تاني بعد ما تقفل الرسالة دي.`
+          );
+          break;
+        }
+      }
+      closeConfirm();
       await load();
     } catch (err) {
       sounds.error();
-      alert(err instanceof Error ? err.message : 'فشل الحذف');
+      setConfirmError(err instanceof Error ? err.message : 'فشلت العملية');
+    } finally {
+      setConfirmLoading(false);
     }
   }
 
-  async function handleSuspend(id: string, username: string, currentlyActive: boolean) {
-    const verb = currentlyActive ? 'تعليق' : 'إعادة تفعيل';
-    if (!confirm(`متأكد إنك عايز تعمل ${verb} لحساب "${username}"؟`)) return;
-    try {
-      await suspendAdminUser(id);
-      sounds.click();
-      await load();
-    } catch (err) {
-      sounds.error();
-      alert(err instanceof Error ? err.message : 'فشلت العملية');
-    }
+  if (loading) {
+    return (
+      <div className="container admin-container">
+        <div className="top-bar">
+          <h1>لوحة تحكم الأدمن</h1>
+        </div>
+        <div className="stats-grid">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 92 }} />
+          ))}
+        </div>
+      </div>
+    );
   }
-
-  async function handleForceLogout(id: string, username: string) {
-    if (!confirm(`هيتم تسجيل خروج "${username}" من كل الأجهزة فورًا. تكمل؟`)) return;
-    try {
-      await forceLogoutAdminUser(id);
-      sounds.click();
-      alert('تم تسجيل الخروج الإجباري.');
-    } catch (err) {
-      sounds.error();
-      alert(err instanceof Error ? err.message : 'فشلت العملية');
-    }
-  }
-
-  async function handleResetPassword(id: string, username: string) {
-    if (
-      !confirm(
-        `هيتم إلغاء كلمة المرور القديمة لـ "${username}" وتوليد كلمة مرور مؤقتة جديدة. تكمل؟`
-      )
-    )
-      return;
-    try {
-      const { tempPassword } = await resetAdminUserPassword(id);
-      sounds.success();
-      alert(
-        `كلمة المرور المؤقتة لـ "${username}" هي:\n\n${tempPassword}\n\nابعتها له يدويًا دلوقتي — مش هتظهر تاني بعد ما تقفل الرسالة دي.`
-      );
-    } catch (err) {
-      sounds.error();
-      alert(err instanceof Error ? err.message : 'فشلت العملية');
-    }
-  }
-
-  if (loading) return <div className="container">جاري تحميل لوحة التحكم...</div>;
-  if (error) return <div className="container error">{error}</div>;
+  if (error) return <div className="container error">⚠️ {error}</div>;
 
   return (
     <div className="container admin-container">
@@ -139,20 +184,36 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
       {stats && (
         <div className="stats-grid">
           <div className="stat-card">
+            <span className="stat-icon">{STAT_ICONS[0]}</span>
             <span className="stat-value">{stats.usersCount}</span>
             <span className="stat-label">مستخدم</span>
           </div>
           <div className="stat-card">
+            <span className="stat-icon">{STAT_ICONS[1]}</span>
             <span className="stat-value">{stats.activeCount}</span>
             <span className="stat-label">حساب مفعّل</span>
           </div>
           <div className="stat-card">
+            <span className="stat-icon">{STAT_ICONS[2]}</span>
             <span className="stat-value">{stats.listsCount}</span>
             <span className="stat-label">قائمة</span>
           </div>
           <div className="stat-card">
+            <span className="stat-icon">{STAT_ICONS[3]}</span>
             <span className="stat-value">{stats.itemsCount}</span>
             <span className="stat-label">مهمة</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-icon">{STAT_ICONS[4]}</span>
+            <span className="stat-value">{stats.adminCount}</span>
+            <span className="stat-label">أدمن</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-icon">{STAT_ICONS[5]}</span>
+            <span className="stat-value" style={stats.lockedCount > 0 ? { color: 'var(--danger)' } : undefined}>
+              {stats.lockedCount}
+            </span>
+            <span className="stat-label">حساب مقفول حاليًا</span>
           </div>
         </div>
       )}
@@ -170,6 +231,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             <div className="user-row-info">
               <strong>
                 {u.username} {!u.isActive && <span className="suspended-badge">متعلّق</span>}
+                {isLocked(u) && <span className="suspended-badge">مقفول مؤقتًا</span>}
               </strong>
               {u.isAdmin && <span className="admin-badge">أدمن</span>}
               <span className="user-row-meta">
@@ -181,22 +243,59 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                   ? `${new Date(u.lastLoginAt).toLocaleString('ar-EG')} (${u.lastLoginIp || 'غير معروف'})`
                   : 'لسه ماسجلش دخول'}
               </span>
+              {u.lastLoginUserAgent && (
+                <span className="user-row-meta">الجهاز: {u.lastLoginUserAgent}</span>
+              )}
+              {u.failedLoginAttempts > 0 && !isLocked(u) && (
+                <span className="user-row-meta" style={{ color: 'var(--accent)' }}>
+                  {u.failedLoginAttempts} محاولة دخول فاشلة مؤخرًا
+                </span>
+              )}
+              {isLocked(u) && (
+                <span className="user-row-meta" style={{ color: 'var(--danger)' }}>
+                  مقفول لحد {new Date(u.lockedUntil!).toLocaleString('ar-EG')} بسبب محاولات فاشلة كتيرة
+                </span>
+              )}
             </div>
             {!u.isAdmin && (
               <div className="user-row-actions">
-                <button className="small" onClick={() => handleResetPassword(u.id, u.username)}>
+                {isLocked(u) && (
+                  <button
+                    className="small"
+                    onClick={() => openConfirm({ type: 'unlock', id: u.id, username: u.username })}
+                  >
+                    فك القفل
+                  </button>
+                )}
+                <button
+                  className="small"
+                  onClick={() => openConfirm({ type: 'resetPassword', id: u.id, username: u.username })}
+                >
                   إعادة تعيين الباسورد
                 </button>
-                <button className="small" onClick={() => handleForceLogout(u.id, u.username)}>
+                <button
+                  className="small"
+                  onClick={() => openConfirm({ type: 'forceLogout', id: u.id, username: u.username })}
+                >
                   خروج إجباري
                 </button>
                 <button
                   className="small"
-                  onClick={() => handleSuspend(u.id, u.username, u.isActive)}
+                  onClick={() =>
+                    openConfirm({
+                      type: 'suspend',
+                      id: u.id,
+                      username: u.username,
+                      currentlyActive: u.isActive,
+                    })
+                  }
                 >
                   {u.isActive ? 'تعليق' : 'تفعيل'}
                 </button>
-                <button className="danger small" onClick={() => handleDelete(u.id, u.username)}>
+                <button
+                  className="danger small"
+                  onClick={() => openConfirm({ type: 'delete', id: u.id, username: u.username })}
+                >
                   حذف
                 </button>
               </div>
@@ -215,9 +314,47 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
                 <strong>{l.adminUsername}</strong> — {l.action}
                 {l.targetUsername && ` — ${l.targetUsername}`}
               </span>
-              <span className="user-row-meta">{new Date(l.createdAt).toLocaleString('ar-EG')}</span>
+              <span className="user-row-meta">
+                {new Date(l.createdAt).toLocaleString('ar-EG')}
+                {l.ip && ` · IP: ${l.ip}`}
+              </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {pending && (
+        <div className="modal-overlay" onClick={closeConfirm}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <h2>تأكيد الإجراء</h2>
+            <p className="modal-text">
+              أنت على وشك تنفيذ <strong>{ACTION_LABELS[pending.type]}</strong> لحساب{' '}
+              <strong>"{pending.username}"</strong>.
+            </p>
+            <p className="modal-text modal-hint">اكتب كلمة مرورك انت (الأدمن) للتأكيد:</p>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="كلمة مرور الأدمن"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
+            />
+            {confirmError && <p className="error">{confirmError}</p>}
+            <div className="modal-actions">
+              <button className="small" onClick={closeConfirm} type="button">
+                إلغاء
+              </button>
+              <button
+                className="danger small"
+                onClick={handleConfirm}
+                disabled={!confirmPassword || confirmLoading}
+                type="button"
+              >
+                {confirmLoading ? 'جاري التنفيذ...' : 'تأكيد وتنفيذ'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

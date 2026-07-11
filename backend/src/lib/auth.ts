@@ -23,6 +23,11 @@ export function verifyToken(token: string): { userId: string; tokenVersion: numb
   return jwt.verify(token, JWT_SECRET) as { userId: string; tokenVersion: number };
 }
 
+// إعدادات الحماية من محاولات تخمين كلمة المرور على مستوى الحساب نفسه
+// (بالإضافة إلى الحماية على مستوى الـ IP الموجودة في index.ts)
+export const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+export const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 دقيقة
+
 // بيولّد باسورد مؤقت عشوائي قوي لاستخدامه في إعادة التعيين الإجبارية
 export function generateTempPassword(): string {
   return crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12);

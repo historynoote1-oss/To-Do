@@ -1,25 +1,15 @@
-import { sounds } from '../lib/sounds';
-
-export default function TodoItemRow({ item, onToggle, onDelete }: any) {
-  function handleToggle() {
-    if (item.isDone) sounds.taskUndone();
-    else sounds.taskDone();
-    onToggle();
-  }
-
-  function handleDelete() {
-    sounds.deleteItem();
-    onDelete();
-  }
-
+export default function TodoItemRow({ item, onToggle, onDelete, delay = 0, leaving = false }: any) {
   return (
-    <li className={item.isDone ? 'done' : ''}>
+    <li
+      className={`${item.isDone ? 'done' : ''} ${leaving ? 'leaving' : ''}`}
+      style={{ ['--delay' as any]: `${delay}ms` }}
+    >
       <label>
         <span
           className={`checkbox ${item.isDone ? 'checked' : ''}`}
           onClick={(e) => {
             e.preventDefault();
-            handleToggle();
+            onToggle();
           }}
         >
           <svg viewBox="0 0 16 16">
@@ -28,7 +18,7 @@ export default function TodoItemRow({ item, onToggle, onDelete }: any) {
         </span>
         <span>{item.content}</span>
       </label>
-      <button className="danger small" onClick={handleDelete}>
+      <button className="danger small row-delete" onClick={onDelete} aria-label="حذف المهمة">
         ✕
       </button>
     </li>
