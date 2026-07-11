@@ -66,3 +66,26 @@ enum Priority {
   MEDIUM
   HIGH
 }
+
+// سجل تحديثات الموقع — مصمم عشان يستحمل عدد ضخم من التحديثات (مئات الآلاف)
+// مع بحث وتصفح سريعين، وتحرير كامل من لوحة تحكم الأدمن.
+model Update {
+  id          String   @id @default(cuid())
+  version     String? // رقم إصدار اختياري، مثلاً "0.4"
+  emoji       String   @default("✨")
+  title       String
+  features    String[] // نقاط التحديث
+  howToTitle  String? // عنوان قسم "كيفية الاستخدام" (لو موجود)
+  howToSteps  String[] // خطوات "كيفية الاستخدام"
+  authorName  String   @default("فريق الموقع") // اسم الشخص/الفريق البشري اللي كتب التحديث
+  pinned      Boolean  @default(false) // تحديث مثبّت فوق الكل بغض النظر عن تاريخه
+  isPublished Boolean  @default(true) // مسودة لسه مش منشورة لو false
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // فهرس مركّب بيخلي الترتيب والتصفح بالـ cursor (keyset pagination) سريع
+  // حتى مع مئات الآلاف من الصفوف، بدل الاعتماد على OFFSET اللي بيبطّئ مع الحجم الكبير.
+  @@index([isPublished, pinned, publishedAt, id])
+  @@index([version])
+}

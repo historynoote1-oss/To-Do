@@ -7,6 +7,8 @@ import authRoutes from './routes/auth';
 import listsRoutes from './routes/lists';
 import itemsRoutes from './routes/items';
 import adminRoutes from './routes/admin';
+import updatesRoutes from './routes/updates';
+import adminUpdatesRoutes from './routes/adminUpdates';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 
@@ -49,10 +51,22 @@ const adminLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// قراءة عامة (بدون تسجيل دخول) لسجل التحديثات، بحد معقول عشان محدش يقدر
+// يضرب الـ endpoint ده بعدد ضخم من الطلبات في وقت قصير.
+const updatesLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 300,
+  message: { error: 'طلبات كتير جدًا، حاول تاني بعد شوية' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use('/api/auth', authLimiter, authRoutes);
 
 app.use('/api/lists', verifyUser, listsRoutes);
 app.use('/api', verifyUser, itemsRoutes);
+app.use('/api/updates', updatesLimiter, updatesRoutes);
+app.use('/api/admin/updates', verifyUser, requireAdmin, adminLimiter, adminUpdatesRoutes);
 app.use('/api/admin', verifyUser, requireAdmin, adminLimiter, adminRoutes);
 
 app.get('/', (_req, res) => res.send('Todo Backend يعمل ✅'));

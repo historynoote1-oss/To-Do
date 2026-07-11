@@ -10,6 +10,7 @@ import {
   getAdminAuditLog,
 } from '../lib/api';
 import { sounds } from '../lib/sounds';
+import AdminUpdatesManager from './AdminUpdatesManager';
 
 interface Stats {
   usersCount: number;
@@ -68,6 +69,7 @@ function isLocked(u: AdminUser) {
 const STAT_ICONS = ['👤', '✅', '📋', '🗂️', '🛡️', '🔒'];
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
+  const [tab, setTab] = useState<'users' | 'updates'>('users');
   const [stats, setStats] = useState<Stats | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -181,6 +183,27 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
         </button>
       </div>
 
+      <div className="admin-tabs">
+        <button
+          type="button"
+          className={`admin-tab ${tab === 'users' ? 'active' : ''}`}
+          onClick={() => setTab('users')}
+        >
+          👥 المستخدمين
+        </button>
+        <button
+          type="button"
+          className={`admin-tab ${tab === 'updates' ? 'active' : ''}`}
+          onClick={() => setTab('updates')}
+        >
+          📢 التحديثات
+        </button>
+      </div>
+
+      {tab === 'updates' && <AdminUpdatesManager />}
+
+      {tab === 'users' && (
+        <>
       {stats && (
         <div className="stats-grid">
           <div className="stat-card">
@@ -356,6 +379,8 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
