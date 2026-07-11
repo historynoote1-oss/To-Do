@@ -15,13 +15,26 @@ import multer from 'multer';
 // القديم (على القرص) عشان الموقع يفضل شغال زي ما هو من غير أي كسر.
 // ============================================================================
 
-const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY;
-const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET;
+// .trim() هنا مهم جدًا: لو المتغيرات دي اتنسخت ولصقت من مكان تاني (زي
+// إيميل أو مستند) غالبًا بتيجي معاها مسافة أو سطر جديد مخفي في الآخر،
+// وده بيخلي التوقيع (signature) يبقى غلط دايمًا حتى لو الاسم/المفتاح/السر
+// نفسهم صح 100%. الخطأ اللي بيظهر وقتها هو "Invalid Signature" من Cloudinary.
+const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME?.trim();
+const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY?.trim();
+const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET?.trim();
 
 export const CLOUDINARY_ENABLED = Boolean(
   CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET
 );
+
+if (CLOUDINARY_ENABLED) {
+  // لوج بسيط وقت تشغيل السيرفر يفيد في التشخيص من على Railway logs من
+  // غير ما نطبع السر نفسه. لو الاسم اللي ظاهر هنا مش مطابق لما هو موجود
+  // في Cloudinary Dashboard، يبقى المتغير مظبوط غلط في إعدادات الاستضافة.
+  console.log(`[avatarUpload] تخزين الأفتار شغال على Cloudinary (cloud: ${CLOUDINARY_CLOUD_NAME})`);
+} else {
+  console.log('[avatarUpload] تخزين الأفتار شغال محليًا (Cloudinary مش مفعّل)');
+}
 
 const ALLOWED_MIME_TO_EXT: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -112,7 +125,12 @@ export async function uploadAvatarToCloudinary(
   );
   const data: any = await res.json();
   if (!res.ok) {
-    throw new Error(data?.error?.message || 'تعذّر رفع الصورة على التخزين السحابي');
+    // بنطبع تفاصيل الخطأ الكاملة (زي رسالة "Invalid Signature" وتفاصيلها)
+    // في لوجات السيرفر بس، عشان المطوّر يقدر يشخّص المشكلة (غالبًا يبقى
+    // متغيرات Cloudinary مش مظبوطة صح في إعدادات الاستضافة). المستخدم
+    // العادي بياخد رسالة عربي بسيطة بدل ما تتعرض له تفاصيل تقنية داخلية.
+    console.error('[avatarUpload] فشل الرفع على Cloudinary:', data?.error || data);
+    throw new Error('تعذّر رفع الصورة دلوقتي، جرّب تاني كمان شوية 🙏');
   }
   return data.secure_url as string;
 }
@@ -133,8 +151,10 @@ export async function deleteAvatarFromCloudinary(userId: string): Promise<void> 
       method: 'POST',
       body: form,
     });
-  } catch {
-    // لو المسح فشل لأي سبب، مش هنوقف عملية حذف/تحديث الأفتار الأساسية بسببه
+  } catch (err) {
+    // لو المسح فشل لأي سبب، مش هنوقف عملية حذف/تحديث الأفتار الأساسية
+    // بسببه — بس بنسجّل الخطأ في اللوجات عشان التشخيص لو تكرر.
+    console.error('[avatarUpload] فشل حذف الصورة القديمة من Cloudinary:', err);
   }
 }
 
