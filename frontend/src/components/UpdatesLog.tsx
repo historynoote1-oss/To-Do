@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { UpdateEntry } from '../lib/api';
 import { useUpdatesFeed } from '../hooks/useUpdatesFeed';
-import HumanBadge from './HumanBadge';
 import UpdateDetailModal from './UpdateDetailModal';
 import UpdatesTimelineView from './UpdatesTimelineView';
 import UpdatesCompactView from './UpdatesCompactView';
@@ -46,7 +45,6 @@ export default function UpdatesLog({ onBack }: { onBack: () => void }) {
         </button>
         <h1>📢 التحديثات</h1>
         <p className="updates-subtitle">آخر أخبار وتحسينات الموقع أول بأول</p>
-        <HumanBadge authorName="فريقنا" />
       </div>
 
       <div className="updates-toolbar">

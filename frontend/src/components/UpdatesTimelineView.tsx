@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { UpdateEntry } from '../lib/api';
-import HumanBadge from './HumanBadge';
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -23,7 +22,6 @@ function TimelineCard({ update, isLast }: { update: UpdateEntry; isLast: boolean
           <span className="update-date">{formatDate(update.publishedAt)}</span>
         </div>
         <h2 className="update-title">{update.title}</h2>
-        <HumanBadge authorName={update.authorName} />
 
         <div className="update-divider" />
 

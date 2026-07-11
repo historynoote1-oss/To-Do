@@ -1368,17 +1368,6 @@ li input[type='checkbox'] {
   max-width: 760px;
 }
 
-.human-badge {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 11.5px;
-  color: var(--success);
-  background: var(--success-dim);
-  border: 1px solid rgba(95, 217, 180, 0.3);
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-}
-
 .updates-toolbar {
   display: flex;
   flex-wrap: wrap;

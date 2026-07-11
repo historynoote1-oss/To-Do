@@ -1,5 +1,4 @@
 import { UpdateEntry } from '../lib/api';
-import HumanBadge from './HumanBadge';
 
 export default function UpdateDetailModal({
   update,
@@ -27,8 +26,6 @@ export default function UpdateDetailModal({
             <h2 className="update-title">{update.title}</h2>
           </div>
         </div>
-
-        <HumanBadge authorName={update.authorName} />
 
         <ul className="update-features">
           {update.features.map((f, i) => (
