@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
+  AdminUserEntry,
+  LogEntry,
   getAdminStats,
   getAdminUsers,
   deleteAdminUser,
@@ -8,9 +10,14 @@ import {
   resetAdminUserPassword,
   unlockAdminUser,
   getAdminAuditLog,
+  downloadAdminUsersCsv,
+  downloadAdminAuditLogCsv,
+  getAdminGrowthStats,
 } from '../lib/api';
 import { sounds } from '../lib/sounds';
+import { toast } from '../lib/toast';
 import AdminUpdatesManager from './AdminUpdatesManager';
+import TwoFactorSettings from './TwoFactorSettings';
 
 interface Stats {
   usersCount: number;
@@ -20,29 +27,6 @@ interface Stats {
   activeCount: number;
   lockedCount: number;
   adminCount: number;
-}
-
-interface AdminUser {
-  id: string;
-  username: string;
-  isAdmin: boolean;
-  isActive: boolean;
-  lastLoginAt: string | null;
-  lastLoginIp: string | null;
-  lastLoginUserAgent: string | null;
-  failedLoginAttempts: number;
-  lockedUntil: string | null;
-  createdAt: string;
-  _count: { lists: number };
-}
-
-interface LogEntry {
-  id: string;
-  adminUsername: string;
-  targetUsername: string | null;
-  action: string;
-  ip: string | null;
-  createdAt: string;
 }
 
 type ActionType = 'suspend' | 'delete' | 'forceLogout' | 'resetPassword' | 'unlock';
@@ -62,20 +46,50 @@ const ACTION_LABELS: Record<ActionType, string> = {
   unlock: 'فك قفل الحساب',
 };
 
-function isLocked(u: AdminUser) {
+function isLocked(u: AdminUserEntry) {
   return !!u.lockedUntil && new Date(u.lockedUntil) > new Date();
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 const STAT_ICONS = ['👤', '✅', '📋', '🗂️', '🛡️', '🔒'];
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
-  const [tab, setTab] = useState<'users' | 'updates'>('users');
+  const [tab, setTab] = useState<'users' | 'updates' | 'security'>('users');
   const [stats, setStats] = useState<Stats | null>(null);
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [growth, setGrowth] = useState<{ date: string; count: number }[]>([]);
+
+  // ===== المستخدمين: بحث + تصفح بالصفحات =====
+  const [users, setUsers] = useState<AdminUserEntry[]>([]);
+  const [userQuery, setUserQuery] = useState('');
+  const [userPage, setUserPage] = useState(1);
+  const [userTotalPages, setUserTotalPages] = useState(1);
+  const [userTotal, setUserTotal] = useState(0);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [exportingUsers, setExportingUsers] = useState(false);
+
+  // ===== سجل عمليات الأدمن: فلاتر + تصفح =====
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showLogs, setShowLogs] = useState(false);
+  const [logPage, setLogPage] = useState(1);
+  const [logTotalPages, setLogTotalPages] = useState(1);
+  const [logTotal, setLogTotal] = useState(0);
+  const [logAdminFilter, setLogAdminFilter] = useState('');
+  const [logActionFilter, setLogActionFilter] = useState('');
+  const [availableActions, setAvailableActions] = useState<string[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [exportingLogs, setExportingLogs] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -83,26 +97,112 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [confirmLoading, setConfirmLoading] = useState(false);
 
   useEffect(() => {
-    load();
+    loadOverview();
   }, []);
 
-  async function load() {
-    setLoading(true);
+  // البحث بيرجّع لأول صفحة تلقائيًا، مع تأخير بسيط (debounce) عشان مانضربش
+  // السيرفر بطلب مع كل حرف يتكتب
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setUserPage(1);
+      loadUsers(1, userQuery);
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userQuery]);
+
+  useEffect(() => {
+    loadUsers(userPage, userQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userPage]);
+
+  useEffect(() => {
+    if (showLogs) loadLogs(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLogs, logAdminFilter, logActionFilter]);
+
+  useEffect(() => {
+    if (showLogs) loadLogs(logPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logPage]);
+
+  async function loadOverview() {
+    setUsersLoading(true);
     try {
-      const [s, u] = await Promise.all([getAdminStats(), getAdminUsers()]);
+      const [s, g] = await Promise.all([getAdminStats(), getAdminGrowthStats()]);
       setStats(s);
-      setUsers(u);
+      setGrowth(g.days);
+      await loadUsers(1, '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حصل خطأ');
     } finally {
-      setLoading(false);
+      setUsersLoading(false);
     }
   }
 
-  async function loadLogs() {
-    const data = await getAdminAuditLog();
-    setLogs(data);
-    setShowLogs(true);
+  async function loadUsers(page: number, q: string) {
+    setUsersLoading(true);
+    try {
+      const data = await getAdminUsers({ q, page, pageSize: 20 });
+      setUsers(data.users);
+      setUserTotalPages(data.totalPages);
+      setUserTotal(data.total);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'تعذّر تحميل المستخدمين');
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  async function loadLogs(page: number) {
+    setLogsLoading(true);
+    try {
+      const data = await getAdminAuditLog({
+        page,
+        pageSize: 50,
+        adminUsername: logAdminFilter || undefined,
+        action: logActionFilter || undefined,
+      });
+      setLogs(data.logs);
+      setLogTotalPages(data.totalPages);
+      setLogTotal(data.total);
+      setAvailableActions(data.availableActions);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'تعذّر تحميل سجل العمليات');
+    } finally {
+      setLogsLoading(false);
+    }
+  }
+
+  async function handleExportUsers() {
+    setExportingUsers(true);
+    try {
+      const blob = await downloadAdminUsersCsv(userQuery || undefined);
+      downloadBlob(blob, `users-${Date.now()}.csv`);
+      sounds.success();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر التصدير');
+    } finally {
+      setExportingUsers(false);
+    }
+  }
+
+  async function handleExportLogs() {
+    setExportingLogs(true);
+    try {
+      const blob = await downloadAdminAuditLogCsv({
+        adminUsername: logAdminFilter || undefined,
+        action: logActionFilter || undefined,
+      });
+      downloadBlob(blob, `audit-log-${Date.now()}.csv`);
+      sounds.success();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر التصدير');
+    } finally {
+      setExportingLogs(false);
+    }
   }
 
   function openConfirm(action: PendingAction) {
@@ -149,7 +249,8 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
         }
       }
       closeConfirm();
-      await load();
+      await loadUsers(userPage, userQuery);
+      if (showLogs) await loadLogs(logPage);
     } catch (err) {
       sounds.error();
       setConfirmError(err instanceof Error ? err.message : 'فشلت العملية');
@@ -158,7 +259,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 
-  if (loading) {
+  if (usersLoading && users.length === 0 && !error) {
     return (
       <div className="container admin-container">
         <div className="top-bar">
@@ -173,6 +274,8 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
     );
   }
   if (error) return <div className="container error">⚠️ {error}</div>;
+
+  const maxGrowth = Math.max(1, ...growth.map((d) => d.count));
 
   return (
     <div className="container admin-container">
@@ -198,152 +301,258 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
         >
           📢 التحديثات
         </button>
-      </div>
-
-      {tab === 'updates' && <AdminUpdatesManager />}
-
-      {tab === 'users' && (
-        <>
-      {stats && (
-        <div className="stats-grid">
-          <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[0]}</span>
-            <span className="stat-value">{stats.usersCount}</span>
-            <span className="stat-label">مستخدم</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[1]}</span>
-            <span className="stat-value">{stats.activeCount}</span>
-            <span className="stat-label">حساب مفعّل</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[2]}</span>
-            <span className="stat-value">{stats.listsCount}</span>
-            <span className="stat-label">قائمة</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[3]}</span>
-            <span className="stat-value">{stats.itemsCount}</span>
-            <span className="stat-label">مهمة</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[4]}</span>
-            <span className="stat-value">{stats.adminCount}</span>
-            <span className="stat-label">أدمن</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[5]}</span>
-            <span className="stat-value" style={stats.lockedCount > 0 ? { color: 'var(--danger)' } : undefined}>
-              {stats.lockedCount}
-            </span>
-            <span className="stat-label">حساب مقفول حاليًا</span>
-          </div>
-        </div>
-      )}
-
-      <div className="admin-section-header">
-        <h2>كل المستخدمين</h2>
-        <button className="small" onClick={loadLogs}>
-          سجل عمليات الأدمن
+        <button
+          type="button"
+          className={`admin-tab ${tab === 'security' ? 'active' : ''}`}
+          onClick={() => setTab('security')}
+        >
+          🔐 الأمان
         </button>
       </div>
 
-      <div className="users-table">
-        {users.map((u) => (
-          <div className="user-row" key={u.id}>
-            <div className="user-row-info">
-              <strong>
-                {u.username} {!u.isActive && <span className="suspended-badge">متعلّق</span>}
-                {isLocked(u) && <span className="suspended-badge">مقفول مؤقتًا</span>}
-              </strong>
-              {u.isAdmin && <span className="admin-badge">أدمن</span>}
-              <span className="user-row-meta">
-                {u._count.lists} قائمة · انضم {new Date(u.createdAt).toLocaleDateString('ar-EG')}
-              </span>
-              <span className="user-row-meta">
-                آخر دخول:{' '}
-                {u.lastLoginAt
-                  ? `${new Date(u.lastLoginAt).toLocaleString('ar-EG')} (${u.lastLoginIp || 'غير معروف'})`
-                  : 'لسه ماسجلش دخول'}
-              </span>
-              {u.lastLoginUserAgent && (
-                <span className="user-row-meta">الجهاز: {u.lastLoginUserAgent}</span>
-              )}
-              {u.failedLoginAttempts > 0 && !isLocked(u) && (
-                <span className="user-row-meta" style={{ color: 'var(--accent)' }}>
-                  {u.failedLoginAttempts} محاولة دخول فاشلة مؤخرًا
+      {tab === 'updates' && <AdminUpdatesManager />}
+      {tab === 'security' && <TwoFactorSettings />}
+
+      {tab === 'users' && (
+        <>
+          {stats && (
+            <div className="stats-grid">
+              <div className="stat-card">
+                <span className="stat-icon">{STAT_ICONS[0]}</span>
+                <span className="stat-value">{stats.usersCount}</span>
+                <span className="stat-label">مستخدم</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">{STAT_ICONS[1]}</span>
+                <span className="stat-value">{stats.activeCount}</span>
+                <span className="stat-label">حساب مفعّل</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">{STAT_ICONS[2]}</span>
+                <span className="stat-value">{stats.listsCount}</span>
+                <span className="stat-label">قائمة</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">{STAT_ICONS[3]}</span>
+                <span className="stat-value">{stats.itemsCount}</span>
+                <span className="stat-label">مهمة</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">{STAT_ICONS[4]}</span>
+                <span className="stat-value">{stats.adminCount}</span>
+                <span className="stat-label">أدمن</span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-icon">{STAT_ICONS[5]}</span>
+                <span className="stat-value" style={stats.lockedCount > 0 ? { color: 'var(--danger)' } : undefined}>
+                  {stats.lockedCount}
                 </span>
-              )}
-              {isLocked(u) && (
-                <span className="user-row-meta" style={{ color: 'var(--danger)' }}>
-                  مقفول لحد {new Date(u.lockedUntil!).toLocaleString('ar-EG')} بسبب محاولات فاشلة كتيرة
-                </span>
-              )}
+                <span className="stat-label">حساب مقفول حاليًا</span>
+              </div>
             </div>
-            {!u.isAdmin && (
-              <div className="user-row-actions">
-                {isLocked(u) && (
-                  <button
-                    className="small"
-                    onClick={() => openConfirm({ type: 'unlock', id: u.id, username: u.username })}
-                  >
-                    فك القفل
-                  </button>
+          )}
+
+          {growth.length > 0 && (
+            <div className="growth-chart">
+              <h2>تسجيلات جديدة (آخر 30 يوم)</h2>
+              <div className="growth-chart-bars">
+                {growth.map((d) => (
+                  <div className="growth-bar-wrap" key={d.date} title={`${d.date}: ${d.count}`}>
+                    <div
+                      className="growth-bar"
+                      style={{ height: `${Math.max((d.count / maxGrowth) * 100, d.count > 0 ? 6 : 2)}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="admin-section-header">
+            <h2>كل المستخدمين ({userTotal})</h2>
+            <div className="admin-section-actions">
+              <button className="small" onClick={handleExportUsers} disabled={exportingUsers}>
+                {exportingUsers ? 'جاري التصدير...' : '⬇️ تصدير CSV'}
+              </button>
+              <button className="small" onClick={() => setShowLogs((v) => !v)}>
+                سجل عمليات الأدمن
+              </button>
+            </div>
+          </div>
+
+          <input
+            className="admin-search"
+            value={userQuery}
+            onChange={(e) => setUserQuery(e.target.value)}
+            placeholder="ابحث باسم المستخدم..."
+          />
+
+          <div className="users-table">
+            {usersLoading && (
+              <div className="skeleton" style={{ height: 60, marginBottom: 10 }} />
+            )}
+            {!usersLoading && users.length === 0 && <p className="empty">مفيش نتائج مطابقة</p>}
+            {users.map((u) => (
+              <div className="user-row" key={u.id}>
+                <div className="user-row-info">
+                  <strong>
+                    {u.username} {!u.isActive && <span className="suspended-badge">متعلّق</span>}
+                    {isLocked(u) && <span className="suspended-badge">مقفول مؤقتًا</span>}
+                  </strong>
+                  {u.isAdmin && <span className="admin-badge">أدمن</span>}
+                  <span className="user-row-meta">
+                    {u._count.lists} قائمة · انضم {new Date(u.createdAt).toLocaleDateString('ar-EG')}
+                  </span>
+                  <span className="user-row-meta">
+                    آخر دخول:{' '}
+                    {u.lastLoginAt
+                      ? `${new Date(u.lastLoginAt).toLocaleString('ar-EG')} (${u.lastLoginIp || 'غير معروف'})`
+                      : 'لسه ماسجلش دخول'}
+                  </span>
+                  {u.lastLoginUserAgent && (
+                    <span className="user-row-meta">الجهاز: {u.lastLoginUserAgent}</span>
+                  )}
+                  {u.failedLoginAttempts > 0 && !isLocked(u) && (
+                    <span className="user-row-meta" style={{ color: 'var(--accent)' }}>
+                      {u.failedLoginAttempts} محاولة دخول فاشلة مؤخرًا
+                    </span>
+                  )}
+                  {isLocked(u) && (
+                    <span className="user-row-meta" style={{ color: 'var(--danger)' }}>
+                      مقفول لحد {new Date(u.lockedUntil!).toLocaleString('ar-EG')} بسبب محاولات فاشلة كتيرة
+                    </span>
+                  )}
+                </div>
+                {!u.isAdmin && (
+                  <div className="user-row-actions">
+                    {isLocked(u) && (
+                      <button
+                        className="small"
+                        onClick={() => openConfirm({ type: 'unlock', id: u.id, username: u.username })}
+                      >
+                        فك القفل
+                      </button>
+                    )}
+                    <button
+                      className="small"
+                      onClick={() => openConfirm({ type: 'resetPassword', id: u.id, username: u.username })}
+                    >
+                      إعادة تعيين الباسورد
+                    </button>
+                    <button
+                      className="small"
+                      onClick={() => openConfirm({ type: 'forceLogout', id: u.id, username: u.username })}
+                    >
+                      خروج إجباري
+                    </button>
+                    <button
+                      className="small"
+                      onClick={() =>
+                        openConfirm({
+                          type: 'suspend',
+                          id: u.id,
+                          username: u.username,
+                          currentlyActive: u.isActive,
+                        })
+                      }
+                    >
+                      {u.isActive ? 'تعليق' : 'تفعيل'}
+                    </button>
+                    <button
+                      className="danger small"
+                      onClick={() => openConfirm({ type: 'delete', id: u.id, username: u.username })}
+                    >
+                      حذف
+                    </button>
+                  </div>
                 )}
-                <button
-                  className="small"
-                  onClick={() => openConfirm({ type: 'resetPassword', id: u.id, username: u.username })}
-                >
-                  إعادة تعيين الباسورد
-                </button>
-                <button
-                  className="small"
-                  onClick={() => openConfirm({ type: 'forceLogout', id: u.id, username: u.username })}
-                >
-                  خروج إجباري
-                </button>
-                <button
-                  className="small"
-                  onClick={() =>
-                    openConfirm({
-                      type: 'suspend',
-                      id: u.id,
-                      username: u.username,
-                      currentlyActive: u.isActive,
-                    })
-                  }
-                >
-                  {u.isActive ? 'تعليق' : 'تفعيل'}
-                </button>
-                <button
-                  className="danger small"
-                  onClick={() => openConfirm({ type: 'delete', id: u.id, username: u.username })}
-                >
-                  حذف
+              </div>
+            ))}
+          </div>
+
+          {userTotalPages > 1 && (
+            <div className="pagination">
+              <button className="small" disabled={userPage <= 1} onClick={() => setUserPage((p) => p - 1)}>
+                السابق
+              </button>
+              <span className="pagination-label">
+                صفحة {userPage} من {userTotalPages}
+              </span>
+              <button
+                className="small"
+                disabled={userPage >= userTotalPages}
+                onClick={() => setUserPage((p) => p + 1)}
+              >
+                التالي
+              </button>
+            </div>
+          )}
+
+          {showLogs && (
+            <div className="audit-log">
+              <div className="admin-section-header">
+                <h2>سجل عمليات الأدمن ({logTotal})</h2>
+                <button className="small" onClick={handleExportLogs} disabled={exportingLogs}>
+                  {exportingLogs ? 'جاري التصدير...' : '⬇️ تصدير CSV'}
                 </button>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
 
-      {showLogs && (
-        <div className="audit-log">
-          <h2>آخر 100 عملية أدمن</h2>
-          {logs.length === 0 && <p className="empty">مفيش عمليات مسجّلة لسه</p>}
-          {logs.map((l) => (
-            <div className="log-row" key={l.id}>
-              <span>
-                <strong>{l.adminUsername}</strong> — {l.action}
-                {l.targetUsername && ` — ${l.targetUsername}`}
-              </span>
-              <span className="user-row-meta">
-                {new Date(l.createdAt).toLocaleString('ar-EG')}
-                {l.ip && ` · IP: ${l.ip}`}
-              </span>
+              <div className="audit-log-filters">
+                <input
+                  className="admin-search"
+                  value={logAdminFilter}
+                  onChange={(e) => setLogAdminFilter(e.target.value)}
+                  placeholder="فلترة باسم الأدمن..."
+                />
+                <select
+                  className="admin-select"
+                  value={logActionFilter}
+                  onChange={(e) => setLogActionFilter(e.target.value)}
+                >
+                  <option value="">كل أنواع العمليات</option>
+                  {availableActions.map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {logsLoading && <div className="skeleton" style={{ height: 60, marginBottom: 10 }} />}
+              {!logsLoading && logs.length === 0 && <p className="empty">مفيش عمليات مطابقة</p>}
+              {logs.map((l) => (
+                <div className="log-row" key={l.id}>
+                  <span>
+                    <strong>{l.adminUsername}</strong> — {l.action}
+                    {l.targetUsername && ` — ${l.targetUsername}`}
+                  </span>
+                  <span className="user-row-meta">
+                    {new Date(l.createdAt).toLocaleString('ar-EG')}
+                    {l.ip && ` · IP: ${l.ip}`}
+                  </span>
+                </div>
+              ))}
+
+              {logTotalPages > 1 && (
+                <div className="pagination">
+                  <button className="small" disabled={logPage <= 1} onClick={() => setLogPage((p) => p - 1)}>
+                    السابق
+                  </button>
+                  <span className="pagination-label">
+                    صفحة {logPage} من {logTotalPages}
+                  </span>
+                  <button
+                    className="small"
+                    disabled={logPage >= logTotalPages}
+                    onClick={() => setLogPage((p) => p + 1)}
+                  >
+                    التالي
+                  </button>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {pending && (
@@ -379,8 +588,6 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             </div>
           </div>
         </div>
-      )}
-        </>
       )}
     </div>
   );

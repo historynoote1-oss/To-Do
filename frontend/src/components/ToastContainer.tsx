@@ -10,7 +10,12 @@ const ICONS: Record<ToastMessage['kind'], string> = {
 export default function ToastContainer() {
   const [items, setItems] = useState<ToastMessage[]>([]);
 
-  useEffect(() => toast.subscribe(setItems), []);
+  useEffect(() => {
+    const unsubscribe = toast.subscribe(setItems);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   if (items.length === 0) return null;
 

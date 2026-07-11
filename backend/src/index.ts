@@ -9,6 +9,7 @@ import itemsRoutes from './routes/items';
 import adminRoutes from './routes/admin';
 import updatesRoutes from './routes/updates';
 import adminUpdatesRoutes from './routes/adminUpdates';
+import twoFactorRoutes from './routes/twoFactor';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 
@@ -22,7 +23,19 @@ app.set('trust proxy', 1);
 // هيدرز أمان عامة على مستوى HTTP (منع clickjacking، إجبار المتصفح ميخمنش نوع
 // المحتوى، إلخ). ده جزء من "الأمان الحقيقي" اللي بيحصل في السيرفر، عكس فكرة
 // "إخفاء الكود" اللي مش ممكنة أصلاً لأي تطبيق يشتغل جوه المتصفح.
-app.use(helmet());
+// الـ API ده مبيرجعش HTML خالص (json بس)، فـ CSP بتاعه مضيّق لأقصى درجة:
+// مفيش سماح لأي مصدر خارجي يحمّل سكريبت/ستايل/إطار جوه رد السيرفر نفسه.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    crossOriginResourcePolicy: { policy: 'same-site' },
+  })
+);
 
 app.use(
   cors({
@@ -61,7 +74,19 @@ const updatesLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// حماية إضافية صارمة لمسارات التحقق بخطوتين: تخمين كود مكوّن من 6 أرقام ممكن
+// نظريًا لو الحد الأقصى للمحاولات مش ضيّق كفاية، فهنا الحد أقل بكتير من باقي
+// المسارات (8 محاولات كل 15 دقيقة لكل جهاز) — سواء أثناء الدخول أو الإعداد.
+const twoFactorLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  message: { error: 'محاولات كتير جدًا على التحقق بخطوتين، حاول تاني بعد شوية' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 
 app.use('/api/lists', verifyUser, listsRoutes);
 app.use('/api/updates', updatesLimiter, updatesRoutes);

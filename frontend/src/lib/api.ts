@@ -37,6 +37,48 @@ export async function login(username: string, password: string) {
   return handle(res);
 }
 
+// ===== التحقق بخطوتين (2FA) =====
+
+export async function verifyLoginTwoFactor(pendingToken: string, code: string) {
+  const res = await fetch(`${API_URL}/api/auth/2fa/verify-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pendingToken, code }),
+  });
+  return handle(res);
+}
+
+export async function getTwoFactorStatus(): Promise<{
+  twoFactorEnabled: boolean;
+  twoFactorEnabledAt: string | null;
+}> {
+  const res = await fetch(`${API_URL}/api/auth/2fa/status`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function setupTwoFactor(): Promise<{ secret: string; qrDataUrl: string }> {
+  const res = await fetch(`${API_URL}/api/auth/2fa/setup`, { method: 'POST', headers: authHeaders() });
+  return handle(res);
+}
+
+export async function enableTwoFactor(code: string): Promise<{ success: true; recoveryCodes: string[] }> {
+  const res = await fetch(`${API_URL}/api/auth/2fa/enable`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ code }),
+  });
+  return handle(res);
+}
+
+export async function disableTwoFactor(password: string, code: string) {
+  const res = await fetch(`${API_URL}/api/auth/2fa/disable`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ password, code }),
+  });
+  return handle(res);
+}
+
 export async function getLists() {
   const res = await fetch(`${API_URL}/api/lists`, { headers: authHeaders() });
   return handle(res);
@@ -90,9 +132,47 @@ export async function getAdminStats() {
   return handle(res);
 }
 
-export async function getAdminUsers() {
-  const res = await fetch(`${API_URL}/api/admin/users`, { headers: authHeaders() });
-  return handle(res);
+export interface AdminUsersPage {
+  users: AdminUserEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface AdminUserEntry {
+  id: string;
+  username: string;
+  isAdmin: boolean;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  lastLoginIp: string | null;
+  lastLoginUserAgent: string | null;
+  failedLoginAttempts: number;
+  lockedUntil: string | null;
+  createdAt: string;
+  _count: { lists: number };
+}
+
+export async function getAdminUsers(params: { q?: string; page?: number; pageSize?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set('q', params.q);
+  qs.set('page', String(params.page || 1));
+  qs.set('pageSize', String(params.pageSize || 20));
+  const res = await fetch(`${API_URL}/api/admin/users?${qs.toString()}`, { headers: authHeaders() });
+  return handle(res) as Promise<AdminUsersPage>;
+}
+
+export function exportAdminUsersUrl(q?: string) {
+  const qs = new URLSearchParams();
+  if (q) qs.set('q', q);
+  return `${API_URL}/api/admin/users/export?${qs.toString()}`;
+}
+
+export async function downloadAdminUsersCsv(q?: string) {
+  const res = await fetch(exportAdminUsersUrl(q), { headers: authHeaders() });
+  if (!res.ok) throw new Error('تعذّر تصدير الملف');
+  return res.blob();
 }
 
 export async function getAdminUserDetail(id: string) {
@@ -145,8 +225,47 @@ export async function unlockAdminUser(id: string, adminPassword: string) {
   return handle(res);
 }
 
-export async function getAdminAuditLog() {
-  const res = await fetch(`${API_URL}/api/admin/audit-log`, { headers: authHeaders() });
+export interface AdminAuditLogPage {
+  logs: LogEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  availableActions: string[];
+}
+
+export interface LogEntry {
+  id: string;
+  adminUsername: string;
+  targetUsername: string | null;
+  action: string;
+  ip: string | null;
+  createdAt: string;
+}
+
+export async function getAdminAuditLog(
+  params: { adminUsername?: string; action?: string; page?: number; pageSize?: number } = {}
+) {
+  const qs = new URLSearchParams();
+  if (params.adminUsername) qs.set('adminUsername', params.adminUsername);
+  if (params.action) qs.set('action', params.action);
+  qs.set('page', String(params.page || 1));
+  qs.set('pageSize', String(params.pageSize || 50));
+  const res = await fetch(`${API_URL}/api/admin/audit-log?${qs.toString()}`, { headers: authHeaders() });
+  return handle(res) as Promise<AdminAuditLogPage>;
+}
+
+export async function downloadAdminAuditLogCsv(params: { adminUsername?: string; action?: string } = {}) {
+  const qs = new URLSearchParams();
+  if (params.adminUsername) qs.set('adminUsername', params.adminUsername);
+  if (params.action) qs.set('action', params.action);
+  const res = await fetch(`${API_URL}/api/admin/audit-log/export?${qs.toString()}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('تعذّر تصدير الملف');
+  return res.blob();
+}
+
+export async function getAdminGrowthStats(): Promise<{ days: { date: string; count: number }[] }> {
+  const res = await fetch(`${API_URL}/api/admin/stats/growth`, { headers: authHeaders() });
   return handle(res);
 }
 

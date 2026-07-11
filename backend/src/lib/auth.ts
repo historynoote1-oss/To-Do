@@ -23,6 +23,21 @@ export function verifyToken(token: string): { userId: string; tokenVersion: numb
   return jwt.verify(token, JWT_SECRET) as { userId: string; tokenVersion: number };
 }
 
+// توكن قصير العمر (5 دقايق بس) بيتولّد بعد ما الباسورد يتأكد صح لحساب مفعّل عليه 2FA،
+// وقبل ما نديله توكن الدخول الكامل. النوع 'pending2fa' بيمنع استخدام التوكن ده في أي
+// endpoint تاني غير التحقق من كود الـ 2FA نفسه، حتى لو حد قدر يسرقه من الشبكة.
+export function signPendingTwoFactorToken(userId: string) {
+  return jwt.sign({ userId, type: 'pending2fa' }, JWT_SECRET, { expiresIn: '5m' });
+}
+
+export function verifyPendingTwoFactorToken(token: string): { userId: string } {
+  const payload = jwt.verify(token, JWT_SECRET) as { userId: string; type?: string };
+  if (payload.type !== 'pending2fa') {
+    throw new Error('توكن غير صالح');
+  }
+  return { userId: payload.userId };
+}
+
 // إعدادات الحماية من محاولات تخمين كلمة المرور على مستوى الحساب نفسه
 // (بالإضافة إلى الحماية على مستوى الـ IP الموجودة في index.ts)
 export const MAX_FAILED_LOGIN_ATTEMPTS = 5;

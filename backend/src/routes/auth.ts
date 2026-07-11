@@ -4,6 +4,7 @@ import {
   hashPassword,
   comparePassword,
   signToken,
+  signPendingTwoFactorToken,
   MAX_FAILED_LOGIN_ATTEMPTS,
   LOCKOUT_DURATION_MS,
 } from '../lib/auth';
@@ -77,6 +78,13 @@ router.post('/login', async (req, res) => {
       });
     }
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غلط' });
+  }
+
+  // الباسورد صح؛ لو الحساب أدمن ومفعّل عليه 2FA، وقّف هنا ومتديش توكن دخول كامل
+  // لحد ما يتأكد الكود من تطبيق المصادقة كمان — خطوة تانية منفصلة عن الباسورد.
+  if (user.isAdmin && user.twoFactorEnabled) {
+    const pendingToken = signPendingTwoFactorToken(user.id);
+    return res.json({ requiresTwoFactor: true, pendingToken });
   }
 
   await prisma.user.update({

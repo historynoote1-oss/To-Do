@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { login, register } from '../lib/api';
+import { login, register, verifyLoginTwoFactor } from '../lib/api';
 import { sounds } from '../lib/sounds';
 
 export default function AuthForm({
@@ -14,6 +14,12 @@ export default function AuthForm({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // ===== خطوة التحقق بخطوتين (2FA) — بتظهر بس لو الحساب أدمن ومفعّل عليه =====
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -21,6 +27,11 @@ export default function AuthForm({
     try {
       const fn = mode === 'login' ? login : register;
       const data = await fn(username.trim(), password);
+      if (data.requiresTwoFactor) {
+        sounds.click();
+        setPendingToken(data.pendingToken);
+        return;
+      }
       sounds.success();
       localStorage.setItem('token', data.token);
       onSuccess(data.username, !!data.isAdmin);
@@ -30,6 +41,60 @@ export default function AuthForm({
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleVerifyTwoFactor(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pendingToken || !twoFactorCode) return;
+    setTwoFactorError(null);
+    setTwoFactorLoading(true);
+    try {
+      const data = await verifyLoginTwoFactor(pendingToken, twoFactorCode.trim());
+      sounds.success();
+      localStorage.setItem('token', data.token);
+      onSuccess(data.username, !!data.isAdmin);
+    } catch (err) {
+      sounds.error();
+      setTwoFactorError(err instanceof Error ? err.message : 'الكود غلط');
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  }
+
+  if (pendingToken) {
+    return (
+      <div className="auth-container">
+        <h1>التحقق بخطوتين</h1>
+        <form onSubmit={handleVerifyTwoFactor} className="auth-form">
+          <p className="modal-text modal-hint">
+            اكتب الكود المكوّن من 6 أرقام من تطبيق المصادقة، أو أحد أكواد الاسترجاع لو فاقد جهازك.
+          </p>
+          <input
+            value={twoFactorCode}
+            onChange={(e) => setTwoFactorCode(e.target.value)}
+            placeholder="123456"
+            inputMode="numeric"
+            autoFocus
+            required
+          />
+          {twoFactorError && <p className="error">⚠️ {twoFactorError}</p>}
+          <button type="submit" disabled={twoFactorLoading || !twoFactorCode}>
+            {twoFactorLoading ? 'جاري التحقق...' : 'تأكيد الدخول'}
+          </button>
+          <button
+            type="button"
+            className="small"
+            onClick={() => {
+              setPendingToken(null);
+              setTwoFactorCode('');
+              setTwoFactorError(null);
+            }}
+          >
+            رجوع لتسجيل الدخول
+          </button>
+        </form>
+      </div>
+    );
   }
 
   return (

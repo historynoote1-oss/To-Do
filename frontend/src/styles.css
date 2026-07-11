@@ -1847,3 +1847,168 @@ li input[type='checkbox'] {
   width: auto;
 }
 
+
+/* ===== v7: بحث/تصفح لوحة الأدمن، تصدير CSV، رسم النمو، والأمان (2FA) ===== */
+
+.admin-section-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-search,
+.admin-select {
+  width: 100%;
+  margin: 10px 0 14px;
+}
+
+.admin-select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.audit-log-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+@media (min-width: 560px) {
+  .audit-log-filters {
+    flex-direction: row;
+  }
+  .audit-log-filters .admin-search {
+    margin: 0;
+    flex: 1;
+  }
+  .audit-log-filters .admin-select {
+    margin: 0;
+    width: auto;
+    min-width: 180px;
+  }
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.pagination-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: var(--font-num);
+}
+
+.growth-chart {
+  margin: 22px 0 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px 12px;
+  animation: fade-up var(--dur) var(--ease-out) both;
+}
+
+.growth-chart h2 {
+  margin: 0 0 14px !important;
+}
+
+.growth-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 70px;
+}
+
+.growth-bar-wrap {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.growth-bar {
+  width: 100%;
+  min-height: 2px;
+  background: linear-gradient(180deg, var(--accent-soft), var(--accent-strong));
+  border-radius: 3px 3px 0 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.growth-bar-wrap:hover .growth-bar {
+  opacity: 0.8;
+}
+
+/* ===== الأمان / التحقق بخطوتين ===== */
+
+.security-panel {
+  animation: fade-up var(--dur) var(--ease-out) both;
+}
+
+.security-status-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.security-status-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.twofa-badge {
+  display: inline-block;
+  width: fit-content;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+}
+
+.twofa-on {
+  background: var(--success-dim);
+  color: var(--success);
+}
+
+.twofa-off {
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.twofa-qr {
+  width: 190px;
+  height: 190px;
+  border-radius: var(--radius-sm);
+  align-self: center;
+  background: #fff;
+  padding: 8px;
+}
+
+.twofa-secret {
+  display: block;
+  text-align: center;
+  font-family: var(--font-num);
+  font-size: 14px;
+  letter-spacing: 1px;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  direction: ltr;
+  word-break: break-all;
+}
+
+.twofa-recovery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}

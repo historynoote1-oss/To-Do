@@ -21,6 +21,20 @@ model User {
   lockedUntil         DateTime?
   createdAt           DateTime   @default(now())
   lists               TodoList[]
+
+  // ===== التحقق بخطوتين (2FA / TOTP) — لحسابات الأدمن =====
+  // twoFactorSecret بيتفعّل بس بعد ما الأدمن يأكّد بكود صحيح من تطبيق المصادقة.
+  // pendingTwoFactorSecret ده تخزين مؤقت أثناء خطوة الإعداد نفسها، قبل التأكيد،
+  // عشان لو الأدمن مسكرش الإعداد منعرفش نفعّل سر عشوائي محدش أكّده فعليًا.
+  twoFactorEnabled       Boolean   @default(false)
+  twoFactorSecret        String?
+  pendingTwoFactorSecret String?
+  // أكواد الاسترجاع بتتخزن مشفّرة (bcrypt) زي الباسورد بالظبط، وكل كود بيتحذف
+  // من المصفوفة أول ما يُستخدم مرة واحدة (single-use)، لو الأدمن فقد جهاز المصادقة.
+  twoFactorRecoveryCodes String[]  @default([])
+  twoFactorEnabledAt     DateTime?
+
+  @@index([createdAt])
 }
 
 model AdminAuditLog {
