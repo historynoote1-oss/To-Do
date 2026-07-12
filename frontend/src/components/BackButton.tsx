@@ -1,9 +1,8 @@
 import { DynamicIcon } from '../lib/icons';
 
-// زرار رجوع موحّد لكل هيدرات الصفحات — بديل زرار النص العادي القديم.
-// دائرة أيقونة بسهم متحرك بيتحرك خطوة لما تعمل hover/focus، مع تسمية
-// واضحة جنبه، عشان التنقل بين الصفحات يبان أسرع وأفخم من غير ما يفقد
-// وضوحه أو سهولة الوصول له باللمس على الموبايل.
+// زرار رجوع موحّد لكل هيدرات الصفحات — أيقونة فقط من غير نص، بتصميم
+// دائري مضغوط بياخد مساحة أقل في الهيدر لكنه بيحافظ على مساحة لمس
+// مريحة. الاسم بيتحط كـ aria-label للقارئ الصوتي بس، مش ظاهر بصريًا.
 export default function BackButton({
   onClick,
   label = 'رجوع',
@@ -14,11 +13,8 @@ export default function BackButton({
   className?: string;
 }) {
   return (
-    <button className={`back-button ${className}`.trim()} onClick={onClick} type="button" aria-label={label}>
-      <span className="back-button-icon">
-        <DynamicIcon name="arrow-right" size={16} />
-      </span>
-      <span className="back-button-label">{label}</span>
+    <button className={`back-button ${className}`.trim()} onClick={onClick} type="button" aria-label={label} title={label}>
+      <DynamicIcon name="arrow-right" size={20} strokeWidth={2.25} />
     </button>
   );
 }

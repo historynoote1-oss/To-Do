@@ -227,6 +227,7 @@ export type IconKey = keyof typeof ICON_MAP;
 interface DynamicIconProps {
   name?: string | null;
   size?: number;
+  strokeWidth?: number;
   className?: string;
   'aria-hidden'?: boolean;
   fallback?: IconKey;
@@ -235,7 +236,7 @@ interface DynamicIconProps {
 // بيرندر أيقونة Lucide لو الاسم متعرّف في ICON_MAP. لو القيمة مش معروفة (مثلاً
 // إيموجي قديم اتخزّن قبل التحديث ده، أو نص حر كتبه المستخدم في مجال حياة)،
 // بيرجع النص الخام زي ما هو من غير ما يكسر حاجة — توافقية مع بيانات قديمة.
-export function DynamicIcon({ name, size = 18, className, fallback, ...rest }: DynamicIconProps) {
+export function DynamicIcon({ name, size = 18, strokeWidth, className, fallback, ...rest }: DynamicIconProps) {
   const key = (name || fallback) as IconKey | undefined;
   const Icon = key ? ICON_MAP[key] : undefined;
   if (!Icon) {
@@ -245,5 +246,7 @@ export function DynamicIcon({ name, size = 18, className, fallback, ...rest }: D
       </span>
     ) : null;
   }
-  return <Icon size={size} className={className} aria-hidden={rest['aria-hidden'] !== false} />;
+  return (
+    <Icon size={size} strokeWidth={strokeWidth} className={className} aria-hidden={rest['aria-hidden'] !== false} />
+  );
 }

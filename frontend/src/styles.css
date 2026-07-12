@@ -7100,76 +7100,79 @@ details[open] > summary .hier-caret {
 }
 
 /* ===== زرار الرجوع الموحّد (Back Button) ===== */
+/* دائرة أيقونة مضغوطة من غير نص — بتاخد مساحة أقل في الهيدر، لكن
+   مساحة اللمس الفعلية (padding + min-width/height) فضلت مريحة على
+   الموبايل. الألوان كلها متبنية على متغيرات الثيم (--surface-2،
+   --border، --text، --accent...) فبتتلون صح تلقائيًا في الوضعين
+   الفاتح والغامق من غير أي قواعد إضافية. */
 
 .back-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px 6px 6px;
-  border-radius: var(--radius-pill);
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  border-radius: 50%;
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
   flex-shrink: 0;
-  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
 }
 
-.back-button-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-dim);
-  color: var(--accent-soft);
-  flex-shrink: 0;
-  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out);
-}
-
-.back-button-icon svg {
+.back-button svg {
   transition: transform var(--dur-fast) var(--ease-out);
 }
 
-.back-button:hover,
-.back-button:focus-visible {
+.back-button:hover {
+  background: var(--accent);
   border-color: var(--accent);
-  background: var(--surface);
+  color: #f4fbfa;
   box-shadow: var(--shadow-sm);
   filter: none;
 }
 
-.back-button:hover .back-button-icon,
-.back-button:focus-visible .back-button-icon {
-  background: var(--accent);
-  color: #f4fbfa;
-}
-
 /* السهم بيتحرك خطوة صغيرة ناحية الاتجاه اللي بيرجع له فعليًا (يمين
    الشاشة في تخطيط RTL) عشان يوحي بالحركة من غير ما يبقى مبالغ فيه. */
-.back-button:hover .back-button-icon svg,
-.back-button:focus-visible .back-button-icon svg {
+.back-button:hover svg {
   transform: translateX(2px);
 }
 
 .back-button:active {
-  transform: scale(0.97);
+  transform: scale(0.92);
+  box-shadow: none;
 }
 
-.back-button-label {
-  white-space: nowrap;
+/* Focus واضح لدعم الوصول بلوحة المفاتيح، من غير ما يظهر عند اللمس/الماوس. */
+.back-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: none) {
+  /* على اللمس، حلقة الـ focus الافتراضية بتفضل من غير hover state دايم. */
+  .back-button:hover {
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text);
+    box-shadow: none;
+  }
+  .back-button:hover svg {
+    transform: none;
+  }
 }
 
 @media (max-width: 420px) {
-  .back-button-label {
-    display: none;
-  }
+  /* مساحة لمس أريح على الموبايل مع الحفاظ على نفس الشكل الدائري المضغوط. */
   .back-button {
-    padding: 4px;
-    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
   }
 }
 
