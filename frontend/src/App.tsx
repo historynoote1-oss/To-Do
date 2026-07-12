@@ -651,6 +651,13 @@ export default function App() {
         archiveCount={archiveCount}
         muted={muted}
         pushState={pushState}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        undoLabel={undoLabel}
+        redoLabel={redoLabel}
+        undoRedoBusy={undoRedoBusy}
+        onUndo={() => undo()}
+        onRedo={() => redo()}
         onOpenDashboard={openDashboard}
         onOpenArchive={() => setView('archive')}
         onOpenLifeAreas={() => setView('lifeAreas')}
@@ -807,29 +814,6 @@ export default function App() {
             </div>
 
             <div className="top-bar-controls">
-              <div className="undo-redo-group">
-                <button
-                  className="icon-btn small undo-redo-btn"
-                  onClick={() => undo()}
-                  type="button"
-                  disabled={!canUndo || undoRedoBusy}
-                  title={canUndo ? `تراجع: ${undoLabel}` : 'لا يوجد ما يمكن التراجع عنه'}
-                  aria-label="تراجع"
-                >
-                  <DynamicIcon name="undo" size={15} />
-                </button>
-                <span className="undo-redo-divider" aria-hidden="true" />
-                <button
-                  className="icon-btn small undo-redo-btn"
-                  onClick={() => redo()}
-                  type="button"
-                  disabled={!canRedo || undoRedoBusy}
-                  title={canRedo ? `إعادة: ${redoLabel}` : 'لا يوجد ما يمكن إعادته'}
-                  aria-label="إعادة"
-                >
-                  <DynamicIcon name="redo" size={15} />
-                </button>
-              </div>
               <button
                 className="icon-btn hamburger-btn"
                 onClick={() => setMenuOpen(true)}

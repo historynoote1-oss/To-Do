@@ -10,6 +10,13 @@ interface Props {
   archiveCount: number;
   muted: boolean;
   pushState: PushSupportState;
+  canUndo: boolean;
+  canRedo: boolean;
+  undoLabel: string | null;
+  redoLabel: string | null;
+  undoRedoBusy: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   onOpenDashboard: () => void;
   onOpenArchive: () => void;
   onOpenLifeAreas: () => void;
@@ -29,6 +36,13 @@ export default function SideMenu({
   archiveCount,
   muted,
   pushState,
+  canUndo,
+  canRedo,
+  undoLabel,
+  redoLabel,
+  undoRedoBusy,
+  onUndo,
+  onRedo,
   onOpenDashboard,
   onOpenArchive,
   onOpenLifeAreas,
@@ -87,6 +101,38 @@ export default function SideMenu({
         </div>
 
         <nav className="side-menu-nav">
+          {/* إجراءات سريعة (تراجع/إعادة) — نُقلت هنا من جنب زرار القائمة في
+              الهيدر عشان تتجمّع كل أدوات التحكم في مكان واحد منظم، بأزرار
+              أكبر وأوضح من غير ما تزاحم الهيدر. القائمة بتفضل مفتوحة بعد
+              الضغط عشان المستخدم يقدر يكرر تراجع/إعادة أكتر من مرة لو
+              محتاج، من غير ما تتقفل من أول ضغطة. */}
+          <div className="side-menu-quick-actions">
+            <button
+              className="side-menu-quick-btn"
+              type="button"
+              onClick={onUndo}
+              disabled={!canUndo || undoRedoBusy}
+              title={canUndo ? `تراجع: ${undoLabel}` : 'لا يوجد ما يمكن التراجع عنه'}
+              aria-label="تراجع"
+            >
+              <DynamicIcon name="undo" size={22} className="side-menu-quick-icon" />
+              <span className="side-menu-quick-label">تراجع</span>
+            </button>
+            <button
+              className="side-menu-quick-btn"
+              type="button"
+              onClick={onRedo}
+              disabled={!canRedo || undoRedoBusy}
+              title={canRedo ? `إعادة: ${redoLabel}` : 'لا يوجد ما يمكن إعادته'}
+              aria-label="إعادة"
+            >
+              <DynamicIcon name="redo" size={22} className="side-menu-quick-icon" />
+              <span className="side-menu-quick-label">إعادة</span>
+            </button>
+          </div>
+
+          <div className="side-menu-divider" role="separator" />
+
           {isAdmin && (
             <button className="side-menu-item" type="button" onClick={() => go(onOpenDashboard)}>
               <DynamicIcon name="sliders" size={18} className="side-menu-item-icon" />

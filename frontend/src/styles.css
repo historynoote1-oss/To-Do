@@ -674,73 +674,13 @@ button:disabled {
   width: 100%;
 }
 
-/* ===== مجموعة أزرار عمود القائمة: تراجع/إعادة (مجمّعين في كبسولة واحدة
-   واضحة الهوية) + زرار القائمة المنفصل ===== */
+/* ===== عمود القائمة في الهيدر: زرار القائمة (Menu) لوحده — أزرار تراجع/
+   إعادة انتقلت جوه القائمة الجانبية نفسها عشان تتجمّع أدوات التحكم في مكان
+   واحد منظم بدل ما تزاحم الهيدر. ===== */
 .top-bar-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
   justify-self: end;
-}
-
-/* كبسولة تراجع/إعادة: قبل كده كانت زرارين منفصلين بيظهروا كمربعين فاضيين
-   لما يبقوا Disabled (opacity واطي + لون باهت فوق خلفية غامقة = تقريبًا
-   مختفيين). دلوقتي اتجمّعوا في كبسولة واحدة بحدود واضحة وفاصل بينهم، عشان
-   وجودهم في الهيدر يبقى مقصود ومفهوم حتى لو الزرار نفسه معطّل مؤقتًا. */
-.undo-redo-group {
-  display: flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 2px;
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  box-shadow: var(--shadow-sm);
-  flex-shrink: 0;
-}
-
-.undo-redo-divider {
-  width: 1px;
-  height: 14px;
-  background: var(--border-soft);
-  flex-shrink: 0;
-}
-
-.undo-redo-group .undo-redo-btn {
-  width: 30px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  border-radius: var(--radius-pill);
-  color: var(--text-muted);
-  transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
-}
-
-.undo-redo-group .undo-redo-btn:hover:not(:disabled) {
-  color: var(--accent-soft);
-  background: var(--accent-dim);
-  border-color: transparent;
-}
-
-.undo-redo-group .undo-redo-btn:active:not(:disabled) {
-  transform: scale(0.9);
-}
-
-/* حالة Disabled لازم تفضل مقروءة كأيقونة باهتة، مش تختفي خالص: بنثبّت لون
-   وOpacity واضحين بدل الاعتماد على --text-muted (اللي بيبان شبه شفاف فوق
-   خلفيات غامقة) عشان الأيقونة تفضل مميزة كـ"معطّلة مؤقتًا" مش "فاضية". */
-.undo-redo-group .undo-redo-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  color: var(--text-faint);
-}
-
-@media (max-width: 480px) {
-  /* على الشاشات الصغيرة جدًا نقلّل المسافة بين الأزرار عشان الصف يفضل مرتب */
-  .top-bar-controls {
-    gap: 6px;
-  }
 }
 
 /* ===== Hamburger button ===== */
@@ -880,6 +820,74 @@ button:disabled {
   gap: 2px;
   padding: 10px;
   overflow-y: auto;
+}
+
+/* صف "تراجع/إعادة" — إجراءات سريعة مش تنقّل، فمعمولة بشكل مختلف عن باقي
+   عناصر القائمة: زرارين كبيرين جنب بعض بدل صف طولي، عشان يبانوا واضحين
+   ومنفصلين عن روابط التنقّل تحتهم. */
+.side-menu-quick-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 2px 2px 6px;
+}
+
+.side-menu-quick-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 10px 8px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.side-menu-quick-icon {
+  color: var(--accent);
+}
+
+.side-menu-quick-btn:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  filter: none;
+  box-shadow: none;
+  transform: none;
+}
+
+.side-menu-quick-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* حالة Disabled: لازم يفضل الزرار وأيقونته مقروءين بوضوح في الوضعين
+   الفاتح والداكن — مش يختفي أو يدوب في الخلفية. بنثبّت لون Muted واضح
+   ومعروف بدل الاعتماد على شفافية عالية بتضيع فوق الخلفيات الغامقة. */
+.side-menu-quick-btn:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  background: transparent;
+  border-color: var(--border-soft);
+  color: var(--text-faint);
+}
+
+.side-menu-quick-btn:disabled .side-menu-quick-icon {
+  color: var(--text-faint);
+}
+
+@media (max-width: 360px) {
+  .side-menu-quick-btn {
+    min-height: 58px;
+    font-size: 11.5px;
+  }
 }
 
 .side-menu-item {
@@ -1555,13 +1563,6 @@ button:disabled {
   .hamburger-btn {
     width: 36px;
     height: 36px;
-  }
-  .undo-redo-group .undo-redo-btn {
-    width: 26px;
-    height: 26px;
-  }
-  .top-bar-controls {
-    gap: 5px;
   }
 }
 
