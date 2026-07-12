@@ -13,6 +13,45 @@ export interface LifeAreaLite {
   color: string;
   icon: string | null;
   imageUrl: string | null;
+  // parentId اختياري هنا (مش كل استدعاء قديم للمكوّن بيبعته) — لو موجود
+  // بيُستخدم بس لبناء عرض هرمي (مسافة بادئة) في القوائم المنسدلة.
+  parentId?: string | null;
+}
+
+// بترتب قائمة مسطّحة من المجالات بحيث كل أب يتبعه فروعه المباشرة (بعمق
+// أي مستوى)، وبترجع مع كل واحد "عمقه" — عشان القوائم المنسدلة (الشارة/
+// المنتقي) تقدر تعرض تعشيش بصري (مسافة بادئة) من غير ما تحتاج تفهم شكل
+// شجرة كامل. لو مفيش parentId خالص في البيانات (نسخة قديمة)، بيرجع نفس
+// الترتيب الأصلي وكل حاجة depth=0.
+export function flattenAreasForMenu<T extends LifeAreaLite>(areas: T[]): (T & { depth: number })[] {
+  const byParent = new Map<string | null, T[]>();
+  for (const a of areas) {
+    const key = a.parentId ?? null;
+    const arr = byParent.get(key) || [];
+    arr.push(a);
+    byParent.set(key, arr);
+  }
+  const seen = new Set<string>();
+  const out: (T & { depth: number })[] = [];
+  function walk(list: T[], depth: number) {
+    for (const a of list) {
+      if (seen.has(a.id)) continue;
+      seen.add(a.id);
+      out.push({ ...a, depth });
+      const kids = byParent.get(a.id);
+      if (kids?.length) walk(kids, depth + 1);
+    }
+  }
+  walk(byParent.get(null) || [], 0);
+  // أي مجال parentId بتاعه بيشاور على حاجة مش موجودة في نفس القائمة
+  // (نادر، بس ممكن يحصل مع بيانات جزئية) بيتحط في الآخر كجذري احتياطي.
+  for (const a of areas) {
+    if (!seen.has(a.id)) {
+      seen.add(a.id);
+      out.push({ ...a, depth: 0 });
+    }
+  }
+  return out;
 }
 
 // الشارة الموحّدة لأيقونة/صورة مجال الحياة — نفس المكوّن ده هو اللي بيتحط
@@ -129,12 +168,12 @@ export function LifeAreaBadge({ value, areas, onChange, onManage, size = 'md', d
               )}
             </div>
           ) : (
-            <ul className="category-menu-list">
-              {areas.map((a) => (
-                <li key={a.id}>
+            <ul className="category-menu-list life-area-menu-list">
+              {flattenAreasForMenu(areas).map((a) => (
+                <li key={a.id} style={{ ['--depth' as any]: a.depth }}>
                   <button
                     type="button"
-                    className={`priority-menu-item category-menu-item ${a.id === value?.id ? 'selected' : ''}`}
+                    className={`priority-menu-item category-menu-item life-area-menu-item ${a.id === value?.id ? 'selected' : ''} ${a.depth > 0 ? 'is-nested' : ''}`}
                     style={{ ['--pcolor' as any]: a.color }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -143,6 +182,7 @@ export function LifeAreaBadge({ value, areas, onChange, onManage, size = 'md', d
                     role="option"
                     aria-selected={a.id === value?.id}
                   >
+                    {a.depth > 0 && <span className="life-area-menu-item-branch" aria-hidden="true" />}
                     <AreaGlyph area={a} size="sm" />
                     <span className="category-menu-item-text">
                       <span>{a.name}</span>
@@ -201,11 +241,11 @@ export function LifeAreaPicker({ value, areas, onChange, onManage }: PickerProps
 
   return (
     <div className="priority-picker category-picker life-area-picker" role="radiogroup" aria-label="اختيار مجال الحياة">
-      {areas.map((a) => (
+      {flattenAreasForMenu(areas).map((a) => (
         <button
           key={a.id}
           type="button"
-          className={`priority-picker-item category-picker-item ${a.id === value ? 'selected' : ''}`}
+          className={`priority-picker-item category-picker-item life-area-picker-item ${a.id === value ? 'selected' : ''} ${a.depth > 0 ? 'is-nested' : ''}`}
           style={{ ['--pcolor' as any]: a.color, ['--pbg' as any]: hexToSoftBg(a.color) }}
           onClick={() => {
             if (a.id !== value) {
@@ -218,7 +258,7 @@ export function LifeAreaPicker({ value, areas, onChange, onManage }: PickerProps
           aria-checked={a.id === value}
         >
           <AreaGlyph area={a} size="sm" />
-          <span>{a.name}</span>
+          <span>{a.depth > 0 ? `↳ ${a.name}` : a.name}</span>
         </button>
       ))}
     </div>

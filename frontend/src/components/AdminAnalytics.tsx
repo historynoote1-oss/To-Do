@@ -17,7 +17,7 @@ const RANGES: { key: AnalyticsRange; label: string }[] = [
   { key: '365d', label: 'سنة' },
 ];
 
-const PRIORITY_LABELS: Record<string, string> = { NONE: 'بدون', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'مرتفعة', CRITICAL: 'حرجة' };
+const PRIORITY_LABELS: Record<string, string> = { NONE: 'غير محددة', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'مرتفعة', CRITICAL: 'حرجة' };
 const PRIORITY_COLORS: Record<string, string> = {
   NONE: '#6b7280',
   LOW: '#3b82f6',

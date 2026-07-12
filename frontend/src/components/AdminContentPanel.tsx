@@ -14,7 +14,7 @@ import { toast } from '../lib/toast';
 import AdminConfirmModal from './AdminConfirmModal';
 import { DynamicIcon } from '../lib/icons';
 
-const PRIORITY_LABELS: Record<string, string> = { NONE: 'بدون', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'مرتفعة', CRITICAL: 'حرجة' };
+const PRIORITY_LABELS: Record<string, string> = { NONE: 'غير محددة', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'مرتفعة', CRITICAL: 'حرجة' };
 
 export default function AdminContentPanel() {
   const [subTab, setSubTab] = useState<'lists' | 'items'>('lists');
@@ -191,7 +191,7 @@ function ItemsManager() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<AdminItemEntry | null>(null);
   const [editContent, setEditContent] = useState('');
-  const [editPriority, setEditPriority] = useState('NONE');
+  const [editPriority, setEditPriority] = useState('MEDIUM');
   const [deleting, setDeleting] = useState<AdminItemEntry | null>(null);
 
   useEffect(() => {
@@ -267,7 +267,6 @@ function ItemsManager() {
           <option value="HIGH">مرتفعة</option>
           <option value="MEDIUM">متوسطة</option>
           <option value="LOW">منخفضة</option>
-          <option value="NONE">بدون</option>
         </select>
         <select className="admin-select" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">كل الحالات</option>
@@ -297,7 +296,7 @@ function ItemsManager() {
                 onClick={() => {
                   setEditing(it);
                   setEditContent(it.content);
-                  setEditPriority(it.priority);
+                  setEditPriority(it.priority === 'NONE' ? 'MEDIUM' : it.priority);
                 }}
               >
                 تعديل
@@ -334,7 +333,6 @@ function ItemsManager() {
               <option value="HIGH">مرتفعة</option>
               <option value="MEDIUM">متوسطة</option>
               <option value="LOW">منخفضة</option>
-              <option value="NONE">بدون</option>
             </select>
             <div className="modal-actions">
               <button className="small" onClick={() => setEditing(null)} type="button">

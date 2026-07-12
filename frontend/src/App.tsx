@@ -3,16 +3,22 @@ import {
   getLists,
   createList,
   deleteList,
+  addItem,
+  toggleItem,
+  createReminder,
   getSiteStatus,
   getProfile,
   resolveAvatarUrl,
   getDueReminders,
   getLifeAreas,
   getArchive,
+  getPendingRestoreLists,
+  finalizeRestore,
   MaintenanceError,
   SiteStatus,
   Reminder,
 } from './lib/api';
+import { useUndoRedo } from './lib/undoRedo';
 import { sounds } from './lib/sounds';
 import { toast } from './lib/toast';
 import { getPushState, enablePush, disablePush, PushSupportState, PushError } from './lib/push';
@@ -25,17 +31,20 @@ import RecurringTasksManager from './components/RecurringTasksManager';
 import ArchivePage from './components/Archive';
 import MaintenancePage from './components/MaintenancePage';
 import ToastContainer from './components/ToastContainer';
-import ThemeToggle from './components/ThemeToggle';
 import SideMenu from './components/SideMenu';
+import ThemeToggleButton from './components/ThemeToggleButton';
 import ConfirmModal from './components/ConfirmModal';
-import AddTaskModal from './components/AddTaskModal';
+import AddTaskModal, { NewTaskPayload } from './components/AddTaskModal';
 import { PriorityKey } from './lib/priority';
+import PriorityFocusCard from './components/PriorityFocusCard';
 import { CategoryKey } from './lib/category';
 import { LifeAreaData } from './lib/lifeArea';
-import { groupByLifeArea, urgentLists, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
+import { groupByLifeArea, groupHierarchical, urgentLists, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
+import TaskHierarchy from './components/TaskHierarchy';
 import { DynamicIcon } from './lib/icons';
 import TaskDistributionCard from './components/TaskDistributionCard';
 import CompletionRateCard from './components/CompletionRateCard';
+import PendingRestoreSection from './components/PendingRestoreSection';
 
 interface List {
   id: string;
@@ -61,6 +70,15 @@ export default function App() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [lists, setLists] = useState<List[]>([]);
   const [archiveCount, setArchiveCount] = useState<number>(0);
+  // مهام استُرجعت من الأرشيف ولسه بانتظار مراجعة المستخدم قبل ما ترجع فعليًا
+  // لقائمة المهام النشطة — بتتعرض في قسم مخصص فوق الصفحة الرئيسية (شوف
+  // PendingRestoreSection). بنجيبها منفصلة عن `lists` عشان الشاشة الرئيسية
+  // تفضل مقتصرة على المهام النشطة فعليًا زي ما كانت دايمًا.
+  const [pendingRestoreLists, setPendingRestoreLists] = useState<List[]>([]);
+  // منجز/إجمالي المهام الفرعية جوه الأرشيف — بنحسبهم من نفس رد getArchive()
+  // (بيرجع القوائم المؤرشفة بتفاصيل مهامها) من غير طلب إضافي للسيرفر، عشان
+  // نقدر نحسب نسبة إنجاز شاملة (نشطة + مؤرشفة) في هيدر الصفحة الرئيسية.
+  const [archiveStats, setArchiveStats] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [highlightedListId, setHighlightedListId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
@@ -74,6 +92,7 @@ export default function App() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [adminInitialTab, setAdminInitialTab] = useState<'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security'>('overview');
   const shownReminderIds = useRef<Set<string>>(new Set());
+  const { canUndo, canRedo, undoLabel, redoLabel, isBusy: undoRedoBusy, pushCommand, undo, redo } = useUndoRedo();
 
   // زرار الكتم في الهيدر لازم يفضل متزامن حتى لو الكتم اتغيّر من صفحة
   // إعدادات الصوت في البروفايل.
@@ -81,11 +100,38 @@ export default function App() {
     return sounds.subscribe(({ muted: m }) => setMuted(m));
   }, []);
 
+  // اختصارات لوحة المفاتيح للتراجع/الإعادة: Ctrl/Cmd+Z للتراجع،
+  // Ctrl/Cmd+Shift+Z أو Ctrl/Cmd+Y للإعادة — زي أي برنامج احترافي. بنتجاهل
+  // الاختصار وهو المستخدم بيكتب في حقل نصي عشان مايتعارضش مع تراجع الكتابة
+  // العادي المدمج في المتصفح (undo داخل input/textarea).
+  useEffect(() => {
+    function isEditableTarget(target: EventTarget | null) {
+      const el = target as HTMLElement | null;
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || isEditableTarget(e.target)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
   useEffect(() => {
     if (username) {
       refresh();
       refreshLifeAreas();
       refreshArchiveCount();
+      refreshPendingRestore();
       getProfile()
         .then((data) => {
           setDisplayName(data.profile.displayName);
@@ -116,6 +162,15 @@ export default function App() {
     try {
       const data = await getArchive();
       setArchiveCount(data.length);
+      let done = 0;
+      let total = 0;
+      for (const l of data as { items: { isDone: boolean }[] }[]) {
+        for (const it of l.items) {
+          total += 1;
+          if (it.isDone) done += 1;
+        }
+      }
+      setArchiveStats({ done, total });
     } catch {
       // إحصائية تجميلية بس — مفيش داعي نزعج المستخدم لو فشلت
     }
@@ -144,6 +199,33 @@ export default function App() {
       window.clearInterval(interval);
     };
   }, []);
+
+  async function refreshPendingRestore() {
+    try {
+      const data = await getPendingRestoreLists();
+      setPendingRestoreLists(data);
+    } catch {
+      // تجميلي زي باقي إحصائيات الهيدر — فشل مؤقت مش لازم يعطّل الشاشة الرئيسية
+    }
+  }
+
+  // بيتنادى بعد ما المستخدم يضغط "إضافة المهمة" في قسم "بانتظار المراجعة"
+  // (شوف PendingRestoreSection) — بيؤكّد رجوع المهمة فعليًا لمكانها الطبيعي
+  // في قائمة المهام النشطة.
+  async function handleFinalizeRestore(id: string) {
+    const target = pendingRestoreLists.find((l) => l.id === id);
+    setPendingRestoreLists((prev) => prev.filter((l) => l.id !== id));
+    try {
+      await finalizeRestore(id);
+      sounds.success();
+      toast.success(target ? `"${target.title}" رجعت لقائمة مهامك النشطة` : 'المهمة رجعت لقائمة مهامك النشطة');
+      await refresh();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر إنهاء استرجاع المهمة');
+      refreshPendingRestore();
+    }
+  }
 
   // بنجيب حالة اشتراك إشعارات الجهاز أول ما المستخدم يسجّل دخول، بدون ما
   // نطلب إذن تلقائيًا — بس عشان نعرف نعرض زرار "تفعيل" أو "مفعّل" صح.
@@ -266,13 +348,6 @@ export default function App() {
     handleLogout();
   }
 
-  // اختصار "إعدادات الموقع" من القائمة الجانبية بيودّي مباشرة لتبويب
-  // الإعدادات جوه لوحة التحكم، بدل ما الأدمن يفتح اللوحة ويدور عليه.
-  function openSiteSettings() {
-    setAdminInitialTab('settings');
-    setView('admin');
-  }
-
   function openDashboard() {
     setAdminInitialTab('overview');
     setView('admin');
@@ -282,20 +357,54 @@ export default function App() {
     setMuted(sounds.toggleMuted());
   }
 
-  async function handleCreate(data: {
-    title: string;
-    priority: PriorityKey;
-    category: CategoryKey | null;
-    targetYear: number | null;
-    lifeAreaId: string | null;
-  }) {
-    const { title, priority, category, targetYear, lifeAreaId } = data;
+  // بيعيد تنفيذ إنشاء مهمة رئيسية من نفس بيانات النموذج الأصلية — بتُستخدم
+  // أول مرة لما المستخدم يضيف مهمة، وبعدين تاني كـ "Redo" لو المستخدم تراجع
+  // (Undo) عن الإضافة وحب يرجّعها. بترجع الـ list الناتج عشان نعرف الـ id
+  // الجديد (بيتغيّر كل مرة لأن كل إنشاء بياخد id مختلف من السيرفر).
+  async function createTaskFromPayload(data: NewTaskPayload) {
+    const { title, subtasks, priority, category, targetYear, lifeAreaId, startTime, endTime, reminder } = data;
+    const list = await createList(title, priority, category, targetYear, lifeAreaId, startTime, endTime);
+    for (const content of subtasks) {
+      await addItem(list.id, content);
+    }
+    if (reminder && startTime) {
+      const remindAt = new Date(new Date(startTime).getTime() - reminder.offsetMinutes * 60 * 1000).toISOString();
+      await createReminder({
+        listId: list.id,
+        mode: 'CUSTOM',
+        remindAt,
+        message: reminder.message || undefined,
+      });
+    }
+    return list;
+  }
+
+  async function handleCreate(data: NewTaskPayload) {
+    const { title } = data;
     sounds.addItem();
     // تحديث تفاؤلي: المهمة الرئيسية بتظهر فورًا من غير ما ننتظر السيرفر
     const tempId = `temp-${Date.now()}`;
-    setLists((prev) => [...prev, { id: tempId, title, priority, category, targetYear, lifeAreaId, items: [] }]);
+    setLists((prev) => [...prev, { id: tempId, title, priority: data.priority, category: data.category, targetYear: data.targetYear, lifeAreaId: data.lifeAreaId, items: [] }]);
     try {
-      await createList(title, priority, category, targetYear, lifeAreaId);
+      const list = await createTaskFromPayload(data);
+      // ref قابل للتعديل بيتبع آخر id فعلي للمهمة دي — لازم نحدّثه بعد أي
+      // Undo/Redo لاحق عشان الأمر التالي (سواء تراجع أو إعادة) يشتغل على
+      // النسخة الصحيحة من المهمة، مش على id قديم بقى غير موجود في قاعدة البيانات.
+      const ref = { id: list.id as string };
+      pushCommand({
+        label: `إضافة "${title}"`,
+        undo: async () => {
+          await deleteList(ref.id);
+          await refresh();
+          toast.info(`تم التراجع عن إضافة "${title}"`);
+        },
+        redo: async () => {
+          const recreated = await createTaskFromPayload(data);
+          ref.id = recreated.id;
+          await refresh();
+          toast.success(`تمت إعادة إضافة "${title}"`);
+        },
+      });
       await refresh();
       toast.success(`"${title}" اتضافت بنجاح`);
     } catch (err) {
@@ -305,16 +414,74 @@ export default function App() {
     }
   }
 
+  // بيعيد إنشاء مهمة رئيسية بالكامل (بعناوينها الأصلية + كل مهامها الفرعية
+  // وحالة إنجاز كل واحدة منها) — دي "نسخة الاسترجاع" اللي بيستخدمها Undo بعد
+  // حذف مهمة بالغلط، فترجع المهمة زي ما كانت بالظبط قبل الحذف.
+  async function recreateListSnapshot(snapshot: List) {
+    const recreated = await createList(
+      snapshot.title,
+      snapshot.priority,
+      snapshot.category,
+      snapshot.targetYear,
+      snapshot.lifeAreaId,
+      snapshot.startTime,
+      snapshot.endTime
+    );
+    for (const item of snapshot.items || []) {
+      const newItem = await addItem(recreated.id, item.content, item.priority);
+      if (item.isDone) {
+        await toggleItem(newItem.id, true);
+      }
+    }
+    return recreated;
+  }
+
   async function handleDelete(id: string) {
     const snapshot = lists;
+    const target = lists.find((l) => l.id === id);
     sounds.deleteItem();
     setLists((prev) => prev.filter((l) => l.id !== id));
     try {
       await deleteList(id);
+      if (target) {
+        // ref.id بيتبع آخر id حقيقي للمهمة المتراجع عنها/المعاد حذفها —
+        // بيتغيّر كل مرة نعيد إنشاءها بعد Undo لأن id السيرفر بيبقى جديد.
+        const ref = { id };
+        pushCommand({
+          label: `حذف "${target.title}"`,
+          undo: async () => {
+            const recreated = await recreateListSnapshot(target);
+            ref.id = recreated.id;
+            await refresh();
+            sounds.success();
+            toast.success(`تم استرجاع "${target.title}"`);
+          },
+          redo: async () => {
+            await deleteList(ref.id);
+            await refresh();
+            toast.info(`تم حذف "${target.title}" مرة أخرى`);
+          },
+        });
+      }
     } catch (err) {
       setLists(snapshot);
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر حذف المهمة الرئيسية');
+    }
+  }
+
+  // نفس فكرة handleDelete بالظبط، بس لمهمة لسه في منطقة "بانتظار المراجعة"
+  // (مش في القائمة النشطة) — عشان الحذف يحدّث الحالة الصحيحة فورًا.
+  async function handleDeletePendingRestore(id: string) {
+    const snapshot = pendingRestoreLists;
+    sounds.deleteItem();
+    setPendingRestoreLists((prev) => prev.filter((l) => l.id !== id));
+    try {
+      await deleteList(id);
+    } catch (err) {
+      setPendingRestoreLists(snapshot);
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر حذف المهمة');
     }
   }
 
@@ -341,6 +508,22 @@ export default function App() {
     highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
   }
 
+  // نفس فكرة jumpToCategory بس للأولوية — بتستخدمها بطاقة "مهام عاجلة" عشان
+  // توصّلك لأول مهمة رئيسية غير مكتملة من نفس مستوى الأولوية.
+  function jumpToPriority(key: PriorityKey) {
+    const target = lists.find((l) => ((l as any).priority || 'LOW') === key && !isListDone(l as any));
+    if (!target) {
+      sounds.error();
+      toast.info('مفيش مهمة رئيسية غير مكتملة بالأولوية دي حاليًا');
+      return;
+    }
+    sounds.click();
+    setHighlightedListId(target.id);
+    document.getElementById(`list-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
+  }
+
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
 
   // ملاحظة: القائمة النشطة (lists) بترجع من السيرفر من غير أي مهمة اكتملت
@@ -351,12 +534,25 @@ export default function App() {
   // لأهم المهام من غير ما يحتاج المستخدم يدوّر أو يفعّل أي فلتر.
   const urgent = urgentLists(lists as any, 6);
   const groups = groupByLifeArea(lists as any, lifeAreas);
+  const hierGroups = groupHierarchical(lists as any, lifeAreas);
+
+  // نسبة الإنجاز الشاملة اللي بتتعرض جنب صورة المستخدم في الهيدر: كل مهمة
+  // فرعية في الموقع بالكامل (النشطة من `lists` + المؤرشفة من `archiveStats`)
+  // — مش بس القوائم النشطة زي بطاقة "نسبة الإنجاز الآن" تحت.
+  let headerDone = archiveStats.done;
+  let headerTotal = archiveStats.total;
+  for (const l of lists) {
+    for (const it of l.items as { isDone: boolean }[]) {
+      headerTotal += 1;
+      if (it.isDone) headerDone += 1;
+    }
+  }
+  const headerRate = headerTotal > 0 ? Math.round((headerDone / headerTotal) * 100) : 0;
 
   if (!statusChecked) {
     return (
       <>
         <ToastContainer />
-        <ThemeToggle />
         <div className="app-boot" aria-hidden="true">
           <span className="app-boot-spinner" />
         </div>
@@ -368,7 +564,6 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <ThemeToggle />
         <MaintenancePage
           emoji={siteStatus?.maintenanceEmoji || 'wrench'}
           message={siteStatus?.maintenanceMessage || 'الموقع تحت الصيانة حاليًا، هنرجع قريب'}
@@ -383,9 +578,17 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <ThemeToggle />
+        <ThemeToggleButton />
         <div className="auth-shell view-fade">
           <div className="auth-shell-brand">
+            <div className="auth-shell-orbit" aria-hidden="true">
+              <span className="orbit-icon orbit-icon-1"><DynamicIcon name="check-circle" size={26} /></span>
+              <span className="orbit-icon orbit-icon-2"><DynamicIcon name="calendar-days" size={20} /></span>
+              <span className="orbit-icon orbit-icon-3"><DynamicIcon name="star" size={16} /></span>
+              <span className="orbit-icon orbit-icon-4"><DynamicIcon name="target" size={22} /></span>
+              <span className="orbit-icon orbit-icon-5"><DynamicIcon name="sparkles" size={18} /></span>
+              <span className="orbit-icon orbit-icon-6"><DynamicIcon name="timer" size={20} /></span>
+            </div>
             <DynamicIcon name="clipboard-list" size={22} className="auth-shell-mark" />
             <h2 className="auth-shell-name">قائمة المهام</h2>
             <p className="auth-shell-tagline">مساحتك لتنظيم مهامك، بتصميم بسيط وسريع يخليك تركّز على اللي محتاج تخلّصه.</p>
@@ -418,14 +621,54 @@ export default function App() {
     );
   }
 
+  // القائمة الجانبية ونافذة تأكيد الخروج مشتركتين بين كل شاشات المستخدم
+  // المسجّل دخول (المهام، البروفايل، الأرشيف، مجالات الحياة، المهام
+  // المتكررة، ولوحة التحكم) — عشان تبديل الثيم والخروج وباقي الاختصارات
+  // يبقوا متاحين من أي شاشة، مش بس من الشاشة الرئيسية.
+  const sideMenuAndModals = (
+    <>
+      <SideMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        isAdmin={isAdmin}
+        archiveCount={archiveCount}
+        muted={muted}
+        pushState={pushState}
+        onOpenDashboard={openDashboard}
+        onOpenArchive={() => setView('archive')}
+        onOpenLifeAreas={() => setView('lifeAreas')}
+        onOpenRecurring={() => setView('recurring')}
+        onToggleMute={handleToggleMute}
+        onTogglePush={handleTogglePush}
+        onRequestLogout={requestLogout}
+      />
+      {logoutConfirmOpen && (
+        <ConfirmModal
+          title="تسجيل الخروج"
+          description="هتحتاج تسجّل دخول تاني عشان تكمل شغلك. متأكد إنك عايز تخرج؟"
+          confirmLabel="تسجيل الخروج"
+          cancelLabel="إلغاء"
+          danger
+          onCancel={() => setLogoutConfirmOpen(false)}
+          onConfirm={confirmLogout}
+        />
+      )}
+    </>
+  );
+
   if (view === 'admin') {
     return (
       <>
         <ToastContainer />
-        <ThemeToggle />
         <div className="view-fade">
-          <AdminDashboard onBack={() => setView('todos')} initialTab={adminInitialTab} />
+          <AdminDashboard
+            onBack={() => setView('todos')}
+            initialTab={adminInitialTab}
+            onOpenMenu={() => setMenuOpen(true)}
+            menuOpen={menuOpen}
+          />
         </div>
+        {sideMenuAndModals}
       </>
     );
   }
@@ -434,12 +677,14 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <ThemeToggle />
         <Profile
           onBack={() => setView('todos')}
           onDisplayNameChange={setDisplayName}
           onAvatarChange={setAvatarUrl}
+          onOpenMenu={() => setMenuOpen(true)}
+          menuOpen={menuOpen}
         />
+        {sideMenuAndModals}
       </>
     );
   }
@@ -448,14 +693,16 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <ThemeToggle />
         <LifeAreasManager
           onBack={() => setView('todos')}
           onChange={() => {
             refreshLifeAreas();
             refresh();
           }}
+          onOpenMenu={() => setMenuOpen(true)}
+          menuOpen={menuOpen}
         />
+        {sideMenuAndModals}
       </>
     );
   }
@@ -464,8 +711,18 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <ThemeToggle />
-        <ArchivePage onBack={() => setView('todos')} onChange={refresh} />
+        <ArchivePage
+          onBack={() => setView('todos')}
+          onChange={() => {
+            refresh();
+            refreshPendingRestore();
+          }}
+          onOpenMenu={() => setMenuOpen(true)}
+          menuOpen={menuOpen}
+          lifeAreas={lifeAreas}
+          onManageLifeAreas={() => setView('lifeAreas')}
+        />
+        {sideMenuAndModals}
       </>
     );
   }
@@ -474,13 +731,15 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <ThemeToggle />
         <RecurringTasksManager
           lifeAreas={lifeAreas}
           onBack={() => setView('todos')}
           onChange={refresh}
           onManageLifeAreas={() => setView('lifeAreas')}
+          onOpenMenu={() => setMenuOpen(true)}
+          menuOpen={menuOpen}
         />
+        {sideMenuAndModals}
       </>
     );
   }
@@ -488,7 +747,6 @@ export default function App() {
   return (
     <>
       <ToastContainer />
-      <ThemeToggle />
       <div className="container view-fade">
         {isAdmin && siteStatus?.maintenanceMode && (
           <div className="maintenance-banner">
@@ -499,29 +757,75 @@ export default function App() {
           </div>
         )}
         <div className="top-bar">
-          <div className="top-bar-main">
+          <div className="top-bar-grid">
+            <button
+              className="header-user"
+              onClick={() => setView('profile')}
+              type="button"
+              title="الملف الشخصي"
+            >
+              <span className="header-user-avatar">
+                {avatarUrl ? (
+                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+                ) : (
+                  (displayName || username)?.trim().charAt(0).toUpperCase()
+                )}
+              </span>
+              <span className="header-user-meta">
+                <span className="header-user-greeting">
+                  مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
+                </span>
+                {headerTotal > 0 ? (
+                  <span
+                    className="header-progress"
+                    dir="ltr"
+                    title={`نسبة الإنجاز الكلية: ${headerDone} من ${headerTotal} مهمة`}
+                  >
+                    <DynamicIcon name="trending-up" size={11} className="header-progress-icon" />
+                    <span className="header-progress-track">
+                      <span className="header-progress-fill" style={{ width: `${headerRate}%` }} />
+                    </span>
+                    <span className="header-progress-pct">{headerRate}%</span>
+                  </span>
+                ) : (
+                  <span className="header-progress header-progress-empty">
+                    <DynamicIcon name="sparkles" size={11} className="header-progress-icon" />
+                    <span className="header-progress-empty-text">ابدأ أول مهمة</span>
+                  </span>
+                )}
+              </span>
+            </button>
+
             <div className="brand">
-              <DynamicIcon name="clipboard-list" size={22} className="brand-mark" />
+              <span className="brand-mark-wrap">
+                <DynamicIcon name="clipboard-list" size={18} className="brand-mark" />
+              </span>
               <div className="brand-text">
                 <h1>المهام الرئيسية</h1>
-                <span className="brand-subtitle">مساحتك لتنظيم مهامك اليومية</span>
+                <span className="brand-flourish" aria-hidden="true" />
               </div>
             </div>
-            <div className="top-bar-actions">
+
+            <div className="top-bar-controls">
               <button
-                className="user-chip user-chip-button"
-                onClick={() => setView('profile')}
+                className="icon-btn small undo-redo-btn"
+                onClick={() => undo()}
                 type="button"
-                title="الملف الشخصي"
+                disabled={!canUndo || undoRedoBusy}
+                title={canUndo ? `تراجع: ${undoLabel}` : 'لا يوجد ما يمكن التراجع عنه'}
+                aria-label="تراجع"
               >
-                <span className="user-chip-avatar">
-                  {avatarUrl ? (
-                    <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
-                  ) : (
-                    (displayName || username)?.trim().charAt(0).toUpperCase()
-                  )}
-                </span>
-                <span className="user-chip-name">{displayName || username}</span>
+                <DynamicIcon name="undo" size={16} />
+              </button>
+              <button
+                className="icon-btn small undo-redo-btn"
+                onClick={() => redo()}
+                type="button"
+                disabled={!canRedo || undoRedoBusy}
+                title={canRedo ? `إعادة: ${redoLabel}` : 'لا يوجد ما يمكن إعادته'}
+                aria-label="إعادة"
+              >
+                <DynamicIcon name="redo" size={16} />
               </button>
               <button
                 className="icon-btn hamburger-btn"
@@ -542,63 +846,32 @@ export default function App() {
           </div>
         </div>
 
-        <SideMenu
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          isAdmin={isAdmin}
-          archiveCount={archiveCount}
-          muted={muted}
-          pushState={pushState}
-          onOpenDashboard={openDashboard}
-          onOpenArchive={() => setView('archive')}
-          onOpenLifeAreas={() => setView('lifeAreas')}
-          onOpenRecurring={() => setView('recurring')}
-          onOpenSiteSettings={openSiteSettings}
-          onToggleMute={handleToggleMute}
-          onTogglePush={handleTogglePush}
-          onRequestLogout={requestLogout}
-        />
-
-        {logoutConfirmOpen && (
-          <ConfirmModal
-            title="تسجيل الخروج"
-            description="هتحتاج تسجّل دخول تاني عشان تكمل شغلك. متأكد إنك عايز تخرج؟"
-            confirmLabel="تسجيل الخروج"
-            cancelLabel="إلغاء"
-            danger
-            onCancel={() => setLogoutConfirmOpen(false)}
-            onConfirm={confirmLogout}
-          />
-        )}
-
-        <div className="stats-row">
+        <div className="stats-col">
           <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
           <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
-          <button className="stat-card stat-card-button" onClick={() => setView('archive')} type="button">
-            <span className="stat-card-value stat-card-success">{archiveCount}</span>
-            <span className="stat-card-label"><DynamicIcon name="archive" size={14} /> في الأرشيف</span>
-          </button>
+          <PriorityFocusCard lists={lists} onSelectPriority={jumpToPriority} />
         </div>
 
-        <button className="add-task-cta" onClick={() => setAddTaskOpen(true)} type="button">
-          <span className="add-task-cta-icon">
-            <DynamicIcon name="plus" size={20} />
-          </span>
-          <span className="add-task-cta-text">
-            <strong>إضافة مهمة رئيسية جديدة</strong>
-            <span>اسم، أولوية، تصنيف، ومجال حياة — في نافذة واحدة مرتبة</span>
-          </span>
-        </button>
+        <div className="quick-add-row">
+          <button className="quick-add-card" onClick={() => setAddTaskOpen(true)} type="button">
+            <span className="quick-add-icon-wrap">
+              <DynamicIcon name="plus" size={22} />
+            </span>
+            <span className="quick-add-label">إضافة مهمة</span>
+            <span className="quick-add-hint">اسم، أولوية، تصنيف، ومجال حياة</span>
+          </button>
 
-        <button className="add-task-cta recurring-cta" onClick={() => setView('recurring')} type="button">
-          <span className="add-task-cta-icon recurring-cta-icon">
-            <DynamicIcon name="repeat" size={20} />
-          </span>
-          <span className="add-task-cta-text">
-            <strong>مهمة متكررة جديدة</strong>
-            <span>يوميًا، أسبوعيًا، شهريًا، أو سنويًا — وهي بتتولّد لوحدها</span>
-          </span>
-        </button>
+          <button className="quick-add-card quick-add-card-recurring" onClick={() => setView('recurring')} type="button">
+            <span className="quick-add-icon-wrap quick-add-icon-wrap-recurring">
+              <DynamicIcon name="repeat" size={22} />
+              <span className="quick-add-badge">
+                <DynamicIcon name="plus" size={10} />
+              </span>
+            </span>
+            <span className="quick-add-label">إضافة مهمة متكررة</span>
+            <span className="quick-add-hint">يوميًا، أسبوعيًا، شهريًا، أو سنويًا</span>
+          </button>
+        </div>
 
         <AddTaskModal
           open={addTaskOpen}
@@ -609,6 +882,15 @@ export default function App() {
             setView('lifeAreas');
           }}
           onCreate={handleCreate}
+        />
+
+        <PendingRestoreSection
+          lists={pendingRestoreLists}
+          onChange={refreshPendingRestore}
+          onFinalize={handleFinalizeRestore}
+          onDeleteList={handleDeletePendingRestore}
+          lifeAreas={lifeAreas}
+          onManageLifeAreas={() => setView('lifeAreas')}
         />
 
         {loading && (
@@ -673,41 +955,18 @@ export default function App() {
           </section>
         )}
 
-        {!loading &&
-          groups.map((group) => (
-            <section id={`section-area-${group.id}`} className="task-section" key={group.id}>
-              <div className="task-section-header" style={{ ['--chip-color' as any]: group.color }}>
-                <h3>
-                  {group.id !== NO_LIFE_AREA_GROUP && (
-                    <span className="task-section-dot" style={{ background: group.color }} />
-                  )}
-                  <DynamicIcon name={(group.icon as any) || 'tag'} size={16} />
-                  {group.name}
-                </h3>
-                <span className="task-section-count">{group.lists.length}</span>
-              </div>
-              <div className="lists-grid">
-                {group.lists.map((list, i) => (
-                  <div id={`list-${list.id}`} key={list.id}>
-                    <TodoList
-                      list={list}
-                      onChange={refresh}
-                      onDeleteList={handleDelete}
-                      delay={i * 60}
-                      lifeAreas={lifeAreas}
-                      onManageLifeAreas={() => setView('lifeAreas')}
-                      highlighted={highlightedListId === list.id}
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-
-        <button className="fab-add-task" onClick={() => setAddTaskOpen(true)} type="button" aria-label="إضافة مهمة رئيسية جديدة" title="إضافة مهمة رئيسية جديدة">
-          <DynamicIcon name="plus" size={22} />
-        </button>
+        {!loading && (
+          <TaskHierarchy
+            groups={hierGroups}
+            onChange={refresh}
+            onDeleteList={handleDelete}
+            lifeAreas={lifeAreas}
+            onManageLifeAreas={() => setView('lifeAreas')}
+            highlightedListId={highlightedListId}
+          />
+        )}
       </div>
+      {sideMenuAndModals}
     </>
   );
 }

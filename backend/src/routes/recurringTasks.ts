@@ -20,7 +20,7 @@ const MAX_ITEM_LENGTH = 200;
 
 const RECURRING_TASK_INCLUDE = {
   items: { orderBy: { position: 'asc' } },
-  lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true } },
+  lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
   _count: { select: { generatedLists: true } },
 } satisfies Prisma.RecurringTaskInclude;
 

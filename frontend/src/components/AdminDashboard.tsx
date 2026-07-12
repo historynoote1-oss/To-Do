@@ -6,6 +6,7 @@ import AdminContentPanel from './AdminContentPanel';
 import AdminSettingsPanel from './AdminSettingsPanel';
 import TwoFactorSettings from './TwoFactorSettings';
 import { DynamicIcon, IconKey } from '../lib/icons';
+import BackButton from './BackButton';
 
 type Tab = 'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security';
 
@@ -21,9 +22,13 @@ const NAV: { key: Tab; label: string; icon: IconKey }[] = [
 export default function AdminDashboard({
   onBack,
   initialTab,
+  onOpenMenu,
+  menuOpen,
 }: {
   onBack: () => void;
   initialTab?: Tab;
+  onOpenMenu: () => void;
+  menuOpen: boolean;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab || 'overview');
 
@@ -34,9 +39,24 @@ export default function AdminDashboard({
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <h1>لوحة التحكم</h1>
-          <button className="small" onClick={onBack}>
-            رجوع
-          </button>
+          <div className="admin-sidebar-header-actions">
+            <BackButton onClick={onBack} />
+            <button
+              className="icon-btn hamburger-btn"
+              onClick={onOpenMenu}
+              type="button"
+              title="القائمة"
+              aria-label="فتح القائمة"
+              aria-haspopup="true"
+              aria-expanded={menuOpen}
+            >
+              <span className="hamburger-icon" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+          </div>
         </div>
         <nav className="admin-sidebar-nav">
           {NAV.map((n) => (
@@ -55,11 +75,23 @@ export default function AdminDashboard({
 
       <div className="admin-main">
         <div className="admin-topbar">
-          <button className="small admin-topbar-back" onClick={onBack} aria-label="رجوع">
-            رجوع
-          </button>
+          <BackButton onClick={onBack} className="admin-topbar-back" />
           <strong className="admin-topbar-title">{activeLabel}</strong>
-          <span className="admin-topbar-spacer" aria-hidden="true" />
+          <button
+            className="icon-btn hamburger-btn admin-topbar-spacer"
+            onClick={onOpenMenu}
+            type="button"
+            title="القائمة"
+            aria-label="فتح القائمة"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+          >
+            <span className="hamburger-icon" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
         </div>
 
         <nav className="admin-tabbar">

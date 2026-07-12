@@ -17,6 +17,12 @@ export async function syncListArchiveState(listId: string) {
   });
   if (!list) return null;
 
+  // مهمة "بانتظار المراجعة" (استُرجعت من الأرشيف ولسه محتاجة تأكيد المستخدم)
+  // بنستثنيها تمامًا من المزامنة التلقائية — لو سبناها تشتغل عادي، أي تعديل
+  // فيها وكل مهامها الفرعية لسه منجزة هيرجعها فورًا للأرشيف تاني قبل ما
+  // المستخدم يقدر يراجعها ويأكّد استرجاعها. شوف routes/lists.ts.
+  if (list.pendingRestoreAt) return null;
+
   const total = list.items.length;
   const done = list.items.filter((i) => i.isDone).length;
   const isComplete = total > 0 && done === total;

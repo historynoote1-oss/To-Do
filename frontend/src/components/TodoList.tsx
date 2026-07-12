@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { addItem, toggleItem, deleteItem, updateItemPriority, updateItemContent, updateList, archiveList } from '../lib/api';
+import { addItem, toggleItem, deleteItem, updateItemPriority, updateItemContent, updateList } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
+import { useUndoRedo } from '../lib/undoRedo';
 import TodoItemRow from './TodoItem';
 import ConfirmModal from './ConfirmModal';
 import RemindersModal from './RemindersModal';
@@ -25,6 +26,8 @@ export default function TodoList({
   lifeAreas = [],
   onManageLifeAreas,
   highlighted = false,
+  pendingRestore = false,
+  onFinalizeRestore,
 }: any) {
   const [newItem, setNewItem] = useState('');
   const [newItemPriority, setNewItemPriority] = useState<PriorityKey>('LOW');
@@ -35,11 +38,13 @@ export default function TodoList({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(list.title);
   const [confirmDeleteList, setConfirmDeleteList] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<any>(null);
   const [remindersTarget, setRemindersTarget] = useState<
     { kind: 'list'; id: string; title: string } | { kind: 'item'; id: string; title: string; dueDate: string | null } | null
   >(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const { pushCommand } = useUndoRedo();
 
   useEffect(() => {
     if (editingTitle) {
@@ -76,8 +81,23 @@ export default function TodoList({
     setNewItem('');
     setNewItemPriority('LOW');
     setShowItemPriority(false);
+    setAddOpen(false);
     try {
-      await addItem(list.id, content, priority);
+      const created = await addItem(list.id, content, priority);
+      const ref = { id: created.id as string };
+      pushCommand({
+        label: `إضافة "${content}"`,
+        undo: async () => {
+          await deleteItem(ref.id);
+          onChange();
+          toast.info(`تم التراجع عن إضافة "${content}"`);
+        },
+        redo: async () => {
+          const recreated = await addItem(list.id, content, priority);
+          ref.id = recreated.id;
+          onChange();
+        },
+      });
       onChange();
     } catch (err) {
       sounds.error();
@@ -89,15 +109,25 @@ export default function TodoList({
     setConfirmDeleteList(true);
   }
 
-  async function handleArchiveList() {
+  // بديل الشيك بوكس بتاع المهمة الرئيسية: بيبدّل حالة كل المهام الفرعية
+  // مرة واحدة (كلها تخلص أو كلها ترجع)، فيتحول تلقائيًا لأرشيف عند الاكتمال.
+  async function handleToggleWholeList() {
+    if (total === 0) return;
+    const willBeDone = !isComplete;
     sounds.click();
     try {
-      await archiveList(list.id);
-      toast.success(`"${list.title}" اتنقلت للأرشيف`);
+      await Promise.all(list.items.map((i: any) => toggleItem(i.id, willBeDone)));
+      if (willBeDone) {
+        setConfettiOn(true);
+        setBurstKey((k) => k + 1);
+        sounds.celebrate();
+        window.setTimeout(() => setConfettiOn(false), 900);
+        toast.success(`أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف`);
+      }
       onChange();
     } catch (err) {
       sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّرت أرشفة المهمة');
+      toast.error(err instanceof Error ? err.message : 'تعذّر تحديث المهمة');
     }
   }
 
@@ -109,19 +139,31 @@ export default function TodoList({
 
   async function commitTitle() {
     const trimmed = titleDraft.trim();
+    const previousTitle = list.title;
     setEditingTitle(false);
-    if (!trimmed || trimmed === list.title) {
-      setTitleDraft(list.title);
+    if (!trimmed || trimmed === previousTitle) {
+      setTitleDraft(previousTitle);
       return;
     }
     try {
       await updateList(list.id, { title: trimmed });
       sounds.editItem();
+      pushCommand({
+        label: `تعديل اسم "${previousTitle}"`,
+        undo: async () => {
+          await updateList(list.id, { title: previousTitle });
+          onChange();
+        },
+        redo: async () => {
+          await updateList(list.id, { title: trimmed });
+          onChange();
+        },
+      });
       onChange();
     } catch (err) {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر تعديل اسم المهمة الرئيسية');
-      setTitleDraft(list.title);
+      setTitleDraft(previousTitle);
     }
   }
 
@@ -131,9 +173,22 @@ export default function TodoList({
   }
 
   async function handleItemEdit(item: any, content: string) {
+    const previousContent = item.content;
+    if (content === previousContent) return;
     try {
       await updateItemContent(item.id, content);
       sounds.editItem();
+      pushCommand({
+        label: `تعديل "${previousContent}"`,
+        undo: async () => {
+          await updateItemContent(item.id, previousContent);
+          onChange();
+        },
+        redo: async () => {
+          await updateItemContent(item.id, content);
+          onChange();
+        },
+      });
       onChange();
     } catch (err) {
       sounds.error();
@@ -189,6 +244,17 @@ export default function TodoList({
     const willBeDone = !item.isDone;
     try {
       await toggleItem(item.id, willBeDone);
+      pushCommand({
+        label: willBeDone ? `إنجاز "${item.content}"` : `إلغاء إنجاز "${item.content}"`,
+        undo: async () => {
+          await toggleItem(item.id, !willBeDone);
+          onChange();
+        },
+        redo: async () => {
+          await toggleItem(item.id, willBeDone);
+          onChange();
+        },
+      });
       if (willBeDone && total > 0) {
         const doneAfter = list.items.filter((i: any) => (i.id === item.id ? true : i.isDone)).length;
         if (doneAfter === total) {
@@ -219,6 +285,27 @@ export default function TodoList({
     window.setTimeout(async () => {
       try {
         await deleteItem(item.id);
+        // ref.id بيتبع آخر id حقيقي للمهمة الفرعية دي — بيتغيّر بعد كل
+        // استرجاع (Undo) لأنها بتاخد id جديد من السيرفر كل مرة تتعمل فيها.
+        const ref = { id: item.id as string };
+        pushCommand({
+          label: `حذف "${item.content}"`,
+          undo: async () => {
+            const recreated = await addItem(list.id, item.content, item.priority);
+            if (item.isDone) {
+              await toggleItem(recreated.id, true);
+            }
+            ref.id = recreated.id;
+            onChange();
+            sounds.success();
+            toast.success(`تم استرجاع "${item.content}"`);
+          },
+          redo: async () => {
+            await deleteItem(ref.id);
+            onChange();
+            toast.info(`تم حذف "${item.content}" مرة أخرى`);
+          },
+        });
         onChange();
       } catch (err) {
         sounds.error();
@@ -235,8 +322,12 @@ export default function TodoList({
 
   return (
     <div
-      className={`list-card ${isComplete ? 'list-complete' : ''} ${highlighted ? 'list-card-jump-highlight' : ''}`}
-      style={{ position: 'relative', animationDelay: `${delay}ms`, ['--card-accent' as any]: isComplete ? 'var(--success)' : priorityColor }}
+      className={`list-card list-card-compact ${isComplete ? 'list-complete' : ''} ${highlighted ? 'list-card-jump-highlight' : ''} ${pendingRestore ? 'list-card-pending-restore' : ''}`}
+      style={{
+        position: 'relative',
+        animationDelay: `${delay}ms`,
+        ['--card-accent' as any]: pendingRestore ? 'var(--pending-restore)' : isComplete ? 'var(--success)' : priorityColor,
+      }}
     >
       {confettiOn && (
         <div className="confetti-layer">
@@ -257,6 +348,18 @@ export default function TodoList({
       )}
 
       <div className="list-header">
+        <span
+          className={`checkbox list-checkbox ${isComplete ? 'checked' : ''} ${total === 0 ? 'disabled' : ''}`}
+          onClick={handleToggleWholeList}
+          role="checkbox"
+          aria-checked={isComplete}
+          aria-label="إنهاء المهمة الرئيسية"
+          title={total === 0 ? 'أضف مهمة فرعية الأول' : 'إنهاء المهمة'}
+        >
+          <svg viewBox="0 0 16 16">
+            <polyline points="3,9 6.5,12.5 13,4" />
+          </svg>
+        </span>
         <div className="list-header-title">
           {editingTitle ? (
             <input
@@ -279,37 +382,29 @@ export default function TodoList({
               <DynamicIcon name="repeat" size={12} />
             </span>
           )}
-          <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="md" />
-          <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="md" />
+          {pendingRestore && (
+            <span className="pending-restore-ribbon" title="مسترجعة من الأرشيف — بانتظار مراجعتك">
+              <DynamicIcon name="undo" size={12} /> بانتظار المراجعة
+            </span>
+          )}
+          <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="sm" />
+          <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="sm" />
           <LifeAreaBadge
             value={list.lifeArea || null}
             areas={lifeAreas}
             onChange={handleListLifeAreaChange}
             onManage={onManageLifeAreas}
-            size="md"
+            size="sm"
           />
         </div>
         <div className="row-actions">
           {!editingTitle && (
-            <button className="icon-btn small" onClick={() => setEditingTitle(true)} aria-label="تعديل المهمة الرئيسية" type="button">
+            <button className="icon-btn small" onClick={() => setEditingTitle(true)} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
               <DynamicIcon name="pencil" size={14} />
             </button>
           )}
-          <button
-            className={`icon-btn small reminder-bell ${list._count?.reminders ? 'has-reminders' : ''}`}
-            onClick={() => setRemindersTarget({ kind: 'list', id: list.id, title: list.title })}
-            aria-label="تذكيرات المهمة الرئيسية"
-            type="button"
-            title="التذكيرات"
-          >
-            <DynamicIcon name="bell" size={14} />
-            {list._count?.reminders > 0 && <span className="reminder-count-badge">{list._count.reminders}</span>}
-          </button>
-          <button className="icon-btn small" onClick={handleArchiveList} aria-label="أرشفة المهمة الرئيسية" type="button" title="نقل للأرشيف">
-            <DynamicIcon name="archive" size={14} />
-          </button>
-          <button className="danger small" onClick={handleDeleteList}>
-            حذف المهمة الرئيسية
+          <button className="icon-btn small danger" onClick={handleDeleteList} aria-label="حذف المهمة الرئيسية" type="button" title="حذف">
+            <DynamicIcon name="x" size={14} />
           </button>
         </div>
       </div>
@@ -327,28 +422,38 @@ export default function TodoList({
 
       <TaskTimeline list={list} onChange={onChange} />
 
-      <div className="new-item">
-        <div className="new-item-row">
-          <input
-            value={newItem}
-            onChange={(e) => setNewItem(e.target.value)}
-            placeholder="مهمة فرعية جديدة"
-            onFocus={() => setShowItemPriority(true)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-          />
-          <button onClick={handleAdd}>+</button>
-        </div>
-        {showItemPriority && (
-          <div className="new-item-priority">
-            <PriorityPicker value={newItemPriority} onChange={setNewItemPriority} />
+      {addOpen ? (
+        <div className="new-item">
+          <div className="new-item-row">
+            <input
+              autoFocus
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              placeholder="مهمة فرعية جديدة"
+              onFocus={() => setShowItemPriority(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAdd();
+                if (e.key === 'Escape') setAddOpen(false);
+              }}
+            />
+            <button onClick={handleAdd}>+</button>
           </div>
-        )}
-      </div>
+          {showItemPriority && (
+            <div className="new-item-priority">
+              <PriorityPicker value={newItemPriority} onChange={setNewItemPriority} />
+            </div>
+          )}
+        </div>
+      ) : (
+        <button className="add-subtask-trigger" onClick={() => setAddOpen(true)} type="button">
+          <DynamicIcon name="plus" size={13} /> مهمة فرعية جديدة
+        </button>
+      )}
 
       {total === 0 ? (
-        <p className="empty">لسه مفيش مهام فرعية هنا</p>
+        <p className="empty small">لسه مفيش مهام فرعية هنا</p>
       ) : (
-        <ul>
+        <ul className="subtask-tree">
           {sortedItems.map((item: any, i: number) => (
             <TodoItemRow
               key={item.id}
@@ -366,6 +471,17 @@ export default function TodoList({
           ))}
         </ul>
       )}
+      {pendingRestore && (
+        <div className="pending-restore-footer">
+          <p className="pending-restore-footer-hint">
+            <DynamicIcon name="sparkles" size={13} /> راجع المهمة وعدّلها لو محتاجة، وبعدين أكّد رجوعها لقائمتك النشطة
+          </p>
+          <button type="button" className="pending-restore-confirm" onClick={onFinalizeRestore}>
+            <DynamicIcon name="check" size={15} /> إضافة المهمة
+          </button>
+        </div>
+      )}
+
       {confirmDeleteList && (
         <ConfirmModal
           title="حذف المهمة الرئيسية؟"

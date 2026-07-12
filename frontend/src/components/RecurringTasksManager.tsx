@@ -18,6 +18,8 @@ import { DynamicIcon } from '../lib/icons';
 import { toast } from '../lib/toast';
 import { sounds } from '../lib/sounds';
 import ConfirmModal from './ConfirmModal';
+import BackButton from './BackButton';
+import AddRecurringTaskModal, { NewRecurringTaskPayload } from './AddRecurringTaskModal';
 
 interface SubtaskDraft {
   key: string;
@@ -52,7 +54,8 @@ function newSubtaskKey() {
 }
 
 // ===== محرر المهام الفرعية (Subtask Templates Editor) =====
-// بيُستخدم في نموذج الإنشاء ونموذج التعديل الاثنين — كل مهمة فرعية هنا
+// بيُستخدم في نموذج التعديل هنا (نموذج الإنشاء بقى نافذة منفصلة
+// AddRecurringTaskModal بخطوة مستقلة لنفس الفكرة) — كل مهمة فرعية هنا
 // بتتنسخ تلقائيًا لكل نسخة جديدة تتولّد من القالب (شوف backend/lib/recurringTaskScheduler.ts).
 function SubtaskEditor({ items, onChange }: { items: SubtaskDraft[]; onChange: (items: SubtaskDraft[]) => void }) {
   const [draft, setDraft] = useState('');
@@ -151,16 +154,19 @@ export default function RecurringTasksManager({
   onBack,
   onChange,
   onManageLifeAreas,
+  onOpenMenu,
+  menuOpen,
 }: {
   lifeAreas: LifeAreaData[];
   onBack: () => void;
   onChange?: () => void;
   onManageLifeAreas: () => void;
+  onOpenMenu: () => void;
+  menuOpen: boolean;
 }) {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<RecurringTaskData[]>([]);
-  const [createForm, setCreateForm] = useState<FormState>(emptyForm());
-  const [creating, setCreating] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FormState>(emptyForm());
@@ -188,33 +194,25 @@ export default function RecurringTasksManager({
     onChange?.();
   }
 
-  async function handleCreate() {
-    const title = createForm.title.trim();
-    if (!title) {
-      toast.error('لازم تكتب اسم للمهمة المتكررة الأول');
-      return;
-    }
-    setCreating(true);
+  async function handleCreate(data: NewRecurringTaskPayload) {
     try {
       const task = await createRecurringTask({
-        title,
-        priority: createForm.priority,
-        frequency: createForm.frequency,
-        interval: createForm.interval,
-        startDate: createForm.startDate,
-        lifeAreaId: createForm.lifeAreaId,
-        items: createForm.items.map((it) => ({ content: it.content, priority: it.priority })),
+        title: data.title,
+        priority: data.priority,
+        frequency: data.frequency,
+        interval: data.interval,
+        startDate: data.startDate,
+        lifeAreaId: data.lifeAreaId,
+        items: data.items.map((it) => ({ content: it.content, priority: it.priority })),
       });
       setTasks((prev) => [...prev, task]);
-      setCreateForm(emptyForm());
       sounds.addItem();
-      toast.success(`اتضافت المهمة المتكررة "${title}" — أول نسخة هتتولّد تلقائيًا في موعدها`);
+      toast.success(`اتضافت المهمة المتكررة "${data.title}" — أول نسخة هتتولّد تلقائيًا في موعدها`);
       notifyChanged();
     } catch (err) {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر إنشاء المهمة المتكررة');
-    } finally {
-      setCreating(false);
+      throw err;
     }
   }
 
@@ -322,11 +320,25 @@ export default function RecurringTasksManager({
   return (
     <div className="container view-fade profile-page">
       <div className="top-bar">
-        <button className="small" onClick={onBack} type="button">
-          رجوع
-        </button>
-        <strong>المهام المتكررة</strong>
-        <span aria-hidden="true" style={{ width: 0 }} />
+        <div className="top-bar-main">
+          <BackButton onClick={onBack} />
+          <strong>المهام المتكررة</strong>
+          <button
+            className="icon-btn hamburger-btn"
+            onClick={onOpenMenu}
+            type="button"
+            title="القائمة"
+            aria-label="فتح القائمة"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+          >
+            <span className="hamburger-icon" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
+        </div>
       </div>
 
       <div className="life-area-intro">
@@ -340,69 +352,27 @@ export default function RecurringTasksManager({
         </div>
       </div>
 
-      {/* ===== نموذج إنشاء مهمة متكررة جديدة ===== */}
-      <div className="admin-panel profile-section recurring-create-panel">
-        <h2>
-          <DynamicIcon name="plus" size={18} /> مهمة متكررة جديدة
-        </h2>
-
-        <div className="settings-field">
-          <label>اسم المهمة</label>
-          <input
-            value={createForm.title}
-            onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="مثلاً: مراجعة المصاريف الشهرية"
-            maxLength={80}
-          />
-        </div>
-
-        <div className="settings-field">
-          <label>الأولوية</label>
-          <PriorityPicker value={createForm.priority} onChange={(priority) => setCreateForm((f) => ({ ...f, priority }))} />
-        </div>
-
-        <div className="settings-field">
-          <label>دورة التكرار</label>
-          <FrequencyPicker
-            frequency={createForm.frequency}
-            interval={createForm.interval}
-            onChange={(frequency, interval) => setCreateForm((f) => ({ ...f, frequency, interval }))}
-          />
-          <span className="modal-hint">
-            {intervalDescription(createForm.frequency, createForm.interval)} — ابتداءً من التاريخ اللي هتحدده تحت
+      {/* ===== إنشاء مهمة متكررة جديدة — نفس نظام إنشاء المهمة العادية ===== */}
+      <div className="quick-add-row">
+        <button className="quick-add-card quick-add-card-recurring" onClick={() => setAddOpen(true)} type="button">
+          <span className="quick-add-icon-wrap quick-add-icon-wrap-recurring">
+            <DynamicIcon name="repeat" size={22} />
+            <span className="quick-add-badge">
+              <DynamicIcon name="plus" size={10} />
+            </span>
           </span>
-        </div>
-
-        <div className="settings-field">
-          <label>تاريخ أول تكرار</label>
-          <input
-            type="date"
-            value={createForm.startDate}
-            onChange={(e) => setCreateForm((f) => ({ ...f, startDate: e.target.value }))}
-          />
-        </div>
-
-        <div className="settings-field">
-          <label>مجال الحياة (اختياري)</label>
-          <LifeAreaPicker
-            value={createForm.lifeAreaId}
-            areas={lifeAreas}
-            onChange={(lifeAreaId) => setCreateForm((f) => ({ ...f, lifeAreaId }))}
-            onManage={onManageLifeAreas}
-          />
-        </div>
-
-        <div className="settings-field">
-          <label>المهام الفرعية الثابتة (اختياري)</label>
-          <SubtaskEditor items={createForm.items} onChange={(items) => setCreateForm((f) => ({ ...f, items }))} />
-        </div>
-
-        <div className="modal-actions">
-          <button onClick={handleCreate} disabled={creating || !createForm.title.trim()} type="button">
-            {creating ? 'جاري الإنشاء...' : 'إنشاء المهمة المتكررة'}
-          </button>
-        </div>
+          <span className="quick-add-label">مهمة متكررة جديدة</span>
+          <span className="quick-add-hint">اسم، مهام فرعية، أولوية، دورة تكرار، ومجال حياة</span>
+        </button>
       </div>
+
+      <AddRecurringTaskModal
+        open={addOpen}
+        lifeAreas={lifeAreas}
+        onClose={() => setAddOpen(false)}
+        onManageLifeAreas={onManageLifeAreas}
+        onCreate={handleCreate}
+      />
 
       {/* ===== قائمة المهام المتكررة الحالية ===== */}
       {loading && (

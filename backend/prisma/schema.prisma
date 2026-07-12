@@ -91,7 +91,20 @@ model LifeArea {
   icon  String?
   // صورة أيقونة مخصصة رفعها المستخدم من جهازه، بتحل محل الإيموجي في العرض.
   imageUrl String?
+  // position بقى مرتب *داخل نفس المستوى* بس (بين إخوته اللي ليهم نفس
+  // parentId)، مش بين كل مجالات المستخدم على بعضها — كده كل فرع بيرتب
+  // نفسه لوحده.
   position Int     @default(0)
+
+  // ===== الهيكل الهرمي (مجالات فرعية) =====
+  // مجال الحياة ممكن يتبع مجال حياة أب (parentId)، وبيقدر بدوره يكون
+  // أب لمجالات فرعية تانية (children) — من غير حد أقصى لعدد المستويات.
+  // لو المجال الأب اتحذف، مجالاته الفرعية ما بتتحذفش معاه؛ بترجع "مجالات
+  // جذرية" مستقلة (onDelete: SetNull) — بنفس فلسفة "الحذف ما بيكسرش
+  // حاجة تانية" المتّبعة في كل المشروع.
+  parentId String?
+  parent   LifeArea?  @relation("LifeAreaHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children LifeArea[] @relation("LifeAreaHierarchy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -99,9 +112,15 @@ model LifeArea {
   lists          TodoList[]
   recurringTasks RecurringTask[]
 
-  @@unique([userId, name])
+  // الاسم لازم يكون فريد بين إخوته بس (نفس parentId)، مش بين كل مجالات
+  // المستخدم — عشان "الجري" تحت "الصحة" و"الجري" تحت "شغل" (مثلاً) يبقوا
+  // مسموحين. ملحوظة: قيود UNIQUE في بوستجرس بتعتبر NULL≠NULL، فالتحقق من
+  // فرادة الاسم بين المجالات الجذرية (parentId=null) بيتم يدويًا في السيرفر
+  // (شوف routes/lifeAreas.ts) بدل الاعتماد على القيد ده لوحده.
+  @@unique([userId, parentId, name])
   @@index([userId])
   @@index([userId, position])
+  @@index([parentId])
 }
 
 model AdminAuditLog {
@@ -157,6 +176,16 @@ model TodoList {
   // lib/archive.ts. المستخدم كمان يقدر يؤرشف/يسترجع يدويًا في أي وقت.
   archivedAt DateTime?
 
+  // ===== استرجاع من الأرشيف بانتظار المراجعة (Pending Restore) =====
+  // لما المستخدم يضغط "استرجاع" من صفحة الأرشيف، المهمة مبترجعش فورًا
+  // لقائمة المهام النشطة — بتتحط في "منطقة انتظار" وسيطة (pendingRestoreAt
+  // بيسجّل توقيت الاسترجاع الأولي). المهمة بتظهر وقتها في قسم مخصص بالصفحة
+  // الرئيسية (قابل للتعديل بالكامل)، ومبتترجعش لمكانها الطبيعي في القائمة
+  // النشطة إلا لما المستخدم يأكّد بالضغط على "إضافة المهمة" (pendingRestoreAt
+  // بيترجع null وقتها). طول ما فيه قيمة هنا، بيتوقف مزامنة الأرشفة التلقائية
+  // (syncListArchiveState) عن أي تغيير في حالة المهمة دي — شوف lib/archive.ts.
+  pendingRestoreAt DateTime?
+
   // ===== المهام المتكررة (Recurring Tasks) =====
   // لو المهمة الرئيسية دي "نسخة" اتولّدت تلقائيًا من قالب مهمة متكررة،
   // بيبقى ده الرابط بينها وبين القالب الأصلي (RecurringTask). لو القالب اتحذف،
@@ -172,6 +201,7 @@ model TodoList {
   @@index([userId])
   @@index([lifeAreaId])
   @@index([userId, archivedAt])
+  @@index([userId, pendingRestoreAt])
   @@index([recurringTaskId])
 }
 

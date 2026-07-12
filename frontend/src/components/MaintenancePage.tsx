@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import AuthForm from './AuthForm';
+import ThemeToggleButton from './ThemeToggleButton';
 import { DynamicIcon } from '../lib/icons';
 
 interface Props {
@@ -17,6 +18,7 @@ export default function MaintenancePage({ emoji, message, siteName, onAdminSucce
 
   return (
     <div className="maintenance-page">
+      <ThemeToggleButton />
       <div className="maintenance-card">
         <div className="maintenance-icon" aria-hidden="true">
           <DynamicIcon name={emoji} fallback="wrench" size={40} />

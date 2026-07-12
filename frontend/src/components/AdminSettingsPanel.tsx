@@ -215,7 +215,7 @@ export default function AdminSettingsPanel() {
       </div>
 
       <div className="settings-field">
-        <label>أقصى عدد قوائم لكل مستخدم (0 = بدون حد)</label>
+        <label>أقصى عدد قوائم لكل مستخدم (0 = غير محدود)</label>
         <input
           type="number"
           min={0}
@@ -225,7 +225,7 @@ export default function AdminSettingsPanel() {
       </div>
 
       <div className="settings-field">
-        <label>أقصى عدد مهام لكل قائمة (0 = بدون حد)</label>
+        <label>أقصى عدد مهام لكل قائمة (0 = غير محدود)</label>
         <input
           type="number"
           min={0}

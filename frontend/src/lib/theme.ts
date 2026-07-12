@@ -4,7 +4,7 @@ export type Theme = 'light' | 'dark';
 
 const THEME_KEY = 'theme';
 const LIGHT_META_COLOR = '#f1eee5';
-const DARK_META_COLOR = '#0f1417';
+const DARK_META_COLOR = '#0c1013';
 
 function getSystemTheme(): Theme {
   if (typeof window === 'undefined' || !window.matchMedia) return 'light';

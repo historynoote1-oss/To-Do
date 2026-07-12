@@ -4,17 +4,36 @@ import { AuthRequest } from '../middleware/verifyUser';
 
 const router = Router();
 
-// بترجع المهام الرئيسية "النشطة" بس (مش المؤرشفة) — المهام المكتملة اللي
-// اتؤرشفت (تلقائيًا أو يدويًا) بتتقرا من GET /api/archive بدالها.
+// بترجع المهام الرئيسية "النشطة" بس (مش المؤرشفة، ومش اللي بانتظار مراجعة
+// الاسترجاع من الأرشيف) — المهام المكتملة اللي اتؤرشفت (تلقائيًا أو يدويًا)
+// بتتقرا من GET /api/archive بدالها، واللي بانتظار المراجعة بتتقرا من
+// GET /api/lists/pending-restore بدالها.
 router.get('/', async (req: AuthRequest, res) => {
   const lists = await prisma.todoList.findMany({
-    where: { userId: req.userId!, archivedAt: null },
+    where: { userId: req.userId!, archivedAt: null, pendingRestoreAt: null },
     include: {
       items: { orderBy: { position: 'asc' }, include: { _count: { select: { reminders: true } } } },
       _count: { select: { reminders: true } },
-      lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true } },
+      lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
     },
     orderBy: { createdAt: 'asc' },
+  });
+  res.json(lists);
+});
+
+// بترجع المهام اللي استُرجعت من الأرشيف ولسه بانتظار مراجعة/تأكيد المستخدم
+// (شوف POST /:id/restore و/:id/finalize-restore تحت). بنفس تركيب GET /
+// بالظبط عشان تقدر تستخدم نفس مكوّن عرض المهمة الرئيسية (TodoList) في
+// الواجهة من غير أي تحويل إضافي.
+router.get('/pending-restore', async (req: AuthRequest, res) => {
+  const lists = await prisma.todoList.findMany({
+    where: { userId: req.userId!, archivedAt: null, pendingRestoreAt: { not: null } },
+    include: {
+      items: { orderBy: { position: 'asc' }, include: { _count: { select: { reminders: true } } } },
+      _count: { select: { reminders: true } },
+      lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
+    },
+    orderBy: { pendingRestoreAt: 'desc' },
   });
   res.json(lists);
 });
@@ -26,20 +45,41 @@ router.post('/:id/archive', async (req: AuthRequest, res) => {
   if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
   const updated = await prisma.todoList.update({
     where: { id: list.id },
-    data: { archivedAt: list.archivedAt ?? new Date() },
-    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true } } },
+    data: { archivedAt: list.archivedAt ?? new Date(), pendingRestoreAt: null },
+    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
   });
   res.json(updated);
 });
 
-// استرجاع مهمة رئيسية من الأرشيف لقائمة المهام النشطة يدويًا.
+// الخطوة الأولى من استرجاع مهمة من الأرشيف: المهمة بتتشال من الأرشيف
+// (archivedAt = null) بس مبترجعش لقائمة المهام النشطة فورًا — بتتحط بدالها
+// في منطقة "بانتظار المراجعة" (pendingRestoreAt = دلوقتي)، وبتظهر في قسم
+// مخصص بالصفحة الرئيسية عشان المستخدم يراجعها ويعدّلها قبل ما يأكّدها
+// نهائيًا بطلب /finalize-restore.
 router.post('/:id/restore', async (req: AuthRequest, res) => {
   const list = await prisma.todoList.findFirst({ where: { id: req.params.id, userId: req.userId! } });
   if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
   const updated = await prisma.todoList.update({
     where: { id: list.id },
-    data: { archivedAt: null },
-    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true } } },
+    data: { archivedAt: null, pendingRestoreAt: new Date() },
+    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
+  });
+  res.json(updated);
+});
+
+// الخطوة الثانية والأخيرة: المستخدم يضغط "إضافة المهمة" في قسم "بانتظار
+// المراجعة" بالصفحة الرئيسية، فالمهمة بترجع فعليًا لمكانها الطبيعي في
+// قائمة المهام النشطة (pendingRestoreAt = null). لازم تكون المهمة فعلاً
+// بانتظار مراجعة (404 غير كده) عشان منسمحش بإنهاء استرجاع مهمة أصلًا نشطة.
+router.post('/:id/finalize-restore', async (req: AuthRequest, res) => {
+  const list = await prisma.todoList.findFirst({
+    where: { id: req.params.id, userId: req.userId!, pendingRestoreAt: { not: null } },
+  });
+  if (!list) return res.status(404).json({ error: 'المهمة غير موجودة أو مش بانتظار المراجعة' });
+  const updated = await prisma.todoList.update({
+    where: { id: list.id },
+    data: { pendingRestoreAt: null },
+    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
   });
   res.json(updated);
 });
@@ -135,7 +175,7 @@ router.post('/', async (req: AuthRequest, res) => {
         targetYear: targetYear ?? undefined,
         lifeAreaId: lifeAreaId ?? undefined,
       },
-      include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true } } },
+      include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
     });
     res.json(list);
   } catch (err) {
@@ -200,7 +240,7 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       targetYear,
       lifeAreaId: lifeAreaId === undefined ? undefined : lifeAreaId,
     },
-    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true } } },
+    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
   });
   res.json(updated);
 });

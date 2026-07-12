@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getArchive, restoreList, deleteList, resolveLifeAreaImageUrl } from '../lib/api';
+import { getArchive, restoreList } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import ConfirmModal from './ConfirmModal';
+import BackButton from './BackButton';
 import { priorityOf } from '../lib/priority';
-import { CATEGORIES, CategoryKey, categoryOf } from '../lib/category';
-import { hexToSoftBg } from '../lib/lifeArea';
+import { CATEGORIES, CategoryKey } from '../lib/category';
+import { LifeAreaData } from '../lib/lifeArea';
 import { DynamicIcon } from '../lib/icons';
-import { AreaGlyph } from './LifeArea';
+import { LifeAreaBadge } from './LifeArea';
+import { PriorityBadge } from './Priority';
+import { CategoryBadge } from './Category';
 
 const MONTHS_AR = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -21,6 +24,7 @@ interface ArchivedItem {
   content: string;
   isDone: boolean;
   priority?: string;
+  dueDate?: string | null;
 }
 
 interface ArchivedList {
@@ -31,6 +35,7 @@ interface ArchivedList {
   targetYear?: number | null;
   archivedAt: string;
   createdAt: string;
+  recurringTaskId?: string | null;
   items: ArchivedItem[];
   lifeArea?: { id: string; name: string; color: string; icon: string | null; imageUrl: string | null } | null;
 }
@@ -39,7 +44,21 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
 }
 
-export default function ArchivePage({ onBack, onChange }: { onBack: () => void; onChange: () => void }) {
+export default function ArchivePage({
+  onBack,
+  onChange,
+  onOpenMenu,
+  menuOpen,
+  lifeAreas = [],
+  onManageLifeAreas,
+}: {
+  onBack: () => void;
+  onChange: () => void;
+  onOpenMenu: () => void;
+  menuOpen: boolean;
+  lifeAreas?: LifeAreaData[];
+  onManageLifeAreas?: () => void;
+}) {
   const [lists, setLists] = useState<ArchivedList[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -48,7 +67,6 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
   const [confirmRestore, setConfirmRestore] = useState<ArchivedList | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<ArchivedList | null>(null);
 
   useEffect(() => {
     load();
@@ -71,25 +89,12 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
     try {
       await restoreList(list.id);
       sounds.success();
-      toast.success(`اترجعت "${list.title}" للمهام النشطة`);
+      toast.success(`"${list.title}" اتنقلت لقسم "بانتظار المراجعة" في الصفحة الرئيسية — راجعها وأضفها لقائمتك`);
       setLists((prev) => prev.filter((l) => l.id !== list.id));
       onChange();
     } catch (err) {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر استرجاع المهمة من الأرشيف');
-    }
-  }
-
-  async function handleDelete(list: ArchivedList) {
-    setConfirmDelete(null);
-    sounds.deleteItem();
-    setLists((prev) => prev.filter((l) => l.id !== list.id));
-    try {
-      await deleteList(list.id);
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر حذف المهمة نهائيًا');
-      load();
     }
   }
 
@@ -182,8 +187,9 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
     setCollapsedDays(allDays);
   }
 
-  // إحصائيتين فعليًا مفيدتين وخاصتين بالأرشيف (مش متكررة من صفحة البروفايل):
-  // نشاط الأرشفة الحديث، ومتوسط الوقت الفعلي بين إنشاء المهمة وإكمالها.
+  // إحصائية فعليًا مفيدة وخاصة بالأرشيف (مش متكررة من صفحة البروفايل):
+  // نشاط الأرشفة الحديث. (إحصائية "متوسط أيام الإنجاز" اتشالت لأنها
+  // بتوصف سرعة إنجاز المهام بشكل عام، ومالهاش علاقة مباشرة بقسم الأرشيف نفسه.)
   const archivedThisMonth = useMemo(() => {
     const now = new Date();
     return lists.filter((l) => {
@@ -192,25 +198,28 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
     }).length;
   }, [lists]);
 
-  const avgCompletionDays = useMemo(() => {
-    if (lists.length === 0) return null;
-    const totalMs = lists.reduce((sum, l) => sum + (new Date(l.archivedAt).getTime() - new Date(l.createdAt).getTime()), 0);
-    return totalMs / lists.length / (1000 * 60 * 60 * 24);
-  }, [lists]);
-
-  function formatAvgDays(days: number) {
-    if (days < 1) return '< ١';
-    return days.toFixed(1);
-  }
-
   return (
     <div className="container view-fade archive-page">
       <div className="top-bar">
-        <button className="small" onClick={onBack} type="button">
-          رجوع
-        </button>
-        <strong>الأرشيف</strong>
-        <span aria-hidden="true" style={{ width: 0 }} />
+        <div className="top-bar-main">
+          <BackButton onClick={onBack} />
+          <strong>الأرشيف</strong>
+          <button
+            className="icon-btn hamburger-btn"
+            onClick={onOpenMenu}
+            type="button"
+            title="القائمة"
+            aria-label="فتح القائمة"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+          >
+            <span className="hamburger-icon" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
+        </div>
       </div>
 
       <div className="life-area-intro archive-intro">
@@ -233,14 +242,6 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
           <span className="stat-card-value stat-card-success">{archivedThisMonth}</span>
           <span className="stat-card-label">مؤرشفة الشهر ده</span>
         </div>
-        {avgCompletionDays !== null && (
-          <div className="stat-card">
-            <span className="stat-card-value" dir="ltr">
-              {formatAvgDays(avgCompletionDays)}
-            </span>
-            <span className="stat-card-label">متوسط أيام الإنجاز (من الإنشاء للأرشفة)</span>
-          </div>
-        )}
       </div>
 
       <div className="archive-toolbar">
@@ -381,81 +382,92 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
                                   <div className="archive-day-body">
                                   <div className="archive-cards">
                                     {dayLists.map((list) => {
-                                      const cat = categoryOf(list.category);
-                                      const pr = priorityOf(list.priority);
+                                      const total = list.items.length;
                                       const doneCount = list.items.filter((i) => i.isDone).length;
+                                      const progress = total === 0 ? 0 : Math.round((doneCount / total) * 100);
+                                      const isComplete = total > 0 && doneCount === total;
+                                      const priorityColor = priorityOf(list.priority).color;
                                       return (
-                                        <div className="archive-card" key={list.id}>
-                                          <div className="archive-card-head">
-                                            <h3>{list.title}</h3>
+                                        <div
+                                          className={`list-card list-card-compact archive-task-card ${isComplete ? 'list-complete' : ''}`}
+                                          key={list.id}
+                                          style={{ position: 'relative', ['--card-accent' as any]: isComplete ? 'var(--success)' : priorityColor }}
+                                        >
+                                          <div className="list-header">
+                                            <span
+                                              className={`checkbox list-checkbox disabled ${isComplete ? 'checked' : ''}`}
+                                              aria-hidden="true"
+                                              title={isComplete ? 'مكتملة' : 'غير مكتملة بالكامل'}
+                                            >
+                                              <svg viewBox="0 0 16 16">
+                                                <polyline points="3,9 6.5,12.5 13,4" />
+                                              </svg>
+                                            </span>
+                                            <div className="list-header-title">
+                                              <h2>{list.title}</h2>
+                                              {list.recurringTaskId && (
+                                                <span className="recurring-origin-badge" title="اتولّدت تلقائيًا من مهمة متكررة">
+                                                  <DynamicIcon name="repeat" size={12} />
+                                                </span>
+                                              )}
+                                              <PriorityBadge value={list.priority || 'NONE'} onChange={() => {}} size="sm" disabled />
+                                              <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={() => {}} size="sm" disabled />
+                                              <LifeAreaBadge value={list.lifeArea || null} areas={lifeAreas} onChange={() => {}} size="sm" disabled />
+                                            </div>
                                             <span className="archive-card-time" dir="ltr" title="وقت الأرشفة">
                                               {formatTime(list.archivedAt)}
                                             </span>
                                           </div>
-                                          <div className="archive-card-badges">
-                                            {cat && (
-                                              <span
-                                                className="category-badge archive-static-badge"
-                                                style={{ color: cat.color, background: cat.bg }}
-                                              >
-                                                <span aria-hidden="true">{cat.icon}</span> {cat.short}
-                                                {cat.key === 'YEARLY' && list.targetYear ? ` ${list.targetYear}` : ''}
-                                              </span>
-                                            )}
-                                            {list.priority && list.priority !== 'NONE' && (
-                                              <span
-                                                className="priority-badge archive-static-badge"
-                                                style={{ color: pr.color, background: pr.bg }}
-                                              >
-                                                {pr.short}
-                                              </span>
-                                            )}
-                                            {list.lifeArea && (
-                                              <span
-                                                className="life-area-badge-chip archive-static-badge"
-                                                style={{ color: list.lifeArea.color, background: hexToSoftBg(list.lifeArea.color) }}
-                                              >
-                                                <AreaGlyph area={list.lifeArea} size="sm" />{' '}
-                                                {list.lifeArea.name}
-                                              </span>
-                                            )}
-                                          </div>
 
-                                          {list.items.length > 0 && (
-                                            <ul className="archive-item-list">
+                                          {total > 0 && (
+                                            <div className="list-progress-row">
+                                              <div className="list-progress">
+                                                <div className="list-progress-fill" style={{ width: `${progress}%` }} />
+                                              </div>
+                                              <span className="list-progress-label">
+                                                {doneCount}/{total} · {progress}٪
+                                              </span>
+                                            </div>
+                                          )}
+
+                                          {total === 0 ? (
+                                            <p className="empty small">مفيش مهام فرعية في المهمة دي</p>
+                                          ) : (
+                                            <ul className="subtask-tree">
                                               {list.items.map((it) => (
                                                 <li key={it.id} className={it.isDone ? 'done' : ''}>
-                                                  <span className={`checkbox ${it.isDone ? 'checked' : ''}`} aria-hidden="true">
-                                                    <svg viewBox="0 0 16 16">
-                                                      <polyline points="3,9 6.5,12.5 13,4" />
-                                                    </svg>
-                                                  </span>
-                                                  <span>{it.content}</span>
+                                                  <label>
+                                                    <span className={`checkbox ${it.isDone ? 'checked' : ''}`} aria-hidden="true">
+                                                      <svg viewBox="0 0 16 16">
+                                                        <polyline points="3,9 6.5,12.5 13,4" />
+                                                      </svg>
+                                                    </span>
+                                                    <span>{it.content}</span>
+                                                  </label>
+                                                  <div className="row-actions">
+                                                    {it.priority && it.priority !== 'NONE' && (
+                                                      <PriorityBadge value={it.priority} onChange={() => {}} size="sm" disabled />
+                                                    )}
+                                                    {it.dueDate && (
+                                                      <span className="due-date-chip" title="موعد الاستحقاق">
+                                                        <DynamicIcon name="calendar" size={12} />{' '}
+                                                        {new Date(it.dueDate).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                                                      </span>
+                                                    )}
+                                                  </div>
                                                 </li>
                                               ))}
                                             </ul>
                                           )}
 
                                           <div className="archive-card-footer">
-                                            <span className="archive-card-progress">
-                                              {doneCount}/{list.items.length} منجزة
-                                            </span>
-                                            <div className="row-actions">
-                                              <button
-                                                className="small"
-                                                type="button"
-                                                onClick={() => setConfirmRestore(list)}
-                                              >
-                                                <DynamicIcon name="undo" size={14} /> استرجاع
-                                              </button>
-                                              <button
-                                                className="danger small"
-                                                type="button"
-                                                onClick={() => setConfirmDelete(list)}
-                                              >
-                                                حذف نهائي
-                                              </button>
-                                            </div>
+                                            <button
+                                              className="small archive-restore-btn"
+                                              type="button"
+                                              onClick={() => setConfirmRestore(list)}
+                                            >
+                                              <DynamicIcon name="undo" size={14} /> استرجاع
+                                            </button>
                                           </div>
                                         </div>
                                       );
@@ -482,28 +494,14 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
           title="استرجاع المهمة من الأرشيف؟"
           description={
             <>
-              هترجع "<strong>{confirmRestore.title}</strong>" لقائمة مهامك النشطة تاني.
+              هتتنقل "<strong>{confirmRestore.title}</strong>" لقسم "بانتظار المراجعة" في الصفحة الرئيسية، وتقدر
+              تراجعها وتعدّلها قبل ما تأكّد رجوعها لقائمتك النشطة.
             </>
           }
           confirmLabel="استرجاع"
           danger={false}
           onCancel={() => setConfirmRestore(null)}
           onConfirm={() => handleRestore(confirmRestore)}
-        />
-      )}
-
-      {confirmDelete && (
-        <ConfirmModal
-          title="حذف المهمة نهائيًا؟"
-          description={
-            <>
-              هيتم حذف "<strong>{confirmDelete.title}</strong>" وكل مهامها الفرعية ({confirmDelete.items.length}) من
-              الأرشيف نهائيًا. الإجراء ده مينفعش يترجع.
-            </>
-          }
-          confirmLabel="حذف نهائيًا"
-          onCancel={() => setConfirmDelete(null)}
-          onConfirm={() => handleDelete(confirmDelete)}
         />
       )}
     </div>

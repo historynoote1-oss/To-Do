@@ -20,9 +20,103 @@ export interface LifeAreaData {
   icon: string | null;
   imageUrl: string | null;
   position: number;
+  // ===== الهيكل الهرمي =====
+  // parentId: null يعني مجال جذري (مش تابع لأي مجال تاني). childCount:
+  // عدد المجالات الفرعية المباشرة تحته (مفيد لمعرفة هل يستحق زر "توسيع"
+  // من غير ما تحتاج تحسب طول children بنفسك).
+  parentId: string | null;
+  childCount: number;
   createdAt?: string;
   updatedAt?: string;
+  // stats: خاصة بالمجال نفسه بس. aggregatedStats: نفس المجال + كل
+  // المجالات الفرعية تحته على أي عمق — الاتنين بييجوا جاهزين من السيرفر.
   stats: LifeAreaStats;
+  aggregatedStats: LifeAreaStats;
+}
+
+// ===== عقدة شجرة مبنية محليًا من القائمة المسطّحة اللي بترجع من السيرفر —
+// بتضيف children (مصفوفة فعلية بدل الاعتماد على childCount بس) وdepth
+// (عمق المجال، 0 للجذري) عشان الواجهة تقدر تعرض تعشيش/مسافات بادئة. =====
+export interface LifeAreaNode extends LifeAreaData {
+  children: LifeAreaNode[];
+  depth: number;
+}
+
+// بتبني شجرة كاملة من القائمة المسطّحة (الترتيب بالفعل مضبوط من السيرفر
+// حسب position داخل كل مستوى). لو فيه parentId بيشاور على مجال مش موجود
+// (اتحذف مثلاً بس الكاش لسه مش متحدّث)، بيتعامل معاه كمجال جذري.
+export function buildLifeAreaTree(areas: LifeAreaData[]): LifeAreaNode[] {
+  const byId = new Map<string, LifeAreaNode>();
+  for (const a of areas) byId.set(a.id, { ...a, children: [], depth: 0 });
+
+  const roots: LifeAreaNode[] = [];
+  for (const a of areas) {
+    const node = byId.get(a.id)!;
+    const parent = a.parentId ? byId.get(a.parentId) : undefined;
+    if (parent) {
+      node.depth = parent.depth + 1;
+      parent.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
+// بتحوّل الشجرة لقائمة مسطّحة بترتيب "معاينة الشجرة" (كل أب يتبعه فروعه
+// مباشرة) — مفيدة لعرض قائمة منسدلة هرمية (مسافة بادئة = depth) من غير
+// ما تحتاج تكتب recursion في كل مكان بتُعرض فيه القائمة.
+export function flattenLifeAreaTree(nodes: LifeAreaNode[]): LifeAreaNode[] {
+  const out: LifeAreaNode[] = [];
+  function walk(list: LifeAreaNode[]) {
+    for (const n of list) {
+      out.push(n);
+      if (n.children.length) walk(n.children);
+    }
+  }
+  walk(nodes);
+  return out;
+}
+
+// كل الأسلاف (الآباء وأجداده) لمجال معيّن، من الأقرب للأبعد — بتفيد في
+// عرض "مسار" (breadcrumb) زي: الصحة واللياقة › الجيم.
+export function getLifeAreaAncestors(areas: LifeAreaData[], areaId: string | null): LifeAreaData[] {
+  const byId = new Map(areas.map((a) => [a.id, a]));
+  const chain: LifeAreaData[] = [];
+  let cursor = areaId ? byId.get(areaId)?.parentId ?? null : null;
+  const seen = new Set<string>();
+  while (cursor && !seen.has(cursor)) {
+    seen.add(cursor);
+    const node = byId.get(cursor);
+    if (!node) break;
+    chain.unshift(node);
+    cursor = node.parentId;
+  }
+  return chain;
+}
+
+// كل الأحفاد (IDs) لمجال معيّن على أي عمق — بتفيد لمنع اختيار مجال فرعي
+// (أو أحد أحفاده) كأب جديد له وهو بيتعدّل (حماية إضافية جوه الواجهة قبل
+// ما السيرفر يرفض الطلب أصلًا).
+export function getLifeAreaDescendantIds(areas: LifeAreaData[], areaId: string): Set<string> {
+  const childrenOf = new Map<string | null, LifeAreaData[]>();
+  for (const a of areas) {
+    const key = a.parentId ?? null;
+    const arr = childrenOf.get(key) || [];
+    arr.push(a);
+    childrenOf.set(key, arr);
+  }
+  const result = new Set<string>();
+  function walk(id: string) {
+    for (const child of childrenOf.get(id) || []) {
+      if (!result.has(child.id)) {
+        result.add(child.id);
+        walk(child.id);
+      }
+    }
+  }
+  walk(areaId);
+  return result;
 }
 
 // لوحة ألوان مقترحة عشان المستخدم ميحتاجش يفتح color-picker من غير داعي —
@@ -66,20 +160,63 @@ export const LIFE_AREA_COLOR_GROUPS: { label: string; colors: string[] }[] = [
 export const LIFE_AREA_COLORS = LIFE_AREA_COLOR_GROUPS.flatMap((g) => g.colors);
 
 // أيقونات مقترحة (مفاتيح Lucide، شوف lib/icons.tsx) — دي المصدر الوحيد
-// للأيقونة دلوقتي (تم إلغاء إدخال الإيموجي الحر بالكامل)، وبتغطي أوسع
-// نطاق ممكن من جوانب الحياة: شغل، رياضة، صحة، عائلة، تعلّم، مال، سفر،
-// هوايات، روحانيات، وغيرها. المستخدم البديل الوحيد لو حاب شكل مختلف
-// تمامًا هو رفع صورة مخصصة كأيقونة.
-export const LIFE_AREA_ICON_PRESETS = [
-  'briefcase', 'building', 'laptop', 'graduation-cap', 'book-open', 'brain',
-  'dumbbell', 'activity', 'bike', 'stethoscope', 'heart', 'smile',
-  'users', 'baby', 'home', 'paw-print', 'hand-heart', 'sunrise',
-  'wallet', 'piggy-bank', 'landmark', 'trending-up', 'shopping-bag', 'gift',
-  'plane', 'globe', 'mountain', 'waves', 'car', 'camera',
-  'palette', 'paintbrush', 'music', 'mic', 'gamepad', 'puzzle',
-  'sprout', 'leaf', 'flower', 'coffee', 'utensils', 'shirt',
-  'target', 'trophy', 'sparkles', 'star',
+// للأيقونة دلوقتي (تم إلغاء إدخال الإيموجي الحر بالكامل). بدل ما تكون
+// مصفوفة واحدة مسطّحة، بقت مقسّمة لأقسام (زي عائلات الألوان بالظبط)
+// عشان: (أ) تغطي نطاق أوسع بكتير من جوانب الحياة، (ب) تتعرض كـ"اقتراحات"
+// مبوّبة بدل قائمة عشوائية طويلة يصعب تصفّحها، و(ج) تناسب فلسفة الهيكل
+// الهرمي — كل قسم بيمثّل "مجموعة معنى" ممكن يبقى مجال رئيسي، وأيقوناته
+// الفرعية تناسب المجالات الفرعية تحته (مثلاً "الصحة واللياقة" ← الجيم/
+// الجري/الأكل الصحي كلهم من نفس قسم "صحة ولياقة"). المستخدم البديل
+// الوحيد لو حاب شكل مختلف تمامًا هو رفع صورة مخصصة كأيقونة.
+export const LIFE_AREA_ICON_GROUPS: { label: string; icons: string[] }[] = [
+  {
+    label: 'شغل وإنتاجية',
+    icons: ['briefcase', 'building', 'laptop', 'clipboard-list', 'list-checks', 'folder', 'folder-open', 'target', 'rocket', 'settings-2'],
+  },
+  {
+    label: 'تعلّم ومعرفة',
+    icons: ['graduation-cap', 'book-open', 'brain', 'puzzle', 'pencil', 'compass', 'star', 'sparkles'],
+  },
+  {
+    label: 'صحة ولياقة',
+    icons: ['dumbbell', 'activity', 'bike', 'stethoscope', 'heart', 'sunrise', 'sun', 'flame', 'timer', 'hourglass'],
+  },
+  {
+    label: 'حالة نفسية وروحانية',
+    icons: ['smile', 'hand-heart', 'flower', 'leaf', 'sprout', 'moon', 'feather'],
+  },
+  {
+    label: 'عائلة واجتماعيات',
+    icons: ['users', 'baby', 'home', 'paw-print', 'gift', 'party-popper'],
+  },
+  {
+    label: 'مال واستثمار',
+    icons: ['wallet', 'piggy-bank', 'landmark', 'trending-up', 'shopping-bag', 'bar-chart'],
+  },
+  {
+    label: 'سفر ومغامرة',
+    icons: ['plane', 'globe', 'mountain', 'waves', 'car', 'camera', 'compass'],
+  },
+  {
+    label: 'إبداع وفنون',
+    icons: ['palette', 'paintbrush', 'music', 'mic', 'gamepad', 'sticky-note'],
+  },
+  {
+    label: 'طعام ونمط حياة',
+    icons: ['coffee', 'utensils', 'shirt', 'home', 'sun'],
+  },
+  {
+    label: 'أهداف وإنجازات',
+    icons: ['trophy', 'flag', 'zap', 'check-circle', 'calendar-days'],
+  },
 ];
+
+// نسخة مسطّحة من كل الأيقونات أعلاه — للتوافق مع أي كود قديم بيتوقع
+// مصفوفة واحدة، ومُنقّاة من التكرار (بعض الأيقونات منطقيًا بتتكرر بين
+// أكتر من قسم، زي "compass" أو "sun").
+export const LIFE_AREA_ICON_PRESETS = Array.from(
+  new Set(LIFE_AREA_ICON_GROUPS.flatMap((g) => g.icons))
+);
 
 export const DEFAULT_LIFE_AREA_COLOR = LIFE_AREA_COLORS[0];
 export const DEFAULT_LIFE_AREA_ICON = 'tag';

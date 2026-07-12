@@ -7,7 +7,8 @@
 //    أقرب موعد استحقاق، عشان الوصول لأي حاجة يبقى في ثواني من غير فلترة.
 
 import { LifeAreaData } from './lifeArea';
-import { priorityWeight } from './priority';
+import { priorityWeight, PRIORITIES, PriorityKey } from './priority';
+import { CATEGORIES, CategoryKey } from './category';
 
 export const NO_LIFE_AREA_GROUP = '__none__';
 const URGENT_WINDOW_MS = 24 * 60 * 60 * 1000; // يوم قدام يعتبر "عاجل" لو له موعد استحقاق
@@ -21,6 +22,7 @@ export interface MinimalItem {
 export interface MinimalList {
   id: string;
   priority?: string | null;
+  category?: string | null;
   lifeAreaId?: string | null;
   items: MinimalItem[];
 }
@@ -119,7 +121,7 @@ export function groupByLifeArea<T extends MinimalList>(lists: T[], lifeAreas: Li
   if (noArea.length > 0) {
     groups.push({
       id: NO_LIFE_AREA_GROUP,
-      name: 'بدون مجال',
+      name: 'عام',
       color: '#5b6478',
       icon: 'tag',
       imageUrl: null,
@@ -141,6 +143,155 @@ export function urgentLists<T extends MinimalList>(lists: T[], limit = 6, now: n
 
 // نفس منطق فرز المهام الرئيسية، بس للمهام الفرعية جوه مهمة واحدة: غير
 // المكتملة أولًا (الأولوية الأعلى فالأقرب استحقاقًا)، وبعدين المكتملة.
+export const NO_CATEGORY_GROUP = '__no_category__';
+
+export interface PriorityGroup<T> {
+  key: string;
+  label: string;
+  color: string;
+  lists: T[];
+}
+
+export interface CategoryGroup<T> {
+  key: string;
+  label: string;
+  icon: string;
+  color: string;
+  count: number;
+  priorityGroups: PriorityGroup<T>[];
+}
+
+export interface HierarchicalLifeAreaGroup<T> {
+  id: string;
+  name: string;
+  color: string;
+  icon: string | null;
+  imageUrl: string | null;
+  count: number;
+  categoryGroups: CategoryGroup<T>[];
+}
+
+// بيقسّم مهام مجال حياة واحد لمستويين إضافيين جوه بعض: التصنيف
+// (يومية/أسبوعية/...) وبعده الأولوية — عشان الوصول لأي مهمة يبقى
+// بضغطتين بدل التمرير على عشرات الكروت. الأقسام الفاضية بتتشال تلقائيًا.
+function buildCategoryGroups<T extends MinimalList & { category?: string | null }>(lists: T[]): CategoryGroup<T>[] {
+  const byCategory = new Map<string, T[]>();
+  const noCategory: T[] = [];
+
+  for (const l of lists) {
+    if (l.category) {
+      const arr = byCategory.get(l.category) || [];
+      arr.push(l);
+      byCategory.set(l.category, arr);
+    } else {
+      noCategory.push(l);
+    }
+  }
+
+  const groups: CategoryGroup<T>[] = [];
+  for (const cat of CATEGORIES) {
+    const items = byCategory.get(cat.key);
+    if (items && items.length > 0) {
+      groups.push({
+        key: cat.key,
+        label: cat.label,
+        icon: cat.icon,
+        color: cat.color,
+        count: items.length,
+        priorityGroups: buildPriorityGroups(items),
+      });
+    }
+  }
+
+  if (noCategory.length > 0) {
+    groups.push({
+      key: NO_CATEGORY_GROUP,
+      label: 'بدون تصنيف',
+      icon: 'tag',
+      color: '#5b6478',
+      count: noCategory.length,
+      priorityGroups: buildPriorityGroups(noCategory),
+    });
+  }
+
+  return groups;
+}
+
+function buildPriorityGroups<T extends MinimalList>(lists: T[]): PriorityGroup<T>[] {
+  const byPriority = new Map<string, T[]>();
+  for (const l of lists) {
+    const key = (l.priority as PriorityKey) || 'NONE';
+    const arr = byPriority.get(key) || [];
+    arr.push(l);
+    byPriority.set(key, arr);
+  }
+
+  const order = [...PRIORITIES].reverse(); // حرجة أولًا لآخر منخفضة
+  const groups: PriorityGroup<T>[] = [];
+  for (const p of order) {
+    const items = byPriority.get(p.key);
+    if (items && items.length > 0) {
+      groups.push({ key: p.key, label: p.label, color: p.color, lists: sortLists(items) });
+    }
+  }
+  const noneItems = byPriority.get('NONE');
+  if (noneItems && noneItems.length > 0) {
+    groups.push({ key: 'NONE', label: 'بدون أولوية', color: '#5b6478', lists: sortLists(noneItems) });
+  }
+  return groups;
+}
+
+// المستوى الهرمي الكامل: مجال الحياة ← التصنيف ← الأولوية ← المهام.
+// بيستخدم نفس ترتيب مجالات الحياة اللي ظبطها المستخدم، وبيسيب "بدون
+// مجال" في الآخر زي groupByLifeArea تمامًا.
+export function groupHierarchical<T extends MinimalList & { category?: string | null }>(
+  lists: T[],
+  lifeAreas: LifeAreaData[]
+): HierarchicalLifeAreaGroup<T>[] {
+  const byArea = new Map<string, T[]>();
+  const noArea: T[] = [];
+
+  for (const l of lists) {
+    if (l.lifeAreaId) {
+      const arr = byArea.get(l.lifeAreaId) || [];
+      arr.push(l);
+      byArea.set(l.lifeAreaId, arr);
+    } else {
+      noArea.push(l);
+    }
+  }
+
+  const groups: HierarchicalLifeAreaGroup<T>[] = [];
+  for (const area of lifeAreas) {
+    const items = byArea.get(area.id);
+    if (items && items.length > 0) {
+      groups.push({
+        id: area.id,
+        name: area.name,
+        color: area.color,
+        icon: area.icon,
+        imageUrl: area.imageUrl,
+        count: items.length,
+        categoryGroups: buildCategoryGroups(items),
+      });
+    }
+  }
+
+  if (noArea.length > 0) {
+    groups.push({
+      id: NO_LIFE_AREA_GROUP,
+      name: 'عام',
+      color: '#5b6478',
+      icon: 'tag',
+      imageUrl: null,
+      count: noArea.length,
+      categoryGroups: buildCategoryGroups(noArea),
+    });
+  }
+
+  return groups;
+}
+
 export function sortItems<T extends MinimalItem>(items: T[]): T[] {
   return [...items].sort((a, b) => {
     if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;

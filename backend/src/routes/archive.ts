@@ -13,7 +13,7 @@ router.get('/', async (req: AuthRequest, res) => {
     where: { userId: req.userId!, archivedAt: { not: null } },
     include: {
       items: { orderBy: { position: 'asc' } },
-      lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true } },
+      lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
     },
     orderBy: { archivedAt: 'desc' },
   });

@@ -35,8 +35,8 @@ interface Props {
 
 // دايرة تقدّم SVG بسيطة — بديل احترافي عن الشريط المسطّح، وبتفرّق بصريًا
 // بين البطاقة دي وبطاقة توزيع المهام (اللي بتستخدم شريط أفقي).
-function ProgressRing({ pct, size = 46, color }: { pct: number; size?: number; color: string }) {
-  const stroke = 5;
+function ProgressRing({ pct, size = 36, color }: { pct: number; size?: number; color: string }) {
+  const stroke = 4;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - pct / 100);
@@ -125,34 +125,35 @@ export default function CompletionRateCard({ lists, onSelectCategory }: Props) {
   }
 
   return (
-    <>
-      <button
-        type="button"
-        className={`stat-card completion-rate-trigger ${expanded ? 'expanded' : ''} ${!hasData ? 'disabled' : ''}`}
-        onClick={toggle}
-        aria-expanded={expanded}
-        disabled={!hasData}
-      >
-        <div className="completion-rate-head">
-          {hasData ? (
-            <div className="completion-ring-wrap">
-              <ProgressRing pct={overallRate} color={ringColor} />
-              <span className="completion-ring-value">{overallRate}%</span>
-            </div>
-          ) : (
-            <span className="stat-card-value">—</span>
-          )}
+    <div className={`stat-block ${!hasData ? 'disabled' : ''}`}>
+      <div className="stat-block-head">
+        {hasData ? (
+          <span className="completion-ring-wrap stat-block-icon stat-block-icon-ring">
+            <ProgressRing pct={overallRate} color={ringColor} />
+            <span className="completion-ring-value">{overallRate}%</span>
+          </span>
+        ) : (
+          <span className="stat-block-icon">
+            <DynamicIcon name="trending-up" size={16} />
+          </span>
+        )}
+        <div className="stat-block-main">
+          <span className="stat-block-value">{hasData ? `${overallRate}%` : '—'}</span>
+          <span className="stat-block-label">
+            نسبة الإنجاز الآن {hasData && <span dir="ltr">({overallDone}/{overallTotal})</span>}
+          </span>
         </div>
-        <span className="stat-card-label">
-          نسبة الإنجاز الآن {hasData && <span dir="ltr">({overallDone}/{overallTotal})</span>}
-        </span>
-      </button>
+      </div>
+
+      {hasData && (
+        <button type="button" className="stat-block-toggle" onClick={toggle} aria-expanded={expanded}>
+          <DynamicIcon name="chevron-down" size={14} className={`stat-block-toggle-icon ${expanded ? 'flipped' : ''}`} />
+          <span>{expanded ? 'إخفاء التفاصيل' : 'عرض نسبة الإنجاز حسب القسم'}</span>
+        </button>
+      )}
 
       {expanded && hasData && (
-        <div className="task-distribution-panel">
-          <div className="task-distribution-panel-title">
-            <DynamicIcon name="trending-up" size={13} /> نسبة الإنجاز حسب القسم
-          </div>
+        <div className="stat-block-panel">
           {rows.map((r) => (
             <button
               key={r.key}
@@ -174,6 +175,6 @@ export default function CompletionRateCard({ lists, onSelectCategory }: Props) {
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }

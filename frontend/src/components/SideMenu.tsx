@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { PushSupportState } from '../lib/push';
 import { DynamicIcon } from '../lib/icons';
+import { useTheme } from '../lib/theme';
 
 interface Props {
   open: boolean;
@@ -13,7 +14,6 @@ interface Props {
   onOpenArchive: () => void;
   onOpenLifeAreas: () => void;
   onOpenRecurring: () => void;
-  onOpenSiteSettings: () => void;
   onToggleMute: () => void;
   onTogglePush: () => void;
   onRequestLogout: () => void;
@@ -33,12 +33,13 @@ export default function SideMenu({
   onOpenArchive,
   onOpenLifeAreas,
   onOpenRecurring,
-  onOpenSiteSettings,
   onToggleMute,
   onTogglePush,
   onRequestLogout,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [theme, toggleTheme] = useTheme();
+  const isDark = theme === 'dark';
 
   useEffect(() => {
     if (!open) return;
@@ -113,15 +114,26 @@ export default function SideMenu({
             <span className="side-menu-item-arrow" aria-hidden="true">‹</span>
           </button>
 
-          {isAdmin && (
-            <button className="side-menu-item" type="button" onClick={() => go(onOpenSiteSettings)}>
-              <DynamicIcon name="settings" size={18} className="side-menu-item-icon" />
-              <span className="side-menu-item-label">إعدادات الموقع</span>
-              <span className="side-menu-item-arrow" aria-hidden="true">‹</span>
-            </button>
-          )}
-
           <div className="side-menu-divider" role="separator" />
+
+          <button
+            className="side-menu-item side-menu-toggle-item"
+            type="button"
+            onClick={toggleTheme}
+            aria-pressed={isDark}
+          >
+            <span className="side-menu-item-icon theme-icon-stack" aria-hidden="true">
+              <DynamicIcon name="sun" size={18} className="theme-icon theme-icon-sun" />
+              <DynamicIcon name="moon" size={18} className="theme-icon theme-icon-moon" />
+            </span>
+            <span className="side-menu-item-label">الوضع الداكن</span>
+            <span className={`side-menu-switch side-menu-switch-theme ${isDark ? 'on' : ''}`} aria-hidden="true">
+              <span className="side-menu-switch-knob">
+                <DynamicIcon name="sun" size={10} className="knob-icon knob-icon-sun" />
+                <DynamicIcon name="moon" size={10} className="knob-icon knob-icon-moon" />
+              </span>
+            </span>
+          </button>
 
           {pushState !== 'unsupported' && (
             <button

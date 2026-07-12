@@ -142,12 +142,14 @@ export async function createList(
   priority?: string,
   category?: string | null,
   targetYear?: number | null,
-  lifeAreaId?: string | null
+  lifeAreaId?: string | null,
+  startTime?: string | null,
+  endTime?: string | null
 ) {
   const res = await fetch(`${API_URL}/api/lists`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ title, priority, category, targetYear, lifeAreaId }),
+    body: JSON.stringify({ title, priority, category, targetYear, lifeAreaId, startTime, endTime }),
   });
   return handle(res);
 }
@@ -187,8 +189,28 @@ export async function archiveList(id: string) {
   return handle(res);
 }
 
+// بتبدأ استرجاع مهمة من الأرشيف — الخطوة الأولى بس: المهمة بتتحط في منطقة
+// "بانتظار المراجعة" وبتظهر في قسم مخصص بالصفحة الرئيسية بدل ما ترجع
+// لقائمة المهام النشطة فورًا. لإنهاء الاسترجاع فعليًا، استخدم finalizeRestore.
 export async function restoreList(id: string) {
   const res = await fetch(`${API_URL}/api/lists/${id}/restore`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+// بترجع كل المهام اللي استُرجعت من الأرشيف ولسه بانتظار مراجعة/تأكيد
+// المستخدم قبل ما ترجع لقائمة المهام النشطة.
+export async function getPendingRestoreLists() {
+  const res = await fetch(`${API_URL}/api/lists/pending-restore`, { headers: authHeaders() });
+  return handle(res);
+}
+
+// الخطوة الأخيرة من الاسترجاع: بتأكّد إرجاع المهمة فعليًا لمكانها الطبيعي
+// في قائمة المهام النشطة بعد ما المستخدم راجعها/عدّلها في قسم "بانتظار المراجعة".
+export async function finalizeRestore(id: string) {
+  const res = await fetch(`${API_URL}/api/lists/${id}/finalize-restore`, {
     method: 'POST',
     headers: authHeaders(),
   });
@@ -206,6 +228,9 @@ export async function createLifeArea(data: {
   name: string;
   color?: string;
   icon?: string | null;
+  // parentId: مررها لو المجال الجديد ده مجال فرعي تابع لمجال موجود —
+  // سيبها من غير تحديد (أو null) عشان يتنشئ كمجال جذري.
+  parentId?: string | null;
 }): Promise<LifeAreaData> {
   const res = await fetch(`${API_URL}/api/life-areas`, {
     method: 'POST',
@@ -217,7 +242,7 @@ export async function createLifeArea(data: {
 
 export async function updateLifeArea(
   id: string,
-  data: { name?: string; color?: string; icon?: string | null }
+  data: { name?: string; color?: string; icon?: string | null; parentId?: string | null }
 ): Promise<LifeAreaData> {
   const res = await fetch(`${API_URL}/api/life-areas/${id}`, {
     method: 'PATCH',
@@ -235,11 +260,14 @@ export async function deleteLifeArea(id: string) {
   return handle(res);
 }
 
-export async function reorderLifeAreas(orderedIds: string[]) {
+// orderedIds: كل الإخوة (نفس parentId) بالترتيب الجديد الكامل. parentId:
+// null (أو تسيبها) لإعادة ترتيب المجالات الجذرية، أو ID مجال أب لإعادة
+// ترتيب فروعه المباشرة بس.
+export async function reorderLifeAreas(orderedIds: string[], parentId: string | null = null) {
   const res = await fetch(`${API_URL}/api/life-areas/reorder`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ orderedIds }),
+    body: JSON.stringify({ orderedIds, parentId }),
   });
   return handle(res);
 }
@@ -877,7 +905,7 @@ export interface RecurringTaskData {
   lastGeneratedAt: string | null;
   nextRunAt: string;
   lifeAreaId: string | null;
-  lifeArea: { id: string; name: string; color: string; icon: string | null; imageUrl: string | null } | null;
+  lifeArea: { id: string; name: string; color: string; icon: string | null; imageUrl: string | null; parentId: string | null } | null;
   items: RecurringTaskItemData[];
   _count: { generatedLists: number };
 }

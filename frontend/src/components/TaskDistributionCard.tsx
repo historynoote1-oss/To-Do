@@ -70,35 +70,36 @@ export default function TaskDistributionCard({ lists, onSelectCategory }: Props)
   }
 
   return (
-    <>
-      <button
-        type="button"
-        className={`stat-card task-distribution-trigger ${expanded ? 'expanded' : ''} ${total === 0 ? 'disabled' : ''}`}
-        onClick={toggle}
-        aria-expanded={expanded}
-        disabled={total === 0}
-      >
-        <div className="task-distribution-head">
-          <span className="stat-card-value">{total}</span>
-          {total > 0 && (
-            <DynamicIcon name="chevrons-down" size={14} className="task-distribution-caret" />
-          )}
+    <div className={`stat-block ${total === 0 ? 'disabled' : ''}`}>
+      <div className="stat-block-head">
+        <span className="stat-block-icon">
+          <DynamicIcon name="clipboard-list" size={16} />
+        </span>
+        <div className="stat-block-main">
+          <span className="stat-block-value">{total}</span>
+          <span className="stat-block-label">إجمالي المهام الرئيسية الآن</span>
         </div>
-        <span className="stat-card-label">إجمالي المهام الرئيسية الآن</span>
-        <div className="task-distribution-minibar" aria-hidden="true">
-          {segments.length > 0 ? (
-            segments.map((s) => (
-              <span key={s.key} style={{ width: `${s.pct}%`, background: s.color }} />
-            ))
-          ) : (
-            <span className="task-distribution-minibar-empty" />
-          )}
-        </div>
-      </button>
+      </div>
+
+      <div className="stat-block-minibar" aria-hidden="true">
+        {segments.length > 0 ? (
+          segments.map((s) => (
+            <span key={s.key} style={{ width: `${s.pct}%`, background: s.color }} />
+          ))
+        ) : (
+          <span className="task-distribution-minibar-empty" />
+        )}
+      </div>
+
+      {total > 0 && (
+        <button type="button" className="stat-block-toggle" onClick={toggle} aria-expanded={expanded}>
+          <DynamicIcon name="chevron-down" size={14} className={`stat-block-toggle-icon ${expanded ? 'flipped' : ''}`} />
+          <span>{expanded ? 'إخفاء التفاصيل' : 'عرض التوزيع حسب القسم'}</span>
+        </button>
+      )}
 
       {expanded && total > 0 && (
-        <div className="task-distribution-panel">
-          <div className="task-distribution-panel-title">توزيع المهام حسب القسم</div>
+        <div className="stat-block-panel">
           {segments.map((s) => (
             <button
               key={s.key}
@@ -120,6 +121,6 @@ export default function TaskDistributionCard({ lists, onSelectCategory }: Props)
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }

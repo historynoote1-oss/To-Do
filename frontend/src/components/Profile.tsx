@@ -14,6 +14,7 @@ import { PRIORITIES, PriorityKey } from '../lib/priority';
 import { toast } from '../lib/toast';
 import { sounds } from '../lib/sounds';
 import { DynamicIcon } from '../lib/icons';
+import BackButton from './BackButton';
 
 const PRIORITY_ORDER: PriorityKey[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'];
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -23,10 +24,14 @@ export default function Profile({
   onBack,
   onDisplayNameChange,
   onAvatarChange,
+  onOpenMenu,
+  menuOpen,
 }: {
   onBack: () => void;
   onDisplayNameChange?: (name: string | null) => void;
   onAvatarChange?: (avatarUrl: string | null) => void;
+  onOpenMenu: () => void;
+  menuOpen: boolean;
 }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -235,11 +240,25 @@ export default function Profile({
   return (
     <div className="container view-fade profile-page">
       <div className="top-bar">
-        <button className="small" onClick={onBack} type="button">
-          رجوع
-        </button>
-        <strong>الملف الشخصي</strong>
-        <span aria-hidden="true" style={{ width: 0 }} />
+        <div className="top-bar-main">
+          <BackButton onClick={onBack} />
+          <strong>الملف الشخصي</strong>
+          <button
+            className="icon-btn hamburger-btn"
+            onClick={onOpenMenu}
+            type="button"
+            title="القائمة"
+            aria-label="فتح القائمة"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+          >
+            <span className="hamburger-icon" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
+        </div>
       </div>
 
       <div className="profile-hero">

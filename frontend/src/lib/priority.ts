@@ -19,7 +19,7 @@ export interface PriorityDef {
 // ALL_PRIORITIES/PRIORITY_MAP عشان أي مهمة قديمة اتخزنت بأولوية NONE قبل
 // التحديث تفضل بتترسم بشكلها الصحيح بدل ما تكسر الواجهة.
 const ALL_PRIORITIES: PriorityDef[] = [
-  { key: 'NONE', label: 'بدون', short: 'بدون', color: '#5b6478', bg: 'rgba(91,100,120,0.12)', glow: 'rgba(91,100,120,0.0)', level: 0 },
+  { key: 'NONE', label: 'غير محددة', short: 'غير محددة', color: '#5b6478', bg: 'rgba(91,100,120,0.12)', glow: 'rgba(91,100,120,0.0)', level: 0 },
   { key: 'LOW', label: 'منخفضة', short: 'منخفضة', color: '#3d6fbf', bg: 'rgba(61,111,191,0.12)', glow: 'rgba(61,111,191,0.35)', level: 1 },
   { key: 'MEDIUM', label: 'متوسطة', short: 'متوسطة', color: '#8a6a10', bg: 'rgba(138,106,16,0.14)', glow: 'rgba(138,106,16,0.4)', level: 2 },
   { key: 'HIGH', label: 'مرتفعة', short: 'مرتفعة', color: '#a85c1e', bg: 'rgba(168,92,30,0.16)', glow: 'rgba(168,92,30,0.45)', level: 3 },
