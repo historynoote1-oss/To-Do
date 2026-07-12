@@ -1,15 +1,21 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { addItem, toggleItem, deleteItem, updateItemPriority, updateItemContent, updateList } from '../lib/api';
+import { addItem, toggleItem, deleteItem, updateItemPriority, updateItemContent, updateList, archiveList } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import TodoItemRow from './TodoItem';
 import ConfirmModal from './ConfirmModal';
+import RemindersModal from './RemindersModal';
+import TaskTimeline from './TaskTimeline';
 import { PriorityBadge, PriorityPicker } from './Priority';
+import { CategoryBadge } from './Category';
+import { LifeAreaBadge } from './LifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
+import { CategoryKey } from '../lib/category';
+import { LifeAreaData } from '../lib/lifeArea';
 
 const CONFETTI_COLORS = ['#1d6f73', '#e8b975', '#2e8b57', '#c1443a', '#6b5fd1'];
 
-export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: any) {
+export default function TodoList({ list, onChange, onDeleteList, delay = 0, lifeAreas = [], onManageLifeAreas }: any) {
   const [newItem, setNewItem] = useState('');
   const [newItemPriority, setNewItemPriority] = useState<PriorityKey>('NONE');
   const [showItemPriority, setShowItemPriority] = useState(false);
@@ -20,6 +26,9 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
   const [titleDraft, setTitleDraft] = useState(list.title);
   const [confirmDeleteList, setConfirmDeleteList] = useState(false);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<any>(null);
+  const [remindersTarget, setRemindersTarget] = useState<
+    { kind: 'list'; id: string; title: string } | { kind: 'item'; id: string; title: string; dueDate: string | null } | null
+  >(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -69,6 +78,18 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
     setConfirmDeleteList(true);
   }
 
+  async function handleArchiveList() {
+    sounds.click();
+    try {
+      await archiveList(list.id);
+      toast.success(`"${list.title}" اتنقلت للأرشيف`);
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّرت أرشفة المهمة');
+    }
+  }
+
   async function confirmDeleteListNow() {
     setConfirmDeleteList(false);
     sounds.deleteItem();
@@ -84,6 +105,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
     }
     try {
       await updateList(list.id, { title: trimmed });
+      sounds.editItem();
       onChange();
     } catch (err) {
       sounds.error();
@@ -100,6 +122,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
   async function handleItemEdit(item: any, content: string) {
     try {
       await updateItemContent(item.id, content);
+      sounds.editItem();
       onChange();
     } catch (err) {
       sounds.error();
@@ -114,6 +137,28 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
     } catch (err) {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر تحديث أولوية المهمة');
+    }
+  }
+
+  async function handleListCategoryChange(category: CategoryKey | null, targetYear?: number | null) {
+    try {
+      await updateList(list.id, { category, targetYear: category === 'YEARLY' ? targetYear : null });
+      sounds.click();
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تحديث تصنيف المهمة');
+    }
+  }
+
+  async function handleListLifeAreaChange(lifeAreaId: string | null) {
+    try {
+      await updateList(list.id, { lifeAreaId });
+      sounds.click();
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تحديث مجال الحياة للمهمة');
     }
   }
 
@@ -140,6 +185,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
           setBurstKey((k) => k + 1);
           sounds.celebrate();
           window.setTimeout(() => setConfettiOn(false), 900);
+          toast.success(`أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف 🗄️`);
         }
       }
       onChange();
@@ -218,6 +264,14 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
             <h2 onDoubleClick={() => setEditingTitle(true)}>{list.title}</h2>
           )}
           <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="md" />
+          <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="md" />
+          <LifeAreaBadge
+            value={list.lifeArea || null}
+            areas={lifeAreas}
+            onChange={handleListLifeAreaChange}
+            onManage={onManageLifeAreas}
+            size="md"
+          />
         </div>
         <div className="row-actions">
           {!editingTitle && (
@@ -225,6 +279,19 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
               ✎
             </button>
           )}
+          <button
+            className={`icon-btn small reminder-bell ${list._count?.reminders ? 'has-reminders' : ''}`}
+            onClick={() => setRemindersTarget({ kind: 'list', id: list.id, title: list.title })}
+            aria-label="تذكيرات المهمة الرئيسية"
+            type="button"
+            title="التذكيرات"
+          >
+            🔔
+            {list._count?.reminders > 0 && <span className="reminder-count-badge">{list._count.reminders}</span>}
+          </button>
+          <button className="icon-btn small" onClick={handleArchiveList} aria-label="أرشفة المهمة الرئيسية" type="button" title="نقل للأرشيف">
+            🗄️
+          </button>
           <button className="danger small" onClick={handleDeleteList}>
             حذف المهمة الرئيسية
           </button>
@@ -241,6 +308,8 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
           </span>
         </div>
       )}
+
+      <TaskTimeline list={list} onChange={onChange} />
 
       <div className="new-item">
         <div className="new-item-row">
@@ -274,6 +343,9 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
               onDelete={() => handleDeleteItem(item)}
               onPriorityChange={(p: PriorityKey) => handleItemPriorityChange(item, p)}
               onEdit={(content: string) => handleItemEdit(item, content)}
+              onOpenReminders={(it: any) =>
+                setRemindersTarget({ kind: 'item', id: it.id, title: it.content, dueDate: it.dueDate || null })
+              }
             />
           ))}
         </ul>
@@ -303,6 +375,17 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0 }: an
           confirmLabel="حذف"
           onCancel={() => setConfirmDeleteItem(null)}
           onConfirm={confirmDeleteItemNow}
+        />
+      )}
+
+      {remindersTarget && (
+        <RemindersModal
+          target={remindersTarget}
+          onClose={() => {
+            setRemindersTarget(null);
+            onChange();
+          }}
+          onDueDateChange={() => onChange()}
         />
       )}
     </div>

@@ -7,6 +7,7 @@ export default function TodoItemRow({
   onDelete,
   onPriorityChange,
   onEdit,
+  onOpenReminders,
   delay = 0,
   leaving = false,
 }: any) {
@@ -80,6 +81,23 @@ export default function TodoItemRow({
         <div className="row-actions">
           {onPriorityChange && (
             <PriorityBadge value={item.priority || 'NONE'} onChange={onPriorityChange} size="sm" />
+          )}
+          {item.dueDate && (
+            <span className="due-date-chip" title="موعد الاستحقاق">
+              📅 {new Date(item.dueDate).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+            </span>
+          )}
+          {onOpenReminders && (
+            <button
+              className={`icon-btn small reminder-bell ${item._count?.reminders ? 'has-reminders' : ''}`}
+              onClick={() => onOpenReminders(item)}
+              aria-label="تذكيرات المهمة الفرعية"
+              type="button"
+              title="التذكيرات"
+            >
+              🔔
+              {item._count?.reminders > 0 && <span className="reminder-count-badge">{item._count.reminders}</span>}
+            </button>
           )}
           {onEdit && (
             <button className="icon-btn small row-edit" onClick={startEdit} aria-label="تعديل المهمة الفرعية" type="button">

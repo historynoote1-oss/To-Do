@@ -6,6 +6,8 @@ import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 import authRoutes from './routes/auth';
 import listsRoutes from './routes/lists';
+import archiveRoutes from './routes/archive';
+import lifeAreasRoutes from './routes/lifeAreas';
 import itemsRoutes from './routes/items';
 import adminRoutes from './routes/admin';
 import adminAnalyticsRoutes from './routes/adminAnalytics';
@@ -14,10 +16,13 @@ import adminSettingsRoutes from './routes/adminSettings';
 import profileRoutes from './routes/profile';
 import siteRoutes from './routes/site';
 import twoFactorRoutes from './routes/twoFactor';
+import remindersRoutes from './routes/reminders';
+import pushRoutes from './routes/push';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
 import { rehabilitationGate } from './middleware/rehabilitationGate';
+import { startReminderScheduler } from './lib/reminderScheduler';
 
 const app = express();
 
@@ -120,6 +125,10 @@ app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 app.use('/api/site', siteStatusLimiter, siteRoutes);
 
 app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRoutes);
+app.use('/api/archive', verifyUser, rehabilitationGate, maintenanceGate, archiveRoutes);
+app.use('/api/life-areas', verifyUser, rehabilitationGate, maintenanceGate, lifeAreasRoutes);
+app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, remindersRoutes);
+app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, pushRoutes);
 app.use('/api/profile', verifyUser, rehabilitationGate, maintenanceGate, profileLimiter, profileRoutes);
 app.use('/api/admin/analytics', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminAnalyticsRoutes);
 app.use('/api/admin/content', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminContentRoutes);
@@ -132,3 +141,7 @@ app.get('/', (_req, res) => res.send('Todo Backend يعمل ✅'));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// جدولة فحص التذكيرات المستحقة (كل 15 ثانية) وإرسال إشعارات الجهاز لها —
+// شغالة طول عمر البروسيس، مش محتاجة مسار API منفصل.
+startReminderScheduler();

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
+import { syncListArchiveState } from '../lib/archive';
 
 const router = Router();
 const VALID_PRIORITIES = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -28,6 +29,11 @@ router.post('/items', async (req: AuthRequest, res) => {
       position: count,
     },
   });
+
+  // مهمة فرعية جديدة دايمًا "غير منجزة"، فلو المهمة الرئيسية كانت مؤرشفة
+  // (مكتملة قبل كده) لازم ترجع تلقائيًا للقائمة النشطة.
+  await syncListArchiveState(list.id);
+
   res.json(item);
 });
 
@@ -40,20 +46,52 @@ router.patch('/items/:id', async (req: AuthRequest, res) => {
     return res.status(400).json({ error: 'أولوية غير صحيحة' });
   }
 
+  const newDueDate =
+    req.body.dueDate !== undefined ? (req.body.dueDate ? new Date(req.body.dueDate) : null) : item.dueDate;
+
   const updated = await prisma.todoItem.update({
     where: { id: item.id },
     data: {
       content: req.body.content ?? item.content,
       isDone: req.body.isDone ?? item.isDone,
       priority: req.body.priority ?? item.priority,
-      dueDate:
-        req.body.dueDate !== undefined
-          ? req.body.dueDate
-            ? new Date(req.body.dueDate)
-            : null
-          : item.dueDate,
+      dueDate: newDueDate,
     },
   });
+
+  // لو موعد الاستحقاق اتغيّر، أي تذكير من نوع "قبل الاستحقاق" مرتبط بالمهمة
+  // دي لازم يتحرك معاه تلقائيًا (أو يتعطّل لو الموعد اتشال خالص).
+  if (req.body.dueDate !== undefined) {
+    const dueReminders = await prisma.reminder.findMany({
+      where: { itemId: item.id, mode: 'BEFORE_DUE' },
+    });
+    if (dueReminders.length > 0) {
+      await prisma.$transaction(
+        dueReminders.map((r) =>
+          prisma.reminder.update({
+            where: { id: r.id },
+            data: newDueDate
+              ? {
+                  remindAt: new Date(newDueDate.getTime() - (r.offsetMinutes || 0) * 60 * 1000),
+                  isSent: false,
+                  sentAt: null,
+                }
+              : // مفيش موعد استحقاق دلوقتي؛ التذكير القديم بيتجمّد (متعلّم مبعوت) لحد
+                // ما المستخدم يحدد موعد جديد أو يعدّل التذكير بنفسه.
+                { isSent: true, sentAt: new Date() },
+          })
+        )
+      );
+    }
+  }
+
+  // بعد أي تعديل ممكن يغيّر حالة الإنجاز (isDone)، بنزامن أرشفة المهمة
+  // الرئيسية تلقائيًا: اكتملت كل المهام الفرعية => أرشفة، رجعت واحدة غير
+  // منجزة => استرجاع من الأرشيف.
+  if (req.body.isDone !== undefined) {
+    await syncListArchiveState(item.listId);
+  }
+
   res.json(updated);
 });
 
@@ -64,6 +102,11 @@ router.delete('/items/:id', async (req: AuthRequest, res) => {
   if (!item) return res.status(404).json({ error: 'المهمة الفرعية غير موجودة' });
 
   await prisma.todoItem.delete({ where: { id: item.id } });
+
+  // حذف مهمة فرعية ممكن يغيّر نسبة الاكتمال في الاتجاهين (حذف آخر مهمة
+  // غير منجزة يكمّل القائمة، أو حذف كل المهام يفضّي القائمة فترجع نشطة).
+  await syncListArchiveState(item.listId);
+
   res.json({ success: true });
 });
 

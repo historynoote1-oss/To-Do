@@ -46,6 +46,33 @@ export default function Profile({
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // ---- إعدادات الأصوات ----
+  const [soundsEnabled, setSoundsEnabled] = useState(() => !sounds.isMuted());
+  const [soundVolume, setSoundVolume] = useState(() => sounds.getVolume());
+
+  useEffect(() => {
+    return sounds.subscribe(({ muted, volume }) => {
+      setSoundsEnabled(!muted);
+      setSoundVolume(volume);
+    });
+  }, []);
+
+  function handleToggleSounds() {
+    const enabled = !soundsEnabled;
+    sounds.setMuted(!enabled);
+    if (enabled) sounds.click();
+  }
+
+  function handleVolumeChange(value: number) {
+    sounds.setVolume(value);
+  }
+
+  function handleVolumeCommit(value: number) {
+    // بنسمّع النغمة بس لحظة ما المستخدم يسيب الشريط، مش مع كل حركة صغيرة،
+    // عشان منزعجهوش بسيل من الأصوات وهو لسه بيظبط المستوى.
+    sounds.setVolume(value, { preview: true });
+  }
+
   // ---- توليد كود استرجاع جديد ----
   const [showRegen, setShowRegen] = useState(false);
   const [regenPassword, setRegenPassword] = useState('');
@@ -278,6 +305,47 @@ export default function Profile({
           </div>
         </div>
       )}
+
+      <div className="security-panel profile-section">
+        <h2>🔊 إعدادات الصوت</h2>
+        <div className="security-status-card">
+          <div className="settings-field checkbox-row sound-toggle-row">
+            <label htmlFor="sounds-enabled-toggle">
+              <input
+                id="sounds-enabled-toggle"
+                type="checkbox"
+                checked={soundsEnabled}
+                onChange={handleToggleSounds}
+              />
+              تفعيل أصوات الموقع
+            </label>
+            <span className="modal-hint sound-toggle-hint">
+              أصوات قصيرة ومريحة لإضافة وحذف وتعديل المهام والتذكيرات والإشعارات
+            </span>
+          </div>
+          <div className="settings-field">
+            <label htmlFor="sounds-volume-slider">
+              مستوى الصوت
+              <span className="sound-volume-value">{soundsEnabled ? `${soundVolume}%` : 'مكتوم'}</span>
+            </label>
+            <input
+              id="sounds-volume-slider"
+              type="range"
+              className="sound-volume-slider"
+              min={0}
+              max={100}
+              step={5}
+              value={soundVolume}
+              disabled={!soundsEnabled}
+              onChange={(e) => handleVolumeChange(Number(e.target.value))}
+              onMouseUp={(e) => handleVolumeCommit(Number((e.target as HTMLInputElement).value))}
+              onTouchEnd={(e) => handleVolumeCommit(Number((e.target as HTMLInputElement).value))}
+              onKeyUp={(e) => handleVolumeCommit(Number((e.target as HTMLInputElement).value))}
+              aria-label="مستوى صوت الموقع"
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="security-panel profile-section">
         <h2>✏️ تعديل الملف الشخصي</h2>

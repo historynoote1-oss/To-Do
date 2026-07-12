@@ -66,7 +66,40 @@ model User {
   twoFactorRecoveryCodes String[]  @default([])
   twoFactorEnabledAt     DateTime?
 
+  reminders         Reminder[]
+  pushSubscriptions PushSubscription[]
+  lifeAreas         LifeArea[]
+
   @@index([createdAt])
+}
+
+// ===== مجالات الحياة (Life Areas) =====
+// نظام تصنيف أعلى مستوى من TaskCategory (يومي/أسبوعي/إلخ): بدل ما يوصف
+// "امتى" المهمة، بيوصف "في أي جانب من حياة المستخدم" هي (صحة، شغل، عائلة...).
+// كل مستخدم بيعرّف مجالاته الخاصة بحرية كاملة (اسم + لون + أيقونة إيموجي أو
+// صورة مرفوعة)، وكل مهمة رئيسية (TodoList) ممكن تتبع مجال واحد بس (اختياري).
+// position بيحدد ترتيب العرض المخصص اللي المستخدم رتبه بنفسه.
+model LifeArea {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name  String
+  color String  @default("#1d6f73")
+  // أيقونة إيموجي بسيطة (اختياري) — بتتجاهل في الواجهة لو فيه imageUrl مرفوع.
+  icon  String?
+  // صورة أيقونة مخصصة رفعها المستخدم من جهازه، بتحل محل الإيموجي في العرض.
+  imageUrl String?
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lists TodoList[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, position])
 }
 
 model AdminAuditLog {
@@ -90,9 +123,42 @@ model TodoList {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   items     TodoItem[]
+  reminders Reminder[]
+
+  // ===== مؤقت المهمة الرئيسية (Task Timeline) =====
+  // بيتفعّل بس لو الاتنين متحددين مع بعض (وقت البداية لازم يكون قبل وقت
+  // النهاية — بيتفحص ده في السيرفر). الواجهة بتستخدمهم لعرض شريط زمني
+  // متحرك بيتناقص لحد ما ينتهي الوقت، من غير ما تحتاج تستقصي السيرفر كل شوية
+  // لأن الحساب كله بيتم في المتصفح اعتمادًا على الوقتين دول بس.
+  startTime DateTime?
+  endTime   DateTime?
+
+  // ===== تصنيف المهمة الرئيسية (يومية/أسبوعية/شهرية/سنوية) =====
+  // category بيبقى null لحد ما المستخدم يختار تصنيف بنفسه (غير مصنّفة).
+  // targetYear بيتفعّل بس لما category يكون YEARLY، وبيتصفّر تلقائيًا لو
+  // المستخدم غيّر التصنيف لحاجة تانية (شوف routes/lists.ts).
+  category   TaskCategory?
+  targetYear Int?
+
+  // ===== مجال الحياة (Life Area) =====
+  // اختياري تمامًا — null يعني "غير مصنّفة ضمن أي مجال". لو المجال اتحذف،
+  // المهمة مش بتتحذف معاه، بس بترجع "بدون مجال" (onDelete: SetNull).
+  lifeAreaId String?
+  lifeArea   LifeArea? @relation(fields: [lifeAreaId], references: [id], onDelete: SetNull)
+
+  // ===== الأرشفة (Archive) =====
+  // archivedAt بتبقى null طول ما المهمة نشطة. أول ما كل مهامها الفرعية
+  // تتحقق (isDone = true للكل، وفيه مهمة فرعية واحدة على الأقل)، السيرفر
+  // بيسجّل توقيت الإكمال هنا تلقائيًا وبيك تختفي من القائمة الرئيسية
+  // وتظهر في الأرشيف بدالها. لو المستخدم بعدين رجّع مهمة فرعية "غير منجزة"،
+  // بترجع أوتوماتيك للقائمة النشطة (archivedAt بيترجع null) — شوف
+  // lib/archive.ts. المستخدم كمان يقدر يؤرشف/يسترجع يدويًا في أي وقت.
+  archivedAt DateTime?
 
   @@unique([userId, title])
   @@index([userId])
+  @@index([lifeAreaId])
+  @@index([userId, archivedAt])
 }
 
 // TodoItem بتمثّل "المهمة الفرعية" جوه المهمة الرئيسية.
@@ -107,6 +173,7 @@ model TodoItem {
   priority  Priority  @default(NONE)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  reminders Reminder[]
 
   @@index([listId])
 }
@@ -117,6 +184,70 @@ enum Priority {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+// تصنيف المهمة الرئيسية — بيحدد تحت أي قسم بتظهر المهمة (يومية/أسبوعية/
+// شهرية/سنوية). المهام السنوية بس هي اللي بتستخدم targetYear في TodoList.
+enum TaskCategory {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+// وضع التذكير: CUSTOM = وقت مطلق يحدده المستخدم بنفسه، BEFORE_DUE = فترة
+// زمنية (offsetMinutes) قبل موعد استحقاق المهمة نفسها (dueDate). لما يكون
+// الوضع BEFORE_DUE بنحتفظ بالـ offset عشان لو المستخدم غيّر موعد الاستحقاق
+// بعدين، نقدر نعيد حساب remindAt تلقائيًا من غير ما نفقد قصد المستخدم الأصلي.
+enum ReminderMode {
+  CUSTOM
+  BEFORE_DUE
+}
+
+// تذكير واحد بيتبع إما مهمة رئيسية (listId) أو مهمة فرعية (itemId) — واحد
+// بس مننهم لازم يكون متحدد (بيتفحص ده في السيرفر). المهمة الرئيسية معندهاش
+// موعد استحقاق (dueDate)، فالتذكيرات بتاعتها بتقبل وضع CUSTOM بس، أما المهمة
+// الفرعية فبتقبل الوضعين لو ليها موعد استحقاق محدد.
+model Reminder {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  listId String?
+  list   TodoList? @relation(fields: [listId], references: [id], onDelete: Cascade)
+  itemId String?
+  item   TodoItem? @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  mode          ReminderMode @default(CUSTOM)
+  offsetMinutes Int?
+  remindAt      DateTime
+  message       String?
+
+  isSent Boolean   @default(false)
+  sentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([listId])
+  @@index([itemId])
+  @@index([remindAt, isSent])
+}
+
+// اشتراك Web Push واحد لكل جهاز/متصفح سجّل المستخدم دخوله منه. مستخدم واحد
+// ممكن يكون عنده أكتر من اشتراك (موبايل + تابلت مثلًا)، فبنبعت الإشعار
+// لكل الأجهزة المسجلة مرة واحدة.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // إعدادات الموقع العامة، مخزّنة كـ key/value عشان نقدر نضيف إعدادات جديدة

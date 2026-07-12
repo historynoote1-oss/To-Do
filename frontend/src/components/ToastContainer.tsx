@@ -5,6 +5,7 @@ const ICONS: Record<ToastMessage['kind'], string> = {
   success: '✓',
   error: '!',
   info: 'ℹ',
+  reminder: '🔔',
 };
 
 export default function ToastContainer() {

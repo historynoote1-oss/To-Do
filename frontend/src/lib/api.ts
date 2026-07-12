@@ -1,3 +1,5 @@
+import { LifeAreaData } from './lifeArea';
+
 const API_URL = import.meta.env.VITE_API_URL as string;
 
 function getToken() {
@@ -135,22 +137,138 @@ export async function getLists() {
   return handle(res);
 }
 
-export async function createList(title: string, priority?: string) {
+export async function createList(
+  title: string,
+  priority?: string,
+  category?: string | null,
+  targetYear?: number | null,
+  lifeAreaId?: string | null
+) {
   const res = await fetch(`${API_URL}/api/lists`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ title, priority }),
+    body: JSON.stringify({ title, priority, category, targetYear, lifeAreaId }),
   });
   return handle(res);
 }
 
-export async function updateList(id: string, data: { title?: string; priority?: string }) {
+export async function updateList(
+  id: string,
+  data: {
+    title?: string;
+    priority?: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    category?: string | null;
+    targetYear?: number | null;
+    lifeAreaId?: string | null;
+  }
+) {
   const res = await fetch(`${API_URL}/api/lists/${id}`, {
     method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify(data),
   });
   return handle(res);
+}
+
+// ===== الأرشيف (Archive) =====
+
+export async function getArchive() {
+  const res = await fetch(`${API_URL}/api/archive`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function archiveList(id: string) {
+  const res = await fetch(`${API_URL}/api/lists/${id}/archive`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function restoreList(id: string) {
+  const res = await fetch(`${API_URL}/api/lists/${id}/restore`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+// ===== مجالات الحياة (Life Areas) =====
+
+export async function getLifeAreas(): Promise<LifeAreaData[]> {
+  const res = await fetch(`${API_URL}/api/life-areas`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function createLifeArea(data: {
+  name: string;
+  color?: string;
+  icon?: string | null;
+}): Promise<LifeAreaData> {
+  const res = await fetch(`${API_URL}/api/life-areas`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+export async function updateLifeArea(
+  id: string,
+  data: { name?: string; color?: string; icon?: string | null }
+): Promise<LifeAreaData> {
+  const res = await fetch(`${API_URL}/api/life-areas/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+export async function deleteLifeArea(id: string) {
+  const res = await fetch(`${API_URL}/api/life-areas/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function reorderLifeAreas(orderedIds: string[]) {
+  const res = await fetch(`${API_URL}/api/life-areas/reorder`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ orderedIds }),
+  });
+  return handle(res);
+}
+
+// بيرفع صورة أيقونة مخصصة لمجال حياة كـ multipart/form-data.
+export async function uploadLifeAreaIcon(id: string, file: File): Promise<LifeAreaData> {
+  const formData = new FormData();
+  formData.append('icon', file);
+  const res = await fetch(`${API_URL}/api/life-areas/${id}/icon-image`, {
+    method: 'POST',
+    headers: authHeadersNoContentType(),
+    body: formData,
+  });
+  return handle(res);
+}
+
+export async function removeLifeAreaIcon(id: string): Promise<LifeAreaData> {
+  const res = await fetch(`${API_URL}/api/life-areas/${id}/icon-image`, {
+    method: 'DELETE',
+    headers: authHeadersNoContentType(),
+  });
+  return handle(res);
+}
+
+// صور أيقونات المجالات بترجع من السيرفر كمسار نسبي زي الأفتار بالظبط.
+export function resolveLifeAreaImageUrl(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  if (/^https?:\/\//.test(imageUrl)) return imageUrl;
+  return `${API_URL}${imageUrl}`;
 }
 
 export async function deleteList(id: string) {
@@ -197,10 +315,109 @@ export async function updateItemContent(id: string, content: string) {
   return handle(res);
 }
 
+export async function updateItemDueDate(id: string, dueDate: string | null) {
+  const res = await fetch(`${API_URL}/api/items/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ dueDate }),
+  });
+  return handle(res);
+}
+
 export async function deleteItem(id: string) {
   const res = await fetch(`${API_URL}/api/items/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+// ===== التذكيرات =====
+
+export interface Reminder {
+  id: string;
+  userId: string;
+  listId: string | null;
+  itemId: string | null;
+  mode: 'CUSTOM' | 'BEFORE_DUE';
+  offsetMinutes: number | null;
+  remindAt: string;
+  message: string | null;
+  isSent: boolean;
+  sentAt: string | null;
+  createdAt: string;
+}
+
+export async function getReminders(filter: { listId?: string; itemId?: string }) {
+  const params = new URLSearchParams();
+  if (filter.itemId) params.set('itemId', filter.itemId);
+  else if (filter.listId) params.set('listId', filter.listId);
+  const res = await fetch(`${API_URL}/api/reminders?${params.toString()}`, { headers: authHeaders() });
+  return handle(res) as Promise<Reminder[]>;
+}
+
+export async function getDueReminders() {
+  const res = await fetch(`${API_URL}/api/reminders/due`, { headers: authHeaders() });
+  return handle(res) as Promise<Reminder[]>;
+}
+
+export async function createReminder(data: {
+  listId?: string;
+  itemId?: string;
+  mode: 'CUSTOM' | 'BEFORE_DUE';
+  remindAt?: string;
+  offsetMinutes?: number;
+  message?: string;
+}) {
+  const res = await fetch(`${API_URL}/api/reminders`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res) as Promise<Reminder>;
+}
+
+export async function updateReminder(
+  id: string,
+  data: { remindAt?: string; offsetMinutes?: number; message?: string }
+) {
+  const res = await fetch(`${API_URL}/api/reminders/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res) as Promise<Reminder>;
+}
+
+export async function deleteReminder(id: string) {
+  const res = await fetch(`${API_URL}/api/reminders/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+// ===== إشعارات الجهاز (Web Push) =====
+
+export async function getVapidPublicKey() {
+  const res = await fetch(`${API_URL}/api/push/vapid-public-key`, { headers: authHeaders() });
+  return handle(res) as Promise<{ publicKey: string; enabled: boolean }>;
+}
+
+export async function subscribePush(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) {
+  const res = await fetch(`${API_URL}/api/push/subscribe`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(subscription),
+  });
+  return handle(res);
+}
+
+export async function unsubscribePush(endpoint: string) {
+  const res = await fetch(`${API_URL}/api/push/unsubscribe`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ endpoint }),
   });
   return handle(res);
 }

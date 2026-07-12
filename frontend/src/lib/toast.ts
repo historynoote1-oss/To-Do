@@ -1,4 +1,4 @@
-export type ToastKind = 'success' | 'error' | 'info';
+export type ToastKind = 'success' | 'error' | 'info' | 'reminder';
 
 export interface ToastMessage {
   id: number;
@@ -16,11 +16,11 @@ function emit() {
   listeners.forEach((l) => l(toasts));
 }
 
-function push(kind: ToastKind, text: string) {
+function push(kind: ToastKind, text: string, duration = 3600) {
   const id = nextId++;
   toasts = [...toasts, { id, kind, text }];
   emit();
-  window.setTimeout(() => dismiss(id), 3600);
+  window.setTimeout(() => dismiss(id), duration);
 }
 
 function dismiss(id: number) {
@@ -37,6 +37,9 @@ export const toast = {
   },
   info(text: string) {
     push('info', text);
+  },
+  reminder(text: string) {
+    push('reminder', text, 7000);
   },
   dismiss,
   subscribe(listener: Listener) {
