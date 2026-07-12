@@ -55,6 +55,7 @@
   --font-display: 'Katibeh', 'Cairo', sans-serif;
   --font-body: 'Cairo', 'Tahoma', sans-serif;
   --font-num: 'Chelsea Market', cursive;
+  --font-logo: 'Lalezar', 'Cairo', sans-serif;
 
   /* ---- Scale ---- */
   --space-1: 4px;
@@ -673,35 +674,72 @@ button:disabled {
   width: 100%;
 }
 
-/* ===== مجموعة أزرار عمود القائمة: تراجع/إعادة + زرار القائمة نفسه ===== */
+/* ===== مجموعة أزرار عمود القائمة: تراجع/إعادة (مجمّعين في كبسولة واحدة
+   واضحة الهوية) + زرار القائمة المنفصل ===== */
 .top-bar-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   justify-self: end;
 }
 
-.undo-redo-btn {
-  border-radius: 10px;
-  transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+/* كبسولة تراجع/إعادة: قبل كده كانت زرارين منفصلين بيظهروا كمربعين فاضيين
+   لما يبقوا Disabled (opacity واطي + لون باهت فوق خلفية غامقة = تقريبًا
+   مختفيين). دلوقتي اتجمّعوا في كبسولة واحدة بحدود واضحة وفاصل بينهم، عشان
+   وجودهم في الهيدر يبقى مقصود ومفهوم حتى لو الزرار نفسه معطّل مؤقتًا. */
+.undo-redo-group {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 2px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
 }
 
-.undo-redo-btn:active:not(:disabled) {
-  transform: scale(0.92);
+.undo-redo-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border-soft);
+  flex-shrink: 0;
 }
 
-.undo-redo-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  border-color: var(--border-soft);
+.undo-redo-group .undo-redo-btn {
+  width: 30px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-pill);
   color: var(--text-muted);
+  transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+}
+
+.undo-redo-group .undo-redo-btn:hover:not(:disabled) {
+  color: var(--accent-soft);
+  background: var(--accent-dim);
+  border-color: transparent;
+}
+
+.undo-redo-group .undo-redo-btn:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+/* حالة Disabled لازم تفضل مقروءة كأيقونة باهتة، مش تختفي خالص: بنثبّت لون
+   وOpacity واضحين بدل الاعتماد على --text-muted (اللي بيبان شبه شفاف فوق
+   خلفيات غامقة) عشان الأيقونة تفضل مميزة كـ"معطّلة مؤقتًا" مش "فاضية". */
+.undo-redo-group .undo-redo-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-faint);
 }
 
 @media (max-width: 480px) {
   /* على الشاشات الصغيرة جدًا نقلّل المسافة بين الأزرار عشان الصف يفضل مرتب */
   .top-bar-controls {
-    gap: 4px;
+    gap: 6px;
   }
 }
 
@@ -1095,104 +1133,28 @@ button:disabled {
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   min-width: 0;
   justify-self: center;
 }
 
-.brand-mark-wrap {
-  position: relative;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* توهج ناعم بينبض خلف شعار الموقع — لمسة فخامة هادية من غير ما تلفت
-   الانتباه أو تأثر على الأداء (بنستخدم نفس أنيميشن lamp-breathe المستخدم
-   في شاشة الدخول عشان الحركة تفضل متسقة في كل الموقع). */
-.brand-mark-wrap::before {
-  content: '';
-  position: absolute;
-  inset: -7px;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--accent-dim), transparent 72%);
-  animation: lamp-breathe 4.5s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .brand-mark-wrap::before {
-    animation: none;
-  }
-}
-
-.brand-mark {
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  font-size: 17px;
-  border-radius: var(--radius);
-  background: var(--gradient-brand);
-  box-shadow: 0 6px 16px -4px var(--aurora-1), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  color: #f7f4ea;
-}
-
-.brand-mark::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.3), transparent 60%);
-  pointer-events: none;
-}
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-/* اسم الموقع بخط Katibeh المميز، بتدرّج لوني بدل اللون المصمت — إحساس
-   فاخر يتماشى مع هوية الموقع من غير ما يحتاج ظل نصي تقيل. */
-.brand-text h1 {
-  font-size: clamp(18px, 3.4vw, 22px);
-  letter-spacing: 0.3px;
+/* اسم الموقع — بالكامل Typography، من غير أيقونة أو إيموجي أو زخارف حوله:
+   خط Lalezar المميز (فاخر وواضح للعناوين القصيرة)، تدرّج لوني بدل اللون
+   المصمت، تباعد حروف مدروس، ووزن/حجم يدّوا إحساس Premium من غير أي عنصر
+   بصري إضافي. */
+.brand-title {
+  margin: 0;
+  font-family: var(--font-logo);
+  font-weight: 400;
+  font-size: clamp(21px, 4.6vw, 27px);
+  line-height: 1;
+  letter-spacing: 0.5px;
   white-space: nowrap;
   background: var(--gradient-text);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   text-shadow: none;
-}
-
-/* خط زخرفي رفيع بمعين صغير في النص — بديل تجميلي عن نص فرعي، بيدّي
-   إحساس "شعار" منظم من غير ما ياخد ارتفاع إضافي في الهيدر. */
-.brand-flourish {
-  display: block;
-  width: 44px;
-  height: 3px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
-  position: relative;
-}
-
-.brand-flourish::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  inset-inline-start: 50%;
-  width: 5px;
-  height: 5px;
-  background: var(--accent);
-  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 /* ===== Header user — يمين الهيدر: أفتار + تحية + نسبة إنجاز شاملة =====
@@ -1230,14 +1192,30 @@ button:disabled {
   color: #f4fbfa;
   flex-shrink: 0;
   overflow: hidden;
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px color-mix(in srgb, var(--accent) 45%, var(--border-soft)),
-    var(--shadow-sm);
-  transition: box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+  position: relative;
+  /* حلقة "فخامة" مركّبة من طبقات: فاصل خفيف حول الصورة نفسها، حلقة لونية
+     رفيعة (Ring) بلمسة الهوية، وتوهج خارجي ناعم جدًا — نفس أسلوب صور
+     البروفايل في المنتجات العالمية الكبرى، من غير ما يبان تقيل أو مبالغ فيه. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 0 0 2.5px var(--surface),
+    0 0 0 4px color-mix(in srgb, var(--accent) 40%, var(--border-soft)),
+    0 6px 18px -6px var(--aurora-1);
+  transition: box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 }
 
 .header-user:hover .header-user-avatar {
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent), var(--shadow-lift);
-  transform: scale(1.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 0 0 2.5px var(--surface),
+    0 0 0 4px var(--accent),
+    0 8px 22px -6px var(--aurora-1),
+    0 0 0 8px var(--accent-dim);
+  transform: scale(1.045);
+}
+
+.header-user:active .header-user-avatar {
+  transform: scale(0.98);
 }
 
 .header-user-avatar img {
@@ -1268,51 +1246,33 @@ button:disabled {
   font-weight: 700;
 }
 
-/* نسبة إنجاز المستخدم في الموقع بالكامل (نشطة + مؤرشفة) — أيقونة صغيرة
-   + شريط تقدّم رفيع + نسبة مئوية، مباشرة تحت التحية من غير مسافة زيادة. */
-.header-progress {
-  display: flex;
+/* عنصر الاستريك (Placeholder فقط، بدون منطق) — شارة صغيرة مضغوطة تحت
+   التحية مباشرة: أيقونة نار + رقم بارز، بتصميم "Badge" هادي متسق مع باقي
+   شارات الموقع، جاهزة لاحقًا لاستقبال بيانات الاستريك الحقيقية من غير ما
+   تحتاج تغيير بصري. */
+.header-streak {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  max-width: 122px;
-}
-
-.header-progress-icon {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.header-progress-track {
-  flex: 1;
-  min-width: 34px;
-  height: 5px;
+  width: fit-content;
+  padding: 1px 7px 1px 6px;
   border-radius: var(--radius-pill);
-  background: var(--surface-3);
-  overflow: hidden;
+  background: var(--gradient-brand-soft);
+  border: 1px solid var(--border-soft);
 }
 
-.header-progress-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--success) 100%);
-  transition: width var(--dur-slow) var(--ease-out);
-}
-
-.header-progress-pct {
-  font-family: var(--font-num);
+.header-streak-icon {
   font-size: 11px;
-  color: var(--text);
-  flex-shrink: 0;
-  min-width: 22px;
+  line-height: 1;
+  filter: saturate(1.15);
 }
 
-.header-progress-empty-text {
-  font-size: 10.5px;
-  color: var(--text-faint);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.header-streak-count {
+  font-family: var(--font-num);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1;
 }
 
 /* ===== Dashboard stats — كل إحصائية في Block مستقل، مكدّسة رأسيًا،
@@ -1580,22 +1540,8 @@ button:disabled {
   .top-bar-grid {
     gap: 4px;
   }
-  .brand {
-    gap: 6px;
-  }
-  .brand-mark-wrap::before {
-    inset: -5px;
-  }
-  .brand-mark {
-    width: 30px;
-    height: 30px;
-    font-size: 14px;
-  }
-  .brand-text h1 {
-    font-size: 15px;
-  }
-  .brand-flourish {
-    width: 34px;
+  .brand-title {
+    font-size: 18px;
   }
   .header-user-avatar {
     width: 38px;
@@ -1606,22 +1552,16 @@ button:disabled {
     max-width: 78px;
     font-size: 10.5px;
   }
-  .header-progress {
-    max-width: 78px;
-  }
-  .header-progress-track {
-    min-width: 26px;
-  }
   .hamburger-btn {
     width: 36px;
     height: 36px;
   }
-  .undo-redo-btn {
+  .undo-redo-group .undo-redo-btn {
     width: 26px;
     height: 26px;
   }
   .top-bar-controls {
-    gap: 3px;
+    gap: 5px;
   }
 }
 

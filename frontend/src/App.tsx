@@ -566,19 +566,6 @@ export default function App() {
   const groups = groupByLifeArea(lists as any, lifeAreas);
   const hierGroups = groupHierarchical(lists as any, lifeAreas);
 
-  // نسبة الإنجاز الشاملة اللي بتتعرض جنب صورة المستخدم في الهيدر: كل مهمة
-  // فرعية في الموقع بالكامل (النشطة من `lists` + المؤرشفة من `archiveStats`)
-  // — مش بس القوائم النشطة زي بطاقة "نسبة الإنجاز الآن" تحت.
-  let headerDone = archiveStats.done;
-  let headerTotal = archiveStats.total;
-  for (const l of lists) {
-    for (const it of l.items as { isDone: boolean }[]) {
-      headerTotal += 1;
-      if (it.isDone) headerDone += 1;
-    }
-  }
-  const headerRate = headerTotal > 0 ? Math.round((headerDone / headerTotal) * 100) : 0;
-
   if (!statusChecked) {
     return (
       <>
@@ -805,58 +792,44 @@ export default function App() {
                 <span className="header-user-greeting">
                   مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
                 </span>
-                {headerTotal > 0 ? (
-                  <span
-                    className="header-progress"
-                    dir="ltr"
-                    title={`نسبة الإنجاز الكلية: ${headerDone} من ${headerTotal} مهمة`}
-                  >
-                    <DynamicIcon name="trending-up" size={11} className="header-progress-icon" />
-                    <span className="header-progress-track">
-                      <span className="header-progress-fill" style={{ width: `${headerRate}%` }} />
-                    </span>
-                    <span className="header-progress-pct">{headerRate}%</span>
-                  </span>
-                ) : (
-                  <span className="header-progress header-progress-empty">
-                    <DynamicIcon name="sparkles" size={11} className="header-progress-icon" />
-                    <span className="header-progress-empty-text">ابدأ أول مهمة</span>
-                  </span>
-                )}
+                {/* TODO: عنصر Placeholder فقط — سيتم لاحقاً إضافة نظام الاستريك
+                    الحقيقي (حساب الأيام المتتالية) وربطه بالبيانات الفعلية.
+                    من غير أي منطق أو state دلوقتي عن قصد. */}
+                <span className="header-streak" title="أيام الإنجاز المتتالية">
+                  <span className="header-streak-icon" aria-hidden="true">🔥</span>
+                  <span className="header-streak-count">0</span>
+                </span>
               </span>
             </button>
 
             <div className="brand">
-              <span className="brand-mark-wrap">
-                <DynamicIcon name="clipboard-list" size={18} className="brand-mark" />
-              </span>
-              <div className="brand-text">
-                <h1>المهام الرئيسية</h1>
-                <span className="brand-flourish" aria-hidden="true" />
-              </div>
+              <h1 className="brand-title">المهام الرئيسية</h1>
             </div>
 
             <div className="top-bar-controls">
-              <button
-                className="icon-btn small undo-redo-btn"
-                onClick={() => undo()}
-                type="button"
-                disabled={!canUndo || undoRedoBusy}
-                title={canUndo ? `تراجع: ${undoLabel}` : 'لا يوجد ما يمكن التراجع عنه'}
-                aria-label="تراجع"
-              >
-                <DynamicIcon name="undo" size={16} />
-              </button>
-              <button
-                className="icon-btn small undo-redo-btn"
-                onClick={() => redo()}
-                type="button"
-                disabled={!canRedo || undoRedoBusy}
-                title={canRedo ? `إعادة: ${redoLabel}` : 'لا يوجد ما يمكن إعادته'}
-                aria-label="إعادة"
-              >
-                <DynamicIcon name="redo" size={16} />
-              </button>
+              <div className="undo-redo-group">
+                <button
+                  className="icon-btn small undo-redo-btn"
+                  onClick={() => undo()}
+                  type="button"
+                  disabled={!canUndo || undoRedoBusy}
+                  title={canUndo ? `تراجع: ${undoLabel}` : 'لا يوجد ما يمكن التراجع عنه'}
+                  aria-label="تراجع"
+                >
+                  <DynamicIcon name="undo" size={15} />
+                </button>
+                <span className="undo-redo-divider" aria-hidden="true" />
+                <button
+                  className="icon-btn small undo-redo-btn"
+                  onClick={() => redo()}
+                  type="button"
+                  disabled={!canRedo || undoRedoBusy}
+                  title={canRedo ? `إعادة: ${redoLabel}` : 'لا يوجد ما يمكن إعادته'}
+                  aria-label="إعادة"
+                >
+                  <DynamicIcon name="redo" size={15} />
+                </button>
+              </div>
               <button
                 className="icon-btn hamburger-btn"
                 onClick={() => setMenuOpen(true)}
