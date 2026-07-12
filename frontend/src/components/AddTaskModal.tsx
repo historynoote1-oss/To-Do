@@ -60,15 +60,17 @@ const STEPS: StepDef[] = [
   { id: 'priority', label: 'الأولوية', icon: 'flag' },
   { id: 'category', label: 'التصنيف', icon: 'tag' },
   { id: 'lifeArea', label: 'مجال الحياة', icon: 'compass' },
-  { id: 'reminder', label: 'التذكير', icon: 'bell' },
   { id: 'timeline', label: 'الجدول الزمني', icon: 'timer' },
+  { id: 'reminder', label: 'التذكير', icon: 'bell' },
   { id: 'review', label: 'المراجعة', icon: 'check' },
 ];
 
 // نافذة إضافة مهمة رئيسية جديدة — بديل النموذج الواحد الطويل. دلوقتي كل
-// حاجة على مراحل مرتبة (اسم → فرعية → أولوية → تصنيف → مجال حياة → تذكير →
-// جدول زمني → مراجعة)، كل مرحلة في شاشة مستقلة عشان الإدخال على الموبايل
+// حاجة على مراحل مرتبة (اسم → فرعية → أولوية → تصنيف → مجال حياة → جدول
+// زمني → تذكير → مراجعة)، كل مرحلة في شاشة مستقلة عشان الإدخال على الموبايل
 // يفضل مريح ومركّز، وزرار "إنشاء المهمة" مش بيظهر غير بعد آخر مرحلة.
+// ملحوظة: خطوة "الجدول الزمني" قبل "التذكير" عن قصد — التذكير بيتحسب من
+// وقت بداية المهمة، فلازم يكون معروف قبل ما نعرض خطوة التذكير أصلًا.
 export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAreas, onCreate }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
 
@@ -158,11 +160,11 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   // زرار "التالي" بدل ما نمنعه بصمت.
   function validateStep(): string | null {
     if (step.id === 'title' && !trimmedTitle) return 'اكتب اسم المهمة الأول';
-    if (step.id === 'reminder' && hasReminder && !hasTimelineStart) {
-      return 'التذكير محسوب من وقت بداية الجدول الزمني — حدده في الخطوة الجاية';
+    if (step.id === 'timeline' && startDraft && endDraft && new Date(endDraft).getTime() <= new Date(startDraft).getTime()) {
+      return 'وقت النهاية لازم يكون بعد وقت البداية';
     }
-    if (step.id === 'timeline' && hasReminder && !startDraft.trim()) {
-      return 'حدد وقت بداية للمهمة عشان يتحسب عليه التذكير اللي ضبطته';
+    if (step.id === 'reminder' && hasReminder && !hasTimelineStart) {
+      return 'التذكير محسوب من وقت بداية المهمة — ارجع لخطوة "الجدول الزمني" وحدده الأول';
     }
     return null;
   }
@@ -358,7 +360,27 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
             </div>
           )}
 
-          {step.id === 'reminder' && (
+          {step.id === 'reminder' && !hasTimelineStart && (
+            <div className="add-task-field">
+              <span className="add-task-label">إعداد التذكير (اختياري)</span>
+              <p className="wizard-empty-hint">
+                <DynamicIcon name="timer" size={12} /> التذكير بيتحسب من وقت بداية المهمة، ولسه مافيش وقت بداية محدد.
+                تقدر تتخطى الخطوة دي عادي، أو ترجع تحدد وقت البداية الأول.
+              </p>
+              <button
+                type="button"
+                className="small"
+                onClick={() => {
+                  setStepError('');
+                  setStepIndex(STEPS.findIndex((s) => s.id === 'timeline'));
+                }}
+              >
+                <DynamicIcon name="timer" size={14} /> رجوع لتحديد وقت البداية
+              </button>
+            </div>
+          )}
+
+          {step.id === 'reminder' && hasTimelineStart && (
             <div className="add-task-field">
               <span className="add-task-label">إعداد التذكير (اختياري)</span>
               <p className="wizard-empty-hint">
@@ -435,6 +457,11 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 <label>وقت النهاية</label>
                 <input type="datetime-local" value={endDraft} onChange={(e) => setEndDraft(e.target.value)} />
               </div>
+              {startDraft && endDraft && new Date(endDraft).getTime() <= new Date(startDraft).getTime() && (
+                <p className="wizard-step-error" role="alert">
+                  <DynamicIcon name="alert" size={13} /> وقت النهاية لازم يكون بعد وقت البداية
+                </p>
+              )}
               {hasReminder && (
                 <p className="wizard-empty-hint">
                   <DynamicIcon name="bell" size={12} /> ضبطت تذكير قبل بداية المهمة، فلازم تحدد وقت البداية هنا.

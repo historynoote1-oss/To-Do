@@ -31,11 +31,46 @@ export class MaintenanceError extends Error {
   }
 }
 
-async function handle(res: Response) {
+// خطأ مخصوص لانتهاء/بطلان الجلسة (توكن منتهي، حساب اتعمله force-logout،
+// كلمة السر اتغيّرت من جهاز تاني...) عشان الواجهة تقدر تفرّق بينه وبين أي
+// خطأ عادي وترجّع المستخدم لصفحة تسجيل الدخول فورًا بدل ما تسيبه واقف
+// قدام شاشة معطوبة بتكرر له رسائل خطأ "401" مبهمة على كل حركة.
+export class SessionExpiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionExpiredError';
+  }
+}
+
+// بنمنع إطلاق أكتر من إشعار "الجلسة انتهت" مرة واحدة لو أكتر من طلب اتنفذ
+// في نفس اللحظة وكلهم رجعوا 401 (زي refresh() وrefreshArchiveCount() اللي
+// بيتنفذوا مع بعض) — من غير الحارس ده هيظهر toast مكرر لكل طلب فشل.
+let sessionExpiredNotified = false;
+
+// بتتنادى لما المستخدم يسجّل دخول تاني بنجاح، عشان لو الجلسة الجديدة كمان
+// انتهت لاحقًا نقدر نطلق الإشعار تاني بدل ما يفضل الحارس مقفول للأبد.
+export function resetSessionExpiredGuard() {
+  sessionExpiredNotified = false;
+}
+
+function notifySessionExpired() {
+  if (sessionExpiredNotified) return;
+  sessionExpiredNotified = true;
+  window.dispatchEvent(new CustomEvent('auth:session-expired'));
+}
+
+// authed=true (الافتراضي) للطلبات اللي بتبعت توكن (Authorization header) —
+// أي 401 منها معناه الجلسة بطلت. authed=false للطلبات العامة زي تسجيل
+// الدخول/إنشاء حساب، لأن 401/400 منها معناه بيانات غلط بس، مش جلسة منتهية.
+async function handle(res: Response, authed: boolean = true) {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     if (res.status === 503 && data.maintenance) {
       throw new MaintenanceError(data.error || 'الموقع تحت الصيانة حاليًا');
+    }
+    if (res.status === 401 && authed) {
+      notifySessionExpired();
+      throw new SessionExpiredError(data.error || 'انتهت صلاحية جلستك');
     }
     throw new Error(data.error || `خطأ (${res.status})`);
   }
@@ -51,7 +86,7 @@ export async function register(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
-  return handle(res);
+  return handle(res, false);
 }
 
 export async function login(username: string, password: string) {
@@ -60,7 +95,7 @@ export async function login(username: string, password: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
-  return handle(res);
+  return handle(res, false);
 }
 
 // ===== نسيت كلمة المرور — عن طريق كود الاسترجاع =====
@@ -76,7 +111,7 @@ export async function resetWithRecoveryCode(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, recoveryCode, password, confirmPassword }),
   });
-  return handle(res);
+  return handle(res, false);
 }
 
 // ===== إعادة تأهيل الحسابات القديمة =====
@@ -87,7 +122,7 @@ export async function completeRehabilitation(rehabToken: string, password: strin
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rehabToken, password, confirmPassword }),
   });
-  return handle(res);
+  return handle(res, false);
 }
 
 // ===== التحقق بخطوتين (2FA) =====
@@ -98,7 +133,7 @@ export async function verifyLoginTwoFactor(pendingToken: string, code: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pendingToken, code }),
   });
-  return handle(res);
+  return handle(res, false);
 }
 
 export async function getTwoFactorStatus(): Promise<{
@@ -496,7 +531,13 @@ export function exportAdminUsersUrl(q?: string) {
 
 export async function downloadAdminUsersCsv(q?: string) {
   const res = await fetch(exportAdminUsersUrl(q), { headers: authHeaders() });
-  if (!res.ok) throw new Error('تعذّر تصدير الملف');
+  if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new SessionExpiredError('انتهت صلاحية جلستك');
+    }
+    throw new Error('تعذّر تصدير الملف');
+  }
   return res.blob();
 }
 
@@ -585,7 +626,13 @@ export async function downloadAdminAuditLogCsv(params: { adminUsername?: string;
   if (params.adminUsername) qs.set('adminUsername', params.adminUsername);
   if (params.action) qs.set('action', params.action);
   const res = await fetch(`${API_URL}/api/admin/audit-log/export?${qs.toString()}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('تعذّر تصدير الملف');
+  if (!res.ok) {
+    if (res.status === 401) {
+      notifySessionExpired();
+      throw new SessionExpiredError('انتهت صلاحية جلستك');
+    }
+    throw new Error('تعذّر تصدير الملف');
+  }
   return res.blob();
 }
 
@@ -982,5 +1029,5 @@ export interface SiteStatus {
 
 export async function getSiteStatus(): Promise<SiteStatus> {
   const res = await fetch(`${API_URL}/api/site/status`);
-  return handle(res);
+  return handle(res, false);
 }

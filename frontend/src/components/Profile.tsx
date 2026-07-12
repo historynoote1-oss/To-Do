@@ -34,6 +34,7 @@ export default function Profile({
   menuOpen: boolean;
 }) {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [stats, setStats] = useState<ProfileStats | null>(null);
 
@@ -93,6 +94,7 @@ export default function Profile({
 
   async function load() {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await getProfile();
       setProfile(data.profile);
@@ -101,7 +103,9 @@ export default function Profile({
       setBio(data.profile.bio || '');
       setAvatarUrl(data.profile.avatarUrl);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'تعذّر تحميل الملف الشخصي');
+      const message = err instanceof Error ? err.message : 'تعذّر تحميل الملف الشخصي';
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -225,11 +229,33 @@ export default function Profile({
     sounds.click();
   }
 
-  if (loading || !profile || !stats) {
+  if (loading) {
     return (
       <div className="container view-fade profile-page">
         <div className="skeleton skeleton-card" style={{ height: 220, marginBottom: 16 }} />
         <div className="skeleton skeleton-card" style={{ height: 120 }} />
+      </div>
+    );
+  }
+
+  if (loadError || !profile || !stats) {
+    return (
+      <div className="container view-fade profile-page">
+        <div className="top-bar">
+          <div className="top-bar-main">
+            <BackButton onClick={onBack} />
+            <strong>الملف الشخصي</strong>
+          </div>
+        </div>
+        <p className="empty">
+          <DynamicIcon name="alert" size={32} className="empty-icon" />
+          {loadError || 'تعذّر تحميل الملف الشخصي'}
+        </p>
+        <div className="modal-actions">
+          <button type="button" onClick={load}>
+            <DynamicIcon name="undo" size={14} /> إعادة المحاولة
+          </button>
+        </div>
       </div>
     );
   }

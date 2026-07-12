@@ -15,6 +15,8 @@ import {
   getPendingRestoreLists,
   finalizeRestore,
   MaintenanceError,
+  resetSessionExpiredGuard,
+  SessionExpiredError,
   SiteStatus,
   Reminder,
 } from './lib/api';
@@ -98,6 +100,32 @@ export default function App() {
   // إعدادات الصوت في البروفايل.
   useEffect(() => {
     return sounds.subscribe(({ muted: m }) => setMuted(m));
+  }, []);
+
+  // بيتنادى من أي طلب API فشل بـ 401 (توكن منتهي/باطل — سواء بسبب انتهاء
+  // الصلاحية، أو Force Logout من الأدمن، أو تغيير كلمة السر من جهاز تاني).
+  // بدل ما نسيب المستخدم واقف قدام شاشة معطوبة بتكرر له أخطاء غامضة على كل
+  // حركة، بنرجّعه فورًا لصفحة تسجيل الدخول مع رسالة واضحة.
+  useEffect(() => {
+    function handleSessionExpired() {
+      const wasLoggedIn = !!localStorage.getItem('token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      localStorage.removeItem('isAdmin');
+      setUsername(null);
+      setIsAdmin(false);
+      setDisplayName(null);
+      setAvatarUrl(null);
+      setLists([]);
+      setLifeAreas([]);
+      setView('todos');
+      if (wasLoggedIn) {
+        sounds.error();
+        toast.error('انتهت صلاحية جلستك — سجّل دخول تاني عشان تكمل');
+      }
+    }
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
   }, []);
 
   // اختصارات لوحة المفاتيح للتراجع/الإعادة: Ctrl/Cmd+Z للتراجع،
@@ -310,6 +338,7 @@ export default function App() {
         setSiteStatus((prev) => (prev ? { ...prev, maintenanceMode: true, maintenanceMessage: err.message } : prev));
         return;
       }
+      if (err instanceof SessionExpiredError) return;
       toast.error(err instanceof Error ? err.message : 'حصل خطأ في تحميل المهام الرئيسية');
     } finally {
       setLoading(false);
@@ -317,6 +346,7 @@ export default function App() {
   }
 
   function handleAuthSuccess(name: string, admin: boolean) {
+    resetSessionExpiredGuard();
     localStorage.setItem('username', name);
     localStorage.setItem('isAdmin', String(admin));
     setUsername(name);
