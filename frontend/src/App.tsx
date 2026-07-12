@@ -37,8 +37,6 @@ import SideMenu from './components/SideMenu';
 import ThemeToggleButton from './components/ThemeToggleButton';
 import ConfirmModal from './components/ConfirmModal';
 import AddTaskModal, { NewTaskPayload } from './components/AddTaskModal';
-import { PriorityKey } from './lib/priority';
-import PriorityFocusCard from './components/PriorityFocusCard';
 import { CategoryKey } from './lib/category';
 import { LifeAreaData } from './lib/lifeArea';
 import { groupByLifeArea, groupHierarchical, urgentLists, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
@@ -538,22 +536,6 @@ export default function App() {
     highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
   }
 
-  // نفس فكرة jumpToCategory بس للأولوية — بتستخدمها بطاقة "مهام عاجلة" عشان
-  // توصّلك لأول مهمة رئيسية غير مكتملة من نفس مستوى الأولوية.
-  function jumpToPriority(key: PriorityKey) {
-    const target = lists.find((l) => ((l as any).priority || 'LOW') === key && !isListDone(l as any));
-    if (!target) {
-      sounds.error();
-      toast.info('مفيش مهمة رئيسية غير مكتملة بالأولوية دي حاليًا');
-      return;
-    }
-    sounds.click();
-    setHighlightedListId(target.id);
-    document.getElementById(`list-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
-    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
-  }
-
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
 
   // ملاحظة: القائمة النشطة (lists) بترجع من السيرفر من غير أي مهمة اكتملت
@@ -836,27 +818,24 @@ export default function App() {
         <div className="stats-col">
           <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
           <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
-          <PriorityFocusCard lists={lists} onSelectPriority={jumpToPriority} />
         </div>
 
-        <div className="quick-add-row">
+        <div className="quick-add-row quick-add-row-compact">
           <button className="quick-add-card" onClick={() => setAddTaskOpen(true)} type="button">
             <span className="quick-add-icon-wrap">
-              <DynamicIcon name="plus" size={22} />
+              <DynamicIcon name="plus" size={18} />
             </span>
             <span className="quick-add-label">إضافة مهمة</span>
-            <span className="quick-add-hint">اسم، أولوية، تصنيف، ومجال حياة</span>
           </button>
 
           <button className="quick-add-card quick-add-card-recurring" onClick={() => setView('recurring')} type="button">
             <span className="quick-add-icon-wrap quick-add-icon-wrap-recurring">
-              <DynamicIcon name="repeat" size={22} />
+              <DynamicIcon name="repeat" size={18} />
               <span className="quick-add-badge">
-                <DynamicIcon name="plus" size={10} />
+                <DynamicIcon name="plus" size={9} />
               </span>
             </span>
             <span className="quick-add-label">إضافة مهمة متكررة</span>
-            <span className="quick-add-hint">يوميًا، أسبوعيًا، شهريًا، أو سنويًا</span>
           </button>
         </div>
 
