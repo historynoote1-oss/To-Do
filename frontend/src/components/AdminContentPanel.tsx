@@ -12,6 +12,7 @@ import {
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import AdminConfirmModal from './AdminConfirmModal';
+import { DynamicIcon } from '../lib/icons';
 
 const PRIORITY_LABELS: Record<string, string> = { NONE: 'بدون', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'مرتفعة', CRITICAL: 'حرجة' };
 
@@ -22,10 +23,10 @@ export default function AdminContentPanel() {
     <div className="admin-content-panel">
       <div className="admin-tabs admin-subtabs">
         <button type="button" className={`admin-tab ${subTab === 'lists' ? 'active' : ''}`} onClick={() => setSubTab('lists')}>
-          📋 القوائم
+          <DynamicIcon name="clipboard-list" size={14} /> القوائم
         </button>
         <button type="button" className={`admin-tab ${subTab === 'items' ? 'active' : ''}`} onClick={() => setSubTab('items')}>
-          ✅ المهام
+          <DynamicIcon name="check-circle" size={14} /> المهام
         </button>
       </div>
       {subTab === 'lists' ? <ListsManager /> : <ItemsManager />}

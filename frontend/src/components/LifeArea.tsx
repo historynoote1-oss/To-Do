@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { hexToSoftBg, DEFAULT_LIFE_AREA_ICON } from '../lib/lifeArea';
+import { hexToSoftBg, hexToGradient, DEFAULT_LIFE_AREA_ICON } from '../lib/lifeArea';
 import { resolveLifeAreaImageUrl } from '../lib/api';
 import { sounds } from '../lib/sounds';
+import { DynamicIcon } from '../lib/icons';
 
 // شكل مبسّط لمجال الحياة يكفي لعرض الشارة/الأيقونة — بيقبل سواء الكائن
 // الكامل (LifeAreaData مع الإحصائيات) أو النسخة المختصرة المرفقة مع كل
@@ -14,8 +15,23 @@ export interface LifeAreaLite {
   imageUrl: string | null;
 }
 
-function AreaGlyph({ area, size = 'md' }: { area: LifeAreaLite | null | undefined; size?: 'sm' | 'md' }) {
-  if (!area) return <span aria-hidden="true">🏷️</span>;
+// الشارة الموحّدة لأيقونة/صورة مجال الحياة — نفس المكوّن ده هو اللي بيتحط
+// جنب اسم المجال في كل مكان بالموقع (الشارة الرئيسية، القوائم المنسدلة،
+// شرائح الفلاتر، الأرشيف...) عشان الشكل يفضل متسق 100%. لو المجال معاه
+// صورة مرفوعة بتتعرض هي زي ما هي، ولو أيقونة بس بتتحط جوه "شارة" دائرية
+// بتدرج لوني (gradient) متولّد تلقائيًا من لون المجال — ده اللي بيدّي
+// الإحساس بألوان "حديثة ومتناسقة" من غير ما نضطر نخزّن أكتر من لون واحد.
+export function AreaGlyph({ area, size = 'md' }: { area: LifeAreaLite | null | undefined; size?: 'sm' | 'md' }) {
+  const px = size === 'sm' ? 20 : 24;
+  const iconPx = size === 'sm' ? 12 : 14;
+
+  if (!area) {
+    return (
+      <span className="life-area-glyph-chip life-area-glyph-chip-empty" style={{ width: px, height: px }}>
+        <DynamicIcon name={DEFAULT_LIFE_AREA_ICON} size={iconPx} className="life-area-glyph-chip-icon" />
+      </span>
+    );
+  }
   if (area.imageUrl) {
     return (
       <img
@@ -25,7 +41,14 @@ function AreaGlyph({ area, size = 'md' }: { area: LifeAreaLite | null | undefine
       />
     );
   }
-  return <span aria-hidden="true">{area.icon || DEFAULT_LIFE_AREA_ICON}</span>;
+  return (
+    <span
+      className="life-area-glyph-chip"
+      style={{ width: px, height: px, background: hexToGradient(area.color) }}
+    >
+      <DynamicIcon name={area.icon || DEFAULT_LIFE_AREA_ICON} size={iconPx} className="life-area-glyph-chip-icon" />
+    </span>
+  );
 }
 
 interface BadgeProps {
@@ -124,18 +147,17 @@ export function LifeAreaBadge({ value, areas, onChange, onManage, size = 'md', d
                     <span className="category-menu-item-text">
                       <span>{a.name}</span>
                     </span>
-                    {a.id === value?.id && <span className="priority-check">✓</span>}
+                    {a.id === value?.id && (
+                      <span className="priority-check">
+                        <DynamicIcon name="check" size={14} />
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
             </ul>
           )}
 
-          {value && (
-            <button type="button" className="category-clear-btn" onClick={() => select(null)}>
-              ✕ إلغاء المجال
-            </button>
-          )}
           {onManage && (
             <button
               type="button"
@@ -145,7 +167,7 @@ export function LifeAreaBadge({ value, areas, onChange, onManage, size = 'md', d
                 onManage();
               }}
             >
-              ⚙️ إدارة مجالات الحياة
+              <DynamicIcon name="settings" size={14} /> إدارة مجالات الحياة
             </button>
           )}
         </div>
@@ -179,21 +201,6 @@ export function LifeAreaPicker({ value, areas, onChange, onManage }: PickerProps
 
   return (
     <div className="priority-picker category-picker life-area-picker" role="radiogroup" aria-label="اختيار مجال الحياة">
-      <button
-        type="button"
-        className={`priority-picker-item category-picker-item ${!value ? 'selected' : ''}`}
-        onClick={() => {
-          if (value) {
-            sounds.hover();
-            onChange(null);
-          }
-        }}
-        title="بدون مجال"
-        role="radio"
-        aria-checked={!value}
-      >
-        <span>بدون مجال</span>
-      </button>
       {areas.map((a) => (
         <button
           key={a.id}

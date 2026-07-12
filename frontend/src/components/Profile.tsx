@@ -13,6 +13,7 @@ import {
 import { PRIORITIES, PriorityKey } from '../lib/priority';
 import { toast } from '../lib/toast';
 import { sounds } from '../lib/sounds';
+import { DynamicIcon } from '../lib/icons';
 
 const PRIORITY_ORDER: PriorityKey[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'];
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -111,7 +112,7 @@ export default function Profile({
       setProfile(res.profile);
       onDisplayNameChange?.(res.profile.displayName);
       sounds.success();
-      toast.success('اتحفظ الملف الشخصي ✅');
+      toast.success('اتحفظ الملف الشخصي');
     } catch (err) {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر حفظ الملف الشخصي');
@@ -142,7 +143,7 @@ export default function Profile({
       setAvatarUrl(res.profile.avatarUrl);
       onAvatarChange?.(res.profile.avatarUrl);
       sounds.success();
-      toast.success('اتغيّرت صورة الأفتار ✅');
+      toast.success('اتغيّرت صورة الأفتار');
     } catch (err) {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر رفع الصورة');
@@ -213,7 +214,7 @@ export default function Profile({
   function handleCopyCode() {
     if (!newRecoveryCode) return;
     navigator.clipboard?.writeText(newRecoveryCode).then(
-      () => toast.success('اتنسخ الكود ✅'),
+      () => toast.success('اتنسخ الكود'),
       () => toast.error('متقدرش أنسخ الكود، انسخه يدويًا')
     );
     sounds.click();
@@ -307,7 +308,7 @@ export default function Profile({
       )}
 
       <div className="security-panel profile-section">
-        <h2>🔊 إعدادات الصوت</h2>
+        <h2><DynamicIcon name="volume-high" size={18} /> إعدادات الصوت</h2>
         <div className="security-status-card">
           <div className="settings-field checkbox-row sound-toggle-row">
             <label htmlFor="sounds-enabled-toggle">
@@ -348,7 +349,7 @@ export default function Profile({
       </div>
 
       <div className="security-panel profile-section">
-        <h2>✏️ تعديل الملف الشخصي</h2>
+        <h2><DynamicIcon name="pencil" size={18} /> تعديل الملف الشخصي</h2>
         <div className="security-status-card">
           <div className="settings-field">
             <label>اسم العرض (اختياري)</label>
@@ -388,7 +389,7 @@ export default function Profile({
                 title={avatarUrl ? 'تغيير الصورة' : 'رفع صورة'}
                 aria-label={avatarUrl ? 'تغيير الصورة' : 'رفع صورة'}
               >
-                ✏️
+                <DynamicIcon name="pencil" size={14} />
               </button>
               {avatarUrl && (
                 <button
@@ -399,7 +400,7 @@ export default function Profile({
                   title="حذف الصورة"
                   aria-label="حذف الصورة"
                 >
-                  🗑️
+                  <DynamicIcon name="trash" size={14} />
                 </button>
               )}
               <input
@@ -421,7 +422,7 @@ export default function Profile({
       </div>
 
       <div className="security-panel profile-section">
-        <h2>🔒 كلمة المرور</h2>
+        <h2><DynamicIcon name="lock" size={18} /> كلمة المرور</h2>
         <div className="security-status-card">
           <input
             type="password"
@@ -456,7 +457,7 @@ export default function Profile({
       </div>
 
       <div className="security-panel profile-section">
-        <h2>🔑 كود الاسترجاع</h2>
+        <h2><DynamicIcon name="key" size={18} /> كود الاسترجاع</h2>
         <p className="modal-text">
           لو نسيت كلمة المرور، بتسترجع حسابك بكود الاسترجاع بدل الإيميل. لو حاسس إن الكود ضاع منك أو حد ممكن يكون
           شافه، تقدر تولّد كود جديد يحل محله فورًا.
@@ -495,10 +496,10 @@ export default function Profile({
           <div className="security-status-card">
             <div className="recovery-code-box">{newRecoveryCode}</div>
             <button type="button" className="small" onClick={handleCopyCode}>
-              📋 نسخ الكود
+              <DynamicIcon name="clipboard-list" size={14} /> نسخ الكود
             </button>
             <div className="recovery-code-warning">
-              ⚠️ ده بقى الكود الوحيد الصالح لحسابك — الكود القديم بقى ملغي. احفظه في مكان آمن، مش هيتعرض تاني بعد ما
+              <DynamicIcon name="alert" size={14} /> ده بقى الكود الوحيد الصالح لحسابك — الكود القديم بقى ملغي. احفظه في مكان آمن، مش هيتعرض تاني بعد ما
               تسيب الصفحة دي.
             </div>
             <label className="recovery-code-confirm">

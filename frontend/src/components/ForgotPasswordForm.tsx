@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { resetWithRecoveryCode } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import RecoveryCodeReveal from './RecoveryCodeReveal';
+import { DynamicIcon } from '../lib/icons';
 
 const MIN_PASSWORD_LENGTH = 10;
 
@@ -58,7 +59,7 @@ export default function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
     return (
       <RecoveryCodeReveal
         code={newRecoveryCode}
-        title="تم تغيير كلمة المرور ✅ — كود استرجاعك اتغيّر كمان"
+        title="تم تغيير كلمة المرور — كود استرجاعك اتغيّر كمان"
         onContinue={onBack}
       />
     );
@@ -120,7 +121,7 @@ export default function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
               aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
               tabIndex={-1}
             >
-              {showPassword ? '🙈' : '👁️'}
+              <DynamicIcon name={showPassword ? 'eye-off' : 'eye'} size={16} />
             </button>
           </div>
           {password.length > 0 && (
@@ -151,7 +152,7 @@ export default function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
           />
           {passwordsMismatch && <p className="field-hint field-hint-error">كلمة المرور مش متطابقة</p>}
         </div>
-        {error && <p className="error">⚠️ {error}</p>}
+        {error && <p className="error"><DynamicIcon name="alert" size={14} /> {error}</p>}
         <button type="submit" disabled={loading || !canSubmit}>
           {loading ? 'جاري الحفظ...' : 'تغيير كلمة المرور'}
         </button>

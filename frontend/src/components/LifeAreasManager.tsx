@@ -9,7 +9,14 @@ import {
   removeLifeAreaIcon,
   resolveLifeAreaImageUrl,
 } from '../lib/api';
-import { LifeAreaData, LIFE_AREA_COLORS, LIFE_AREA_ICON_PRESETS, DEFAULT_LIFE_AREA_COLOR, hexToSoftBg } from '../lib/lifeArea';
+import {
+  LifeAreaData,
+  LIFE_AREA_COLOR_GROUPS,
+  LIFE_AREA_ICON_PRESETS,
+  DEFAULT_LIFE_AREA_COLOR,
+  hexToGradient,
+} from '../lib/lifeArea';
+import { DynamicIcon } from '../lib/icons';
 import { toast } from '../lib/toast';
 import { sounds } from '../lib/sounds';
 import ConfirmModal from './ConfirmModal';
@@ -25,11 +32,112 @@ interface AreaFormState {
 
 const EMPTY_FORM: AreaFormState = { name: '', color: DEFAULT_LIFE_AREA_COLOR, icon: '' };
 
+// شارة معاينة (Avatar) موحّدة — نفس فلسفة AreaGlyph في LifeArea.tsx، لكن
+// بمقاس أكبر ومرن (px) عشان تتستخدم في نموذج الإنشاء/التعديل كمعاينة حية
+// وفي كارت المجال في القائمة. لو فيه صورة بتتعرض هي، ولو أيقونة بس
+// بتتحط جوه دائرة بتدرج لوني متولّد من لون المجال.
+function AreaAvatar({
+  color,
+  icon,
+  imageUrl,
+  size = 44,
+  iconSize = 20,
+}: {
+  color: string;
+  icon: string | null | undefined;
+  imageUrl?: string | null;
+  size?: number;
+  iconSize?: number;
+}) {
+  if (imageUrl) {
+    return (
+      <span
+        className="life-area-avatar life-area-avatar-img"
+        style={{ width: size, height: size, borderRadius: size / 3.2 }}
+      >
+        <img src={imageUrl} alt="" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="life-area-avatar"
+      style={{ width: size, height: size, borderRadius: size / 3.2, background: hexToGradient(color) }}
+    >
+      <DynamicIcon name={icon || 'tag'} size={iconSize} className="life-area-avatar-icon" />
+    </span>
+  );
+}
+
+// ===== شبكة الألوان المُقسّمة لعائلات — بتُستخدم في نموذج الإنشاء والتعديل.
+// معرّفة برا الكومبوننت الرئيسي عشان تحتفظ بهويتها بين كل render (لو
+// اتعرّفت جوه، ريأكت كان هيعمل remount كامل ليها كل مرة وده كان هيكسر
+// التفاعل مع input[type=color]). =====
+function ColorGroups({ value, onSelect }: { value: string; onSelect: (color: string) => void }) {
+  return (
+    <div className="life-area-color-groups">
+      {LIFE_AREA_COLOR_GROUPS.map((group) => (
+        <div key={group.label} className="life-area-color-group">
+          <span className="life-area-color-group-label">{group.label}</span>
+          <div className="life-area-color-grid">
+            {group.colors.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`life-area-color-swatch ${value === c ? 'selected' : ''}`}
+                style={{ background: hexToGradient(c) }}
+                onClick={() => onSelect(c)}
+                aria-label={`اختيار اللون ${c}`}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+      <div className="life-area-color-group">
+        <span className="life-area-color-group-label">لون مخصص</span>
+        <div className="life-area-color-grid">
+          <label className="life-area-color-custom" title="لون مخصص" style={{ background: hexToGradient(value) }}>
+            <input type="color" value={value} onChange={(e) => onSelect(e.target.value)} />
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== شبكة الأيقونات (بدون أي إيموجي — Lucide فقط) — نفس السبب برا الكومبوننت =====
+function IconGrid({ value, onSelect }: { value: string; onSelect: (icon: string) => void }) {
+  return (
+    <div className="life-area-icon-grid">
+      {LIFE_AREA_ICON_PRESETS.map((icon) => (
+        <button
+          key={icon}
+          type="button"
+          className={`life-area-icon-choice ${value === icon ? 'selected' : ''}`}
+          onClick={() => onSelect(icon)}
+          aria-label={`اختيار الأيقونة ${icon}`}
+          title={icon}
+        >
+          <DynamicIcon name={icon} size={18} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function LifeAreasManager({ onBack, onChange }: { onBack: () => void; onChange?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [areas, setAreas] = useState<LifeAreaData[]>([]);
   const [createForm, setCreateForm] = useState<AreaFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
+
+  // ملف الصورة اللي المستخدم اختاره أثناء تعبئة نموذج الإنشاء — لسه معندناش
+  // ID للمجال (لسه ملتاسّسش)، فبنحتفظ بالملف محليًا ونعاينه، وبعد ما
+  // المجال يتنشئ فعليًا بنرفعه فورًا في نفس عملية الإنشاء (نقرة واحدة من
+  // وجهة نظر المستخدم = "اختار صورة قبل إنشاء المجال").
+  const [createImageFile, setCreateImageFile] = useState<File | null>(null);
+  const [createImagePreview, setCreateImagePreview] = useState<string | null>(null);
+  const createFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<AreaFormState>(EMPTY_FORM);
@@ -43,6 +151,15 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
 
   useEffect(() => {
     load();
+  }, []);
+
+  // بتنضّف الـ object URL بتاع معاينة الصورة عند الخروج من الصفحة، عشان
+  // منسبّبش تسريب ذاكرة (memory leak) في المتصفح.
+  useEffect(() => {
+    return () => {
+      if (createImagePreview) URL.revokeObjectURL(createImagePreview);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function load() {
@@ -61,6 +178,39 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
     onChange?.();
   }
 
+  function validateImageFile(file: File): string | null {
+    if (!ALLOWED_ICON_IMAGE_TYPES.includes(file.type)) {
+      return 'نوع الصورة لازم يكون JPG أو PNG أو WEBP أو GIF';
+    }
+    if (file.size > MAX_ICON_IMAGE_BYTES) {
+      return 'حجم الصورة أكبر من الحد المسموح (2 ميجابايت)';
+    }
+    return null;
+  }
+
+  function handlePickCreateImage() {
+    createFileInputRef.current?.click();
+  }
+
+  function handleCreateImageSelected(file: File | undefined) {
+    if (!file) return;
+    const error = validateImageFile(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    if (createImagePreview) URL.revokeObjectURL(createImagePreview);
+    setCreateImageFile(file);
+    setCreateImagePreview(URL.createObjectURL(file));
+  }
+
+  function handleClearCreateImage() {
+    if (createImagePreview) URL.revokeObjectURL(createImagePreview);
+    setCreateImageFile(null);
+    setCreateImagePreview(null);
+    if (createFileInputRef.current) createFileInputRef.current.value = '';
+  }
+
   async function handleCreate() {
     const name = createForm.name.trim();
     if (!name) {
@@ -69,11 +219,21 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
     }
     setCreating(true);
     try {
-      const area = await createLifeArea({ name, color: createForm.color, icon: createForm.icon || null });
+      let area = await createLifeArea({ name, color: createForm.color, icon: createForm.icon || null });
+      // لو المستخدم اختار صورة قبل الإنشاء، بنرفعها فورًا بعد ما المجال
+      // يتنشئ — من وجهة نظر المستخدم دي خطوة واحدة (اختيار + إنشاء).
+      if (createImageFile) {
+        try {
+          area = await uploadLifeAreaIcon(area.id, createImageFile);
+        } catch (uploadErr) {
+          toast.error(uploadErr instanceof Error ? uploadErr.message : 'اتنشأ المجال لكن تعذّر رفع الصورة');
+        }
+      }
       setAreas((prev) => [...prev, area]);
       setCreateForm(EMPTY_FORM);
+      handleClearCreateImage();
       sounds.addItem();
-      toast.success(`اتضاف مجال "${name}" 🎉`);
+      toast.success(`اتضاف مجال "${name}"`);
       notifyChanged();
     } catch (err) {
       sounds.error();
@@ -163,12 +323,9 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
 
   async function handleImageSelected(id: string, file: File | undefined) {
     if (!file) return;
-    if (!ALLOWED_ICON_IMAGE_TYPES.includes(file.type)) {
-      toast.error('نوع الصورة لازم يكون JPG أو PNG أو WEBP أو GIF');
-      return;
-    }
-    if (file.size > MAX_ICON_IMAGE_BYTES) {
-      toast.error('حجم الصورة أكبر من الحد المسموح (2 ميجابايت)');
+    const error = validateImageFile(file);
+    if (error) {
+      toast.error(error);
       return;
     }
     setUploadingId(id);
@@ -199,6 +356,11 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
     }
   }
 
+  // ===== شبكة الألوان والأيقونات مُعرّفة برا الكومبوننت (تحت) عشان محدش
+  // يعيد إنشاءها مع كل render — لو اتعرّفت جوه هنا، ريأكت هيعتبرها نوع
+  // كومبوننت جديد كل مرة ويعمل remount كامل للشبكة (يفقد الفوكس من
+  // input[type=color] مثلاً). =====
+
   return (
     <div className="container view-fade profile-page">
       <div className="top-bar">
@@ -210,7 +372,7 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
       </div>
 
       <div className="life-area-intro">
-        <span className="life-area-intro-icon" aria-hidden="true">🧭</span>
+        <DynamicIcon name="compass" size={28} className="life-area-intro-icon" />
         <div>
           <h1>مجالات الحياة</h1>
           <p>
@@ -222,63 +384,66 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
 
       {/* ===== نموذج إنشاء مجال جديد ===== */}
       <div className="admin-panel profile-section life-area-create-panel">
-        <h2>➕ مجال جديد</h2>
-        <div className="settings-field">
-          <label>اسم المجال</label>
-          <input
-            value={createForm.name}
-            onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="مثلاً: الصحة واللياقة"
-            maxLength={40}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-          />
-        </div>
-        <div className="settings-field">
-          <label>اللون</label>
-          <div className="life-area-color-grid">
-            {LIFE_AREA_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`life-area-color-swatch ${createForm.color === c ? 'selected' : ''}`}
-                style={{ background: c }}
-                onClick={() => setCreateForm((f) => ({ ...f, color: c }))}
-                aria-label={`اختيار اللون ${c}`}
+        <h2><DynamicIcon name="plus" size={18} /> مجال جديد</h2>
+
+        <div className="life-area-create-layout">
+          <div className="life-area-create-preview-col">
+            <button
+              type="button"
+              className="life-area-avatar-picker"
+              onClick={handlePickCreateImage}
+              disabled={creating}
+              title="اضغط لاختيار صورة مخصصة"
+            >
+              <AreaAvatar
+                color={createForm.color}
+                icon={createForm.icon || 'tag'}
+                imageUrl={createImagePreview}
+                size={64}
+                iconSize={26}
               />
-            ))}
-            <label className="life-area-color-custom" title="لون مخصص">
-              <input
-                type="color"
-                value={createForm.color}
-                onChange={(e) => setCreateForm((f) => ({ ...f, color: e.target.value }))}
-              />
-            </label>
-          </div>
-        </div>
-        <div className="settings-field">
-          <label>الأيقونة (إيموجي)</label>
-          <div className="life-area-icon-grid">
-            {LIFE_AREA_ICON_PRESETS.map((icon) => (
-              <button
-                key={icon}
-                type="button"
-                className={`life-area-icon-choice ${createForm.icon === icon ? 'selected' : ''}`}
-                onClick={() => setCreateForm((f) => ({ ...f, icon }))}
-                aria-label={`اختيار الأيقونة ${icon}`}
-              >
-                {icon}
-              </button>
-            ))}
+              <span className="life-area-avatar-picker-badge">
+                <DynamicIcon name="camera" size={12} />
+              </span>
+            </button>
             <input
-              className="life-area-icon-custom-input"
-              value={createForm.icon}
-              onChange={(e) => setCreateForm((f) => ({ ...f, icon: e.target.value }))}
-              placeholder="أو اكتب إيموجي"
-              maxLength={4}
+              ref={createFileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              hidden
+              onChange={(e) => handleCreateImageSelected(e.target.files?.[0])}
             />
+            {createImagePreview ? (
+              <button type="button" className="small danger life-area-avatar-clear" onClick={handleClearCreateImage}>
+                إزالة الصورة
+              </button>
+            ) : (
+              <span className="modal-hint life-area-avatar-hint">اختياري: صورة بدل الأيقونة</span>
+            )}
           </div>
-          <p className="modal-hint">تقدر ترفع صورة مخصصة كأيقونة بعد إنشاء المجال.</p>
+
+          <div className="life-area-create-fields">
+            <div className="settings-field">
+              <label>اسم المجال</label>
+              <input
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="مثلاً: الصحة واللياقة"
+                maxLength={40}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
+            <div className="settings-field">
+              <label>اللون</label>
+              <ColorGroups value={createForm.color} onSelect={(color) => setCreateForm((f) => ({ ...f, color }))} />
+            </div>
+            <div className="settings-field">
+              <label>الأيقونة {createImagePreview && <span className="modal-hint">(هتتستخدم الصورة اللي اخترتها بدلها)</span>}</label>
+              <IconGrid value={createForm.icon} onSelect={(icon) => setCreateForm((f) => ({ ...f, icon }))} />
+            </div>
+          </div>
         </div>
+
         <div className="modal-actions">
           <button onClick={handleCreate} disabled={creating || !createForm.name.trim()} type="button">
             {creating ? 'جاري الإنشاء...' : 'إنشاء المجال'}
@@ -296,7 +461,7 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
 
       {!loading && areas.length === 0 && (
         <p className="empty">
-          <span className="empty-icon">🧭</span>
+          <DynamicIcon name="compass" size={32} className="empty-icon" />
           لسه مفيش مجالات حياة، ابدأ بإنشاء أول مجال فوق
         </p>
       )}
@@ -331,12 +496,14 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
                   </button>
                 </div>
 
-                <div className="life-area-card-glyph" style={{ background: hexToSoftBg(area.color), color: area.color }}>
-                  {area.imageUrl ? (
-                    <img src={resolveLifeAreaImageUrl(area.imageUrl) ?? undefined} alt="" />
-                  ) : (
-                    <span aria-hidden="true">{area.icon || '🏷️'}</span>
-                  )}
+                <div className="life-area-card-glyph-wrap">
+                  <AreaAvatar
+                    color={area.color}
+                    icon={area.icon}
+                    imageUrl={resolveLifeAreaImageUrl(area.imageUrl)}
+                    size={52}
+                    iconSize={24}
+                  />
                   {isUploading && <span className="avatar-upload-spinner" aria-hidden="true" />}
                 </div>
 
@@ -349,44 +516,10 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
                         maxLength={40}
                         autoFocus
                       />
-                      <div className="life-area-color-grid">
-                        {LIFE_AREA_COLORS.map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            className={`life-area-color-swatch ${editForm.color === c ? 'selected' : ''}`}
-                            style={{ background: c }}
-                            onClick={() => setEditForm((f) => ({ ...f, color: c }))}
-                            aria-label={`اختيار اللون ${c}`}
-                          />
-                        ))}
-                        <label className="life-area-color-custom" title="لون مخصص">
-                          <input
-                            type="color"
-                            value={editForm.color}
-                            onChange={(e) => setEditForm((f) => ({ ...f, color: e.target.value }))}
-                          />
-                        </label>
-                      </div>
-                      <div className="life-area-icon-grid">
-                        {LIFE_AREA_ICON_PRESETS.map((icon) => (
-                          <button
-                            key={icon}
-                            type="button"
-                            className={`life-area-icon-choice ${editForm.icon === icon ? 'selected' : ''}`}
-                            onClick={() => setEditForm((f) => ({ ...f, icon }))}
-                          >
-                            {icon}
-                          </button>
-                        ))}
-                        <input
-                          className="life-area-icon-custom-input"
-                          value={editForm.icon}
-                          onChange={(e) => setEditForm((f) => ({ ...f, icon: e.target.value }))}
-                          placeholder="إيموجي"
-                          maxLength={4}
-                        />
-                      </div>
+                      <label className="life-area-edit-subtitle">اللون</label>
+                      <ColorGroups value={editForm.color} onSelect={(color) => setEditForm((f) => ({ ...f, color }))} />
+                      <label className="life-area-edit-subtitle">الأيقونة</label>
+                      <IconGrid value={editForm.icon} onSelect={(icon) => setEditForm((f) => ({ ...f, icon }))} />
                       <div className="life-area-image-actions">
                         <button
                           type="button"
@@ -394,7 +527,7 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
                           onClick={() => handlePickImage(area.id)}
                           disabled={isUploading}
                         >
-                          🖼️ {area.imageUrl ? 'تغيير الصورة' : 'رفع صورة مخصصة'}
+                          <DynamicIcon name="camera" size={14} /> {area.imageUrl ? 'تغيير الصورة' : 'رفع صورة مخصصة'}
                         </button>
                         {area.imageUrl && (
                           <button
@@ -440,7 +573,7 @@ export default function LifeAreasManager({ onBack, onChange }: { onBack: () => v
                             type="button"
                             title="تعديل"
                           >
-                            ✎
+                            <DynamicIcon name="pencil" size={14} />
                           </button>
                           <button
                             className="danger small"

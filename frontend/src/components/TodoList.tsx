@@ -12,12 +12,22 @@ import { LifeAreaBadge } from './LifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
 import { CategoryKey } from '../lib/category';
 import { LifeAreaData } from '../lib/lifeArea';
+import { DynamicIcon } from '../lib/icons';
+import { sortItems } from '../lib/organize';
 
 const CONFETTI_COLORS = ['#1d6f73', '#e8b975', '#2e8b57', '#c1443a', '#6b5fd1'];
 
-export default function TodoList({ list, onChange, onDeleteList, delay = 0, lifeAreas = [], onManageLifeAreas }: any) {
+export default function TodoList({
+  list,
+  onChange,
+  onDeleteList,
+  delay = 0,
+  lifeAreas = [],
+  onManageLifeAreas,
+  highlighted = false,
+}: any) {
   const [newItem, setNewItem] = useState('');
-  const [newItemPriority, setNewItemPriority] = useState<PriorityKey>('NONE');
+  const [newItemPriority, setNewItemPriority] = useState<PriorityKey>('LOW');
   const [showItemPriority, setShowItemPriority] = useState(false);
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [burstKey, setBurstKey] = useState(0);
@@ -39,6 +49,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0, life
   }, [editingTitle]);
 
   const total = list.items.length;
+  const sortedItems = useMemo(() => sortItems(list.items), [list.items]);
   const done = list.items.filter((i: any) => i.isDone).length;
   const progress = total === 0 ? 0 : Math.round((done / total) * 100);
   const isComplete = total > 0 && done === total;
@@ -63,7 +74,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0, life
     const priority = newItemPriority;
     sounds.addItem();
     setNewItem('');
-    setNewItemPriority('NONE');
+    setNewItemPriority('LOW');
     setShowItemPriority(false);
     try {
       await addItem(list.id, content, priority);
@@ -185,7 +196,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0, life
           setBurstKey((k) => k + 1);
           sounds.celebrate();
           window.setTimeout(() => setConfettiOn(false), 900);
-          toast.success(`أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف 🗄️`);
+          toast.success(`أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف`);
         }
       }
       onChange();
@@ -224,7 +235,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0, life
 
   return (
     <div
-      className={`list-card ${isComplete ? 'list-complete' : ''}`}
+      className={`list-card ${isComplete ? 'list-complete' : ''} ${highlighted ? 'list-card-jump-highlight' : ''}`}
       style={{ position: 'relative', animationDelay: `${delay}ms`, ['--card-accent' as any]: isComplete ? 'var(--success)' : priorityColor }}
     >
       {confettiOn && (
@@ -263,6 +274,11 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0, life
           ) : (
             <h2 onDoubleClick={() => setEditingTitle(true)}>{list.title}</h2>
           )}
+          {list.recurringTaskId && (
+            <span className="recurring-origin-badge" title="اتولّدت تلقائيًا من مهمة متكررة">
+              <DynamicIcon name="repeat" size={12} />
+            </span>
+          )}
           <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="md" />
           <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="md" />
           <LifeAreaBadge
@@ -276,7 +292,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0, life
         <div className="row-actions">
           {!editingTitle && (
             <button className="icon-btn small" onClick={() => setEditingTitle(true)} aria-label="تعديل المهمة الرئيسية" type="button">
-              ✎
+              <DynamicIcon name="pencil" size={14} />
             </button>
           )}
           <button
@@ -286,11 +302,11 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0, life
             type="button"
             title="التذكيرات"
           >
-            🔔
+            <DynamicIcon name="bell" size={14} />
             {list._count?.reminders > 0 && <span className="reminder-count-badge">{list._count.reminders}</span>}
           </button>
           <button className="icon-btn small" onClick={handleArchiveList} aria-label="أرشفة المهمة الرئيسية" type="button" title="نقل للأرشيف">
-            🗄️
+            <DynamicIcon name="archive" size={14} />
           </button>
           <button className="danger small" onClick={handleDeleteList}>
             حذف المهمة الرئيسية
@@ -333,7 +349,7 @@ export default function TodoList({ list, onChange, onDeleteList, delay = 0, life
         <p className="empty">لسه مفيش مهام فرعية هنا</p>
       ) : (
         <ul>
-          {list.items.map((item: any, i: number) => (
+          {sortedItems.map((item: any, i: number) => (
             <TodoItemRow
               key={item.id}
               item={item}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { PriorityBadge } from './Priority';
+import { DynamicIcon } from '../lib/icons';
 
 export default function TodoItemRow({
   item,
@@ -84,7 +85,7 @@ export default function TodoItemRow({
           )}
           {item.dueDate && (
             <span className="due-date-chip" title="موعد الاستحقاق">
-              📅 {new Date(item.dueDate).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+              <DynamicIcon name="calendar" size={12} /> {new Date(item.dueDate).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
             </span>
           )}
           {onOpenReminders && (
@@ -95,17 +96,17 @@ export default function TodoItemRow({
               type="button"
               title="التذكيرات"
             >
-              🔔
+              <DynamicIcon name="bell" size={13} />
               {item._count?.reminders > 0 && <span className="reminder-count-badge">{item._count.reminders}</span>}
             </button>
           )}
           {onEdit && (
             <button className="icon-btn small row-edit" onClick={startEdit} aria-label="تعديل المهمة الفرعية" type="button">
-              ✎
+              <DynamicIcon name="pencil" size={13} />
             </button>
           )}
           <button className="danger small row-delete" onClick={onDelete} aria-label="حذف المهمة الفرعية" type="button">
-            ✕
+            <DynamicIcon name="x" size={13} />
           </button>
         </div>
       )}

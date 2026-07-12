@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAdminStats, getAdminGrowthStats, getAdminDistribution, AdminDistribution } from '../lib/api';
 import { toast } from '../lib/toast';
+import { DynamicIcon, IconKey } from '../lib/icons';
 
 interface Stats {
   usersCount: number;
@@ -12,7 +13,7 @@ interface Stats {
   adminCount: number;
 }
 
-const STAT_ICONS = ['👤', '✅', '📋', '🗂️', '🛡️', '🔒'];
+const STAT_ICONS: IconKey[] = ['users', 'check-circle', 'clipboard-list', 'folder-open', 'shield', 'lock'];
 
 export default function AdminOverview() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -52,42 +53,42 @@ export default function AdminOverview() {
       {stats && (
         <div className="stats-grid">
           <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[0]}</span>
+            <span className="stat-icon"><DynamicIcon name={STAT_ICONS[0]} size={18} /></span>
             <div>
               <span className="stat-value">{stats.usersCount}</span>
               <span className="stat-label">مستخدم</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[1]}</span>
+            <span className="stat-icon"><DynamicIcon name={STAT_ICONS[1]} size={18} /></span>
             <div>
               <span className="stat-value">{stats.activeCount}</span>
               <span className="stat-label">حساب مفعّل</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[2]}</span>
+            <span className="stat-icon"><DynamicIcon name={STAT_ICONS[2]} size={18} /></span>
             <div>
               <span className="stat-value">{stats.listsCount}</span>
               <span className="stat-label">قائمة</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[3]}</span>
+            <span className="stat-icon"><DynamicIcon name={STAT_ICONS[3]} size={18} /></span>
             <div>
               <span className="stat-value">{stats.itemsCount}</span>
               <span className="stat-label">مهمة</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[4]}</span>
+            <span className="stat-icon"><DynamicIcon name={STAT_ICONS[4]} size={18} /></span>
             <div>
               <span className="stat-value">{stats.adminCount}</span>
               <span className="stat-label">أدمن</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon">{STAT_ICONS[5]}</span>
+            <span className="stat-icon"><DynamicIcon name={STAT_ICONS[5]} size={18} /></span>
             <div>
               <span className="stat-value" style={stats.lockedCount > 0 ? { color: 'var(--danger)' } : undefined}>
                 {stats.lockedCount}
@@ -101,28 +102,28 @@ export default function AdminOverview() {
       {dist && (
         <div className="stats-grid" style={{ marginTop: 14 }}>
           <div className="stat-card">
-            <span className="stat-icon">📈</span>
+            <span className="stat-icon"><DynamicIcon name="trending-up" size={18} /></span>
             <div>
               <span className="stat-value">{dist.completionRate}%</span>
               <span className="stat-label">نسبة إنجاز المهام</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon">📊</span>
+            <span className="stat-icon"><DynamicIcon name="bar-chart" size={18} /></span>
             <div>
               <span className="stat-value">{dist.avgItemsPerList}</span>
               <span className="stat-label">متوسط مهام/قائمة</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon">📁</span>
+            <span className="stat-icon"><DynamicIcon name="folder" size={18} /></span>
             <div>
               <span className="stat-value">{dist.avgListsPerUser}</span>
               <span className="stat-label">متوسط قوائم/مستخدم</span>
             </div>
           </div>
           <div className="stat-card">
-            <span className="stat-icon">🗑️</span>
+            <span className="stat-icon"><DynamicIcon name="trash" size={18} /></span>
             <div>
               <span className="stat-value">{dist.emptyLists}</span>
               <span className="stat-label">قائمة فاضية</span>

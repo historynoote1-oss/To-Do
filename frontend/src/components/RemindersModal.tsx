@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Reminder, getReminders, createReminder, deleteReminder, updateItemDueDate } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
+import { DynamicIcon } from '../lib/icons';
 
 type Target =
   | { kind: 'list'; id: string; title: string }
@@ -13,15 +14,28 @@ interface Props {
   onDueDateChange?: (dueDate: string | null) => void;
 }
 
-const UNIT_TO_MINUTES: Record<string, number> = {
-  minutes: 1,
-  hours: 60,
-  days: 60 * 24,
-};
-
 function toDatetimeLocalValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// بيفكّ عدد الدقايق الكلي لثلاث خانات مستقلة (أيام / ساعات / دقايق) عشان
+// نعرضها في تعديل تذكير قائم أو في وصفه.
+function splitOffsetMinutes(totalMinutes: number) {
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  return { days, hours, minutes };
+}
+
+// بيصيغ "يوم و٣ ساعات و٢٠ دقيقة" من قيم الخانات الثلاث، وبيتجاهل أي خانة فاضية.
+function formatOffsetParts(days: number, hours: number, minutes: number): string {
+  const parts: string[] = [];
+  if (days > 0) parts.push(days === 1 ? 'يوم' : days === 2 ? 'يومين' : `${days} أيام`);
+  if (hours > 0) parts.push(hours === 1 ? 'ساعة' : hours === 2 ? 'ساعتين' : `${hours} ساعات`);
+  if (minutes > 0) parts.push(minutes === 1 ? 'دقيقة' : minutes === 2 ? 'دقيقتين' : `${minutes} دقيقة`);
+  if (parts.length === 0) return '0 دقيقة';
+  return parts.join(' و');
 }
 
 function describeReminder(r: Reminder): string {
@@ -30,16 +44,8 @@ function describeReminder(r: Reminder): string {
     timeStyle: 'short',
   });
   if (r.mode === 'BEFORE_DUE' && r.offsetMinutes) {
-    let amount = r.offsetMinutes;
-    let unit = 'دقيقة';
-    if (amount % (60 * 24) === 0) {
-      amount = amount / (60 * 24);
-      unit = 'يوم';
-    } else if (amount % 60 === 0) {
-      amount = amount / 60;
-      unit = 'ساعة';
-    }
-    return `قبل الاستحقاق بـ ${amount} ${unit} — ${when}`;
+    const { days, hours, minutes } = splitOffsetMinutes(r.offsetMinutes);
+    return `قبل الاستحقاق بـ ${formatOffsetParts(days, hours, minutes)} — ${when}`;
   }
   return when;
 }
@@ -49,8 +55,11 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'CUSTOM' | 'BEFORE_DUE'>('CUSTOM');
   const [customValue, setCustomValue] = useState(() => toDatetimeLocalValue(new Date(Date.now() + 30 * 60 * 1000)));
-  const [offsetAmount, setOffsetAmount] = useState(30);
-  const [offsetUnit, setOffsetUnit] = useState<'minutes' | 'hours' | 'days'>('minutes');
+  // ثلاث خانات مستقلة للتذكير النسبي — المستخدم يعبّي أي خانة أو أكتر
+  // (يوم / ساعتين / ٣٠ دقيقة / يوم + ٣ ساعات... إلخ)
+  const [offsetDays, setOffsetDays] = useState('');
+  const [offsetHours, setOffsetHours] = useState('');
+  const [offsetMinutes, setOffsetMinutes] = useState('30');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [dueDateDraft, setDueDateDraft] = useState(
@@ -100,10 +109,14 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
     }
   }
 
+  // مجموع الدقايق من الخانات الثلاث. أي خانة فاضية أو غير رقمية بتتحسب صفر.
+  const totalOffsetMinutes =
+    (Number(offsetDays) || 0) * 60 * 24 + (Number(offsetHours) || 0) * 60 + (Number(offsetMinutes) || 0);
+
   async function handleAdd() {
     if (submitting) return;
-    if (mode === 'BEFORE_DUE' && (!offsetAmount || offsetAmount <= 0)) {
-      toast.error('حدد قيمة صحيحة للوقت قبل الاستحقاق');
+    if (mode === 'BEFORE_DUE' && totalOffsetMinutes <= 0) {
+      toast.error('عبّي خانة واحدة على الأقل (أيام / ساعات / دقايق)');
       return;
     }
     if (mode === 'CUSTOM' && !customValue) {
@@ -117,7 +130,7 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
         itemId: target.kind === 'item' ? target.id : undefined,
         mode,
         remindAt: mode === 'CUSTOM' ? new Date(customValue).toISOString() : undefined,
-        offsetMinutes: mode === 'BEFORE_DUE' ? offsetAmount * UNIT_TO_MINUTES[offsetUnit] : undefined,
+        offsetMinutes: mode === 'BEFORE_DUE' ? totalOffsetMinutes : undefined,
         message: message.trim() || undefined,
       });
       sounds.addItem();
@@ -148,7 +161,7 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box reminders-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>🔔 تذكيرات «{target.title}»</h2>
+        <h2><DynamicIcon name="bell" size={18} /> تذكيرات «{target.title}»</h2>
 
         {target.kind === 'item' && (
           <div className="reminders-duedate-row">
@@ -181,13 +194,13 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
           {!loading &&
             reminders.map((r) => (
               <div key={r.id} className="reminder-row">
-                <span className="reminder-row-icon">🔔</span>
+                <span className="reminder-row-icon"><DynamicIcon name="bell" size={14} /></span>
                 <div className="reminder-row-text">
                   <span className="reminder-row-when">{describeReminder(r)}</span>
                   {r.message && <span className="reminder-row-message">{r.message}</span>}
                 </div>
                 <button type="button" className="danger small" onClick={() => handleDelete(r.id)} aria-label="حذف التذكير">
-                  ✕
+                  <DynamicIcon name="x" size={13} />
                 </button>
               </div>
             ))}
@@ -214,14 +227,55 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
           {mode === 'CUSTOM' ? (
             <input type="datetime-local" value={customValue} onChange={(e) => setCustomValue(e.target.value)} />
           ) : (
-            <div className="reminders-offset-row">
-              <input type="number" min={1} value={offsetAmount} onChange={(e) => setOffsetAmount(Number(e.target.value))} />
-              <select value={offsetUnit} onChange={(e) => setOffsetUnit(e.target.value as any)}>
-                <option value="minutes">دقيقة</option>
-                <option value="hours">ساعة</option>
-                <option value="days">يوم</option>
-              </select>
-              <span className="reminders-offset-suffix">قبل الاستحقاق</span>
+            <div className="reminders-offset-block">
+              <div className="reminders-offset-fields">
+                <label className="reminders-offset-field">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="0"
+                    value={offsetDays}
+                    onChange={(e) => setOffsetDays(e.target.value.replace(/[^0-9]/g, ''))}
+                    aria-label="عدد الأيام"
+                  />
+                  <span>يوم</span>
+                </label>
+                <label className="reminders-offset-field">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="0"
+                    value={offsetHours}
+                    onChange={(e) => setOffsetHours(e.target.value.replace(/[^0-9]/g, ''))}
+                    aria-label="عدد الساعات"
+                  />
+                  <span>ساعة</span>
+                </label>
+                <label className="reminders-offset-field">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    placeholder="0"
+                    value={offsetMinutes}
+                    onChange={(e) => setOffsetMinutes(e.target.value.replace(/[^0-9]/g, ''))}
+                    aria-label="عدد الدقايق"
+                  />
+                  <span>دقيقة</span>
+                </label>
+              </div>
+              <div className="reminders-offset-preview">
+                {totalOffsetMinutes > 0 ? (
+                  <>
+                    <DynamicIcon name="bell" size={12} />
+                    قبل الاستحقاق بـ {formatOffsetParts(Number(offsetDays) || 0, Number(offsetHours) || 0, Number(offsetMinutes) || 0)}
+                  </>
+                ) : (
+                  'عبّي خانة واحدة على الأقل'
+                )}
+              </div>
             </div>
           )}
 

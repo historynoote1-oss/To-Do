@@ -4,6 +4,7 @@ import { sounds } from '../lib/sounds';
 import RehabilitationForm from './RehabilitationForm';
 import ForgotPasswordForm from './ForgotPasswordForm';
 import RecoveryCodeReveal from './RecoveryCodeReveal';
+import { DynamicIcon } from '../lib/icons';
 
 // لازم يفضل متطابق مع MIN_PASSWORD_LENGTH في backend/src/lib/auth.ts
 const MIN_PASSWORD_LENGTH = 10;
@@ -177,7 +178,7 @@ export default function AuthForm({
             autoFocus
             required
           />
-          {twoFactorError && <p className="error">⚠️ {twoFactorError}</p>}
+          {twoFactorError && <p className="error"><DynamicIcon name="alert" size={14} /> {twoFactorError}</p>}
           <button type="submit" disabled={twoFactorLoading || !twoFactorCode}>
             {twoFactorLoading ? 'جاري التحقق...' : 'تأكيد الدخول'}
           </button>
@@ -199,7 +200,7 @@ export default function AuthForm({
 
   return (
     <div className="auth-container">
-      <h1>أهلاً بيك 👋</h1>
+      <h1>أهلاً بيك</h1>
       <p className="auth-container-subtitle">{mode === 'login' ? 'سجّل دخولك عشان تكمل شغلك' : 'اعمل حساب جديد وابدأ تنظيم مهامك'}</p>
       {!hideRegister && (
         <div className="auth-tabs">
@@ -269,7 +270,7 @@ export default function AuthForm({
               aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
               tabIndex={-1}
             >
-              {showPassword ? '🙈' : '👁️'}
+              <DynamicIcon name={showPassword ? 'eye-off' : 'eye'} size={16} />
             </button>
           </div>
           {mode === 'register' && password.length > 0 && (
@@ -309,7 +310,7 @@ export default function AuthForm({
           </p>
         )}
 
-        {error && <p className="error">⚠️ {error}</p>}
+        {error && <p className="error"><DynamicIcon name="alert" size={14} /> {error}</p>}
 
         <button type="submit" disabled={loading || !canSubmit}>
           {loading ? 'جاري التحميل...' : mode === 'login' ? 'دخول' : 'إنشاء حساب'}

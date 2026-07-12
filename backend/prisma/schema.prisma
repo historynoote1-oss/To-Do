@@ -69,6 +69,7 @@ model User {
   reminders         Reminder[]
   pushSubscriptions PushSubscription[]
   lifeAreas         LifeArea[]
+  recurringTasks    RecurringTask[]
 
   @@index([createdAt])
 }
@@ -95,7 +96,8 @@ model LifeArea {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lists TodoList[]
+  lists          TodoList[]
+  recurringTasks RecurringTask[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -155,10 +157,22 @@ model TodoList {
   // lib/archive.ts. المستخدم كمان يقدر يؤرشف/يسترجع يدويًا في أي وقت.
   archivedAt DateTime?
 
+  // ===== المهام المتكررة (Recurring Tasks) =====
+  // لو المهمة الرئيسية دي "نسخة" اتولّدت تلقائيًا من قالب مهمة متكررة،
+  // بيبقى ده الرابط بينها وبين القالب الأصلي (RecurringTask). لو القالب اتحذف،
+  // النسخ القديمة بتفضل موجودة عادي (onDelete: SetNull) — الحذف بيوقف توليد
+  // نسخ جديدة بس، مش بيمسح تاريخ اللي اتولّد فعلاً. occurrenceDate بيسجّل
+  // "الدورة" اللي النسخة دي بتمثلها (مثلاً تاريخ يوم التكرار اليومي)، بيتستخدم
+  // في تكوين عنوان مميز لكل نسخة عشان يفرق عن باقي النسخ (شوف lib/recurrence.ts).
+  recurringTaskId String?
+  recurringTask   RecurringTask? @relation(fields: [recurringTaskId], references: [id], onDelete: SetNull)
+  occurrenceDate  DateTime?
+
   @@unique([userId, title])
   @@index([userId])
   @@index([lifeAreaId])
   @@index([userId, archivedAt])
+  @@index([recurringTaskId])
 }
 
 // TodoItem بتمثّل "المهمة الفرعية" جوه المهمة الرئيسية.
@@ -258,4 +272,73 @@ model SiteSetting {
   value     String
   updatedAt DateTime @updatedAt
   updatedBy String?
+}
+
+// دورة تكرار المهمة المتكررة — نفس أسماء TaskCategory بالظبط وعن قصد، عشان
+// المهمة الرئيسية المولّدة تلقائيًا تاخد نفس التصنيف (يومية/أسبوعية/شهرية/
+// سنوية) من غير أي تحويل بين الاثنين (شوف lib/recurrence.ts).
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+// ===== قالب مهمة متكررة (Recurring Task Template) =====
+// ده مش "مهمة رئيسية" بيشوفها المستخدم في شاشته الرئيسية — ده القالب/الإعداد
+// اللي بيوصف إزاي وإمتى تتولّد نسخة (TodoList) جديدة تلقائيًا. كل قالب محفوظ
+// في مكانه الخاص (شاشة "المهام المتكررة") عشان المستخدم يقدر يرجعله ويعدّل
+// عليه في أي وقت من غير ما يأثر على النسخ اللي اتولّدت خلاص.
+// interval بيسمح بتخصيص دورة التكرار (مثلاً كل يومين لو frequency=DAILY
+// و interval=2، أو كل 3 أسابيع لو frequency=WEEKLY و interval=3).
+// nextRunAt هو المصدر الوحيد اللي الجدولة (lib/recurringTaskScheduler.ts)
+// بتعتمد عليه لمعرفة امتى تولّد النسخة الجاية، وبيتقدّم تلقائيًا بعد كل توليد.
+model RecurringTask {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title    String
+  priority Priority @default(NONE)
+
+  lifeAreaId String?
+  lifeArea   LifeArea? @relation(fields: [lifeAreaId], references: [id], onDelete: SetNull)
+
+  frequency RecurrenceFrequency
+  interval  Int                 @default(1)
+
+  // أول تاريخ تبدأ منه دورة التكرار — هو نفسه المرجع اللي كل الدورات الجاية
+  // بتتحسب بالإضافة عليه (شوف addRecurrenceInterval في lib/recurrence.ts).
+  startDate DateTime
+
+  // إيقاف مؤقت بدون حذف — القالب بيفضل محفوظ بكل إعداداته، بس مفيش نسخ
+  // جديدة بتتولّد لحد ما المستخدم يرجّعه يشتغل تاني.
+  isActive Boolean @default(true)
+
+  lastGeneratedAt DateTime?
+  nextRunAt       DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items          RecurringTaskItem[]
+  generatedLists TodoList[]
+
+  @@index([userId])
+  @@index([isActive, nextRunAt])
+}
+
+// مهمة فرعية "قالب" — بتتنسخ لكل نسخة جديدة تتولّد من القالب (TodoItem جديد
+// لكل واحدة). التعديل عليها هنا بيأثر بس على النسخ الجاية، مش النسخ القديمة
+// اللي اتولّدت خلاص (زي أي قالب طبيعي).
+model RecurringTaskItem {
+  id              String        @id @default(cuid())
+  recurringTaskId String
+  recurringTask   RecurringTask @relation(fields: [recurringTaskId], references: [id], onDelete: Cascade)
+
+  content  String
+  priority Priority @default(NONE)
+  position Int      @default(0)
+
+  @@index([recurringTaskId])
 }

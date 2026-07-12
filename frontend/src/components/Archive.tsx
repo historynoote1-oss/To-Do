@@ -6,6 +6,8 @@ import ConfirmModal from './ConfirmModal';
 import { priorityOf } from '../lib/priority';
 import { CATEGORIES, CategoryKey, categoryOf } from '../lib/category';
 import { hexToSoftBg } from '../lib/lifeArea';
+import { DynamicIcon } from '../lib/icons';
+import { AreaGlyph } from './LifeArea';
 
 const MONTHS_AR = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -44,6 +46,7 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | CategoryKey>('ALL');
   const [collapsedYears, setCollapsedYears] = useState<Set<number>>(new Set());
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
   const [confirmRestore, setConfirmRestore] = useState<ArchivedList | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ArchivedList | null>(null);
 
@@ -68,7 +71,7 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
     try {
       await restoreList(list.id);
       sounds.success();
-      toast.success(`اترجعت "${list.title}" للمهام النشطة 👋`);
+      toast.success(`اترجعت "${list.title}" للمهام النشطة`);
       setLists((prev) => prev.filter((l) => l.id !== list.id));
       onChange();
     } catch (err) {
@@ -141,7 +144,64 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
     });
   }
 
-  const totalDone = lists.reduce((sum, l) => sum + l.items.filter((i) => i.isDone).length, 0);
+  function toggleDay(key: string) {
+    sounds.click();
+    setCollapsedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  // بتفتح/تقفل كل المستويات الثلاثة (سنة/شهر/يوم) دفعة واحدة، عشان
+  // التنقل يبقى سهل لما يكون الأرشيف فيه سنين وشهور كتير.
+  function expandAll() {
+    sounds.click();
+    setCollapsedYears(new Set());
+    setCollapsedMonths(new Set());
+    setCollapsedDays(new Set());
+  }
+
+  function collapseAll() {
+    sounds.click();
+    const allYears = new Set<number>();
+    const allMonths = new Set<string>();
+    const allDays = new Set<string>();
+    for (const [y, byMonth] of tree.entries()) {
+      allYears.add(y);
+      for (const [m, byDay] of byMonth.entries()) {
+        allMonths.add(`${y}-${m}`);
+        for (const d of byDay.keys()) {
+          allDays.add(`${y}-${m}-${d}`);
+        }
+      }
+    }
+    setCollapsedYears(allYears);
+    setCollapsedMonths(allMonths);
+    setCollapsedDays(allDays);
+  }
+
+  // إحصائيتين فعليًا مفيدتين وخاصتين بالأرشيف (مش متكررة من صفحة البروفايل):
+  // نشاط الأرشفة الحديث، ومتوسط الوقت الفعلي بين إنشاء المهمة وإكمالها.
+  const archivedThisMonth = useMemo(() => {
+    const now = new Date();
+    return lists.filter((l) => {
+      const d = new Date(l.archivedAt);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    }).length;
+  }, [lists]);
+
+  const avgCompletionDays = useMemo(() => {
+    if (lists.length === 0) return null;
+    const totalMs = lists.reduce((sum, l) => sum + (new Date(l.archivedAt).getTime() - new Date(l.createdAt).getTime()), 0);
+    return totalMs / lists.length / (1000 * 60 * 60 * 24);
+  }, [lists]);
+
+  function formatAvgDays(days: number) {
+    if (days < 1) return '< ١';
+    return days.toFixed(1);
+  }
 
   return (
     <div className="container view-fade archive-page">
@@ -154,7 +214,7 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
       </div>
 
       <div className="life-area-intro archive-intro">
-        <span className="life-area-intro-icon" aria-hidden="true">🗄️</span>
+        <DynamicIcon name="archive" size={28} className="life-area-intro-icon" />
         <div>
           <h1>أرشيف المهام المكتملة</h1>
           <p>
@@ -170,18 +230,22 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
           <span className="stat-card-label">مهام مؤرشفة</span>
         </div>
         <div className="stat-card">
-          <span className="stat-card-value stat-card-success">{totalDone}</span>
-          <span className="stat-card-label">مهام فرعية منجزة</span>
+          <span className="stat-card-value stat-card-success">{archivedThisMonth}</span>
+          <span className="stat-card-label">مؤرشفة الشهر ده</span>
         </div>
-        <div className="stat-card">
-          <span className="stat-card-value">{years.length}</span>
-          <span className="stat-card-label">سنوات مؤرشفة</span>
-        </div>
+        {avgCompletionDays !== null && (
+          <div className="stat-card">
+            <span className="stat-card-value" dir="ltr">
+              {formatAvgDays(avgCompletionDays)}
+            </span>
+            <span className="stat-card-label">متوسط أيام الإنجاز (من الإنشاء للأرشفة)</span>
+          </div>
+        )}
       </div>
 
       <div className="archive-toolbar">
         <div className="archive-search">
-          <span aria-hidden="true">🔍</span>
+          <DynamicIcon name="search" size={16} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -189,7 +253,7 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
           />
           {query && (
             <button type="button" className="archive-search-clear" onClick={() => setQuery('')} aria-label="مسح البحث">
-              ✕
+              <DynamicIcon name="x" size={14} />
             </button>
           )}
         </div>
@@ -214,9 +278,20 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
                 role="tab"
                 aria-selected={categoryFilter === c.key}
               >
-                <span aria-hidden="true">{c.icon}</span> {c.short}
+                <DynamicIcon name={c.icon} size={14} /> {c.short}
               </button>
             ))}
+          </div>
+        )}
+
+        {years.length > 0 && (
+          <div className="archive-expand-controls">
+            <button type="button" className="small" onClick={expandAll}>
+              <DynamicIcon name="chevrons-down" size={14} /> فتح الكل
+            </button>
+            <button type="button" className="small" onClick={collapseAll}>
+              <DynamicIcon name="chevrons-up" size={14} /> قفل الكل
+            </button>
           </div>
         )}
       </div>
@@ -230,14 +305,14 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
 
       {!loading && lists.length === 0 && (
         <p className="empty">
-          <span className="empty-icon">🗄️</span>
+          <DynamicIcon name="archive" size={32} className="empty-icon" />
           لسه مفيش مهام مؤرشفة — أول ما تكمّل مهمة رئيسية بالكامل هتلاقيها هنا
         </p>
       )}
 
       {!loading && lists.length > 0 && filtered.length === 0 && (
         <p className="empty">
-          <span className="empty-icon">🔍</span>
+          <DynamicIcon name="search" size={32} className="empty-icon" />
           مفيش نتائج مطابقة للبحث أو الفلتر ده
         </p>
       )}
@@ -284,13 +359,26 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
                             {days.map((d) => {
                               const dayLists = byDay.get(d)!;
                               const weekday = WEEKDAYS_AR[new Date(y, m, d).getDay()];
+                              const dayKey = `${monthKey}-${d}`;
+                              const dayCollapsed = collapsedDays.has(dayKey);
                               return (
-                                <div className="archive-day-group" key={`${monthKey}-${d}`}>
-                                  <div className="archive-day-header">
+                                <div className="archive-day-group" key={dayKey}>
+                                  <button
+                                    type="button"
+                                    className="archive-day-header"
+                                    onClick={() => toggleDay(dayKey)}
+                                    aria-expanded={!dayCollapsed}
+                                  >
+                                    <span className={`archive-collapse-caret ${dayCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
+                                      ▾
+                                    </span>
                                     <span className="archive-day-number">{d}</span>
                                     <span className="archive-day-weekday">{weekday}</span>
                                     <span className="archive-day-count">{dayLists.length} مهمة</span>
-                                  </div>
+                                  </button>
+
+                                  {!dayCollapsed && (
+                                  <div className="archive-day-body">
                                   <div className="archive-cards">
                                     {dayLists.map((list) => {
                                       const cat = categoryOf(list.category);
@@ -327,15 +415,7 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
                                                 className="life-area-badge-chip archive-static-badge"
                                                 style={{ color: list.lifeArea.color, background: hexToSoftBg(list.lifeArea.color) }}
                                               >
-                                                {list.lifeArea.imageUrl ? (
-                                                  <img
-                                                    className="life-area-tab-img"
-                                                    src={resolveLifeAreaImageUrl(list.lifeArea.imageUrl) ?? undefined}
-                                                    alt=""
-                                                  />
-                                                ) : (
-                                                  <span aria-hidden="true">{list.lifeArea.icon || '🏷️'}</span>
-                                                )}{' '}
+                                                <AreaGlyph area={list.lifeArea} size="sm" />{' '}
                                                 {list.lifeArea.name}
                                               </span>
                                             )}
@@ -366,7 +446,7 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
                                                 type="button"
                                                 onClick={() => setConfirmRestore(list)}
                                               >
-                                                ↩ استرجاع
+                                                <DynamicIcon name="undo" size={14} /> استرجاع
                                               </button>
                                               <button
                                                 className="danger small"
@@ -381,6 +461,8 @@ export default function ArchivePage({ onBack, onChange }: { onBack: () => void; 
                                       );
                                     })}
                                   </div>
+                                  </div>
+                                  )}
                                 </div>
                               );
                             })}

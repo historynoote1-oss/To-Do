@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { completeRehabilitation } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import RecoveryCodeReveal from './RecoveryCodeReveal';
+import { DynamicIcon } from '../lib/icons';
 
 const MIN_PASSWORD_LENGTH = 10;
 
@@ -67,7 +68,7 @@ export default function RehabilitationForm({
     return (
       <RecoveryCodeReveal
         code={revealCode}
-        title="تم تأمين حسابك ✅ — احفظ كود الاسترجاع"
+        title="تم تأمين حسابك — احفظ كود الاسترجاع"
         onContinue={() => {
           localStorage.setItem('token', pendingSuccess.token);
           onSuccess(pendingSuccess.username, pendingSuccess.isAdmin);
@@ -78,7 +79,7 @@ export default function RehabilitationForm({
 
   return (
     <div className="auth-container">
-      <h1>تأمين الحساب مطلوب 🔒</h1>
+      <h1><DynamicIcon name="lock" size={20} /> تأمين الحساب مطلوب</h1>
       <p className="modal-text modal-hint rehab-intro">
         حسابك اتسجّل زمان بنظام قديم (اسم مستخدم وكلمة مرور بسيطة). عشان نكمّل تأمين الموقع، لازم تختار كلمة مرور
         جديدة أقوى. <strong>كل قوائمك ومهامك القديمة هتفضل موجودة بالكامل زي ما هي</strong> — الخطوة دي بتغيّر كلمة
@@ -108,7 +109,7 @@ export default function RehabilitationForm({
               aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
               tabIndex={-1}
             >
-              {showPassword ? '🙈' : '👁️'}
+              <DynamicIcon name={showPassword ? 'eye-off' : 'eye'} size={16} />
             </button>
           </div>
           {password.length > 0 && (
@@ -141,7 +142,7 @@ export default function RehabilitationForm({
           {passwordsMismatch && <p className="field-hint field-hint-error">كلمة المرور مش متطابقة</p>}
         </div>
 
-        {error && <p className="error">⚠️ {error}</p>}
+        {error && <p className="error"><DynamicIcon name="alert" size={14} /> {error}</p>}
 
         <button type="submit" disabled={loading || !canSubmit}>
           {loading ? 'جاري الحفظ...' : 'تأمين الحساب والمتابعة'}

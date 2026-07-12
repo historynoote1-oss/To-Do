@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CATEGORIES, CategoryKey, categoryOf } from '../lib/category';
 import { sounds } from '../lib/sounds';
+import { DynamicIcon } from '../lib/icons';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MIN_YEAR = CURRENT_YEAR - 5;
@@ -66,12 +67,6 @@ export function CategoryBadge({ value, targetYear, onChange, size = 'md', disabl
     onChange('YEARLY', yearDraft);
   }
 
-  function clearCategory() {
-    sounds.hover();
-    setOpen(false);
-    if (def) onChange(null);
-  }
-
   return (
     <div className={`priority-badge-wrap category-badge-wrap ${size}`} ref={ref}>
       <button
@@ -89,7 +84,7 @@ export function CategoryBadge({ value, targetYear, onChange, size = 'md', disabl
         aria-expanded={open}
         title={def ? def.hint : 'تحديد تصنيف المهمة'}
       >
-        <span aria-hidden="true">{def ? def.icon : '🏷️'}</span>
+        <DynamicIcon name={def ? def.icon : 'tag'} size={14} />
         <span>{def ? def.short : 'تصنيف'}</span>
       </button>
 
@@ -109,12 +104,16 @@ export function CategoryBadge({ value, targetYear, onChange, size = 'md', disabl
                   role="option"
                   aria-selected={c.key === def?.key}
                 >
-                  <span aria-hidden="true">{c.icon}</span>
+                  <DynamicIcon name={c.icon} size={14} />
                   <span className="category-menu-item-text">
                     <span>{c.label}</span>
                     <span className="category-menu-item-hint">{c.hint}</span>
                   </span>
-                  {c.key === def?.key && <span className="priority-check">✓</span>}
+                  {c.key === def?.key && (
+                    <span className="priority-check">
+                      <DynamicIcon name="check" size={14} />
+                    </span>
+                  )}
                 </button>
               </li>
             ))}
@@ -122,7 +121,7 @@ export function CategoryBadge({ value, targetYear, onChange, size = 'md', disabl
 
           {showYearStep && (
             <div className="category-year-stepper" onClick={(e) => e.stopPropagation()}>
-              <span className="category-year-label">🏆 السنة المستهدفة</span>
+              <span className="category-year-label"><DynamicIcon name="trophy" size={14} /> السنة المستهدفة</span>
               <div className="category-year-controls">
                 <button
                   type="button"
@@ -149,12 +148,6 @@ export function CategoryBadge({ value, targetYear, onChange, size = 'md', disabl
               </button>
             </div>
           )}
-
-          {def && (
-            <button type="button" className="category-clear-btn" onClick={clearCategory}>
-              ✕ إلغاء التصنيف
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -174,21 +167,6 @@ export function CategoryPicker({ value, targetYear, onChange }: PickerProps) {
   return (
     <div className="category-picker-wrap">
       <div className="priority-picker category-picker" role="radiogroup" aria-label="اختيار تصنيف المهمة">
-        <button
-          type="button"
-          className={`priority-picker-item category-picker-item ${!value ? 'selected' : ''}`}
-          onClick={() => {
-            if (value) {
-              sounds.hover();
-              onChange(null);
-            }
-          }}
-          title="بدون تصنيف"
-          role="radio"
-          aria-checked={!value}
-        >
-          <span>بدون تصنيف</span>
-        </button>
         {CATEGORIES.map((c) => (
           <button
             key={c.key}
@@ -205,7 +183,7 @@ export function CategoryPicker({ value, targetYear, onChange }: PickerProps) {
             role="radio"
             aria-checked={c.key === value}
           >
-            <span aria-hidden="true">{c.icon}</span>
+            <DynamicIcon name={c.icon} size={14} />
             <span>{c.short}</span>
           </button>
         ))}
@@ -213,7 +191,7 @@ export function CategoryPicker({ value, targetYear, onChange }: PickerProps) {
 
       {value === 'YEARLY' && (
         <div className="category-year-stepper category-year-stepper-inline">
-          <span className="category-year-label">🏆 السنة المستهدفة</span>
+          <span className="category-year-label"><DynamicIcon name="trophy" size={14} /> السنة المستهدفة</span>
           <div className="category-year-controls">
             <button
               type="button"

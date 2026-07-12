@@ -16,6 +16,7 @@ import {
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import AdminConfirmModal from './AdminConfirmModal';
+import { DynamicIcon } from '../lib/icons';
 
 type ActionType = 'suspend' | 'delete' | 'forceLogout' | 'resetPassword' | 'unlock';
 
@@ -219,7 +220,7 @@ export default function AdminUsersPanel() {
         <h2>كل المستخدمين ({userTotal})</h2>
         <div className="admin-section-actions">
           <button className="small" onClick={handleExportUsers} disabled={exportingUsers}>
-            {exportingUsers ? 'جاري التصدير...' : '⬇️ تصدير CSV'}
+            {exportingUsers ? 'جاري التصدير...' : <><DynamicIcon name="download" size={14} /> تصدير CSV</>}
           </button>
           <button className="small" onClick={() => setShowLogs((v) => !v)}>
             سجل عمليات الأدمن
@@ -252,7 +253,7 @@ export default function AdminUsersPanel() {
               )}
               {u.legacyAccount && !u.mustRehabilitate && (
                 <span className="user-row-meta" title="اتسجّل أصلًا بالنظام القديم وخلّص إعادة التأهيل">
-                  ✅ حساب قديم اتأهّل
+                  <DynamicIcon name="check-circle" size={12} /> حساب قديم اتأهّل
                 </span>
               )}
               <span className="user-row-meta">
@@ -325,7 +326,7 @@ export default function AdminUsersPanel() {
           <div className="admin-section-header">
             <h2>سجل عمليات الأدمن ({logTotal})</h2>
             <button className="small" onClick={handleExportLogs} disabled={exportingLogs}>
-              {exportingLogs ? 'جاري التصدير...' : '⬇️ تصدير CSV'}
+              {exportingLogs ? 'جاري التصدير...' : <><DynamicIcon name="download" size={14} /> تصدير CSV</>}
             </button>
           </div>
 

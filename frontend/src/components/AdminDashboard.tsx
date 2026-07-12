@@ -5,20 +5,27 @@ import AdminUsersPanel from './AdminUsersPanel';
 import AdminContentPanel from './AdminContentPanel';
 import AdminSettingsPanel from './AdminSettingsPanel';
 import TwoFactorSettings from './TwoFactorSettings';
+import { DynamicIcon, IconKey } from '../lib/icons';
 
 type Tab = 'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security';
 
-const NAV: { key: Tab; label: string; icon: string }[] = [
-  { key: 'overview', label: 'نظرة عامة', icon: '🏠' },
-  { key: 'analytics', label: 'التحليلات', icon: '📊' },
-  { key: 'users', label: 'المستخدمين', icon: '👥' },
-  { key: 'content', label: 'المحتوى', icon: '🗂️' },
-  { key: 'settings', label: 'الإعدادات', icon: '⚙️' },
-  { key: 'security', label: 'الأمان', icon: '🔐' },
+const NAV: { key: Tab; label: string; icon: IconKey }[] = [
+  { key: 'overview', label: 'نظرة عامة', icon: 'home' },
+  { key: 'analytics', label: 'التحليلات', icon: 'bar-chart' },
+  { key: 'users', label: 'المستخدمين', icon: 'users' },
+  { key: 'content', label: 'المحتوى', icon: 'folder-open' },
+  { key: 'settings', label: 'الإعدادات', icon: 'settings' },
+  { key: 'security', label: 'الأمان', icon: 'shield-check' },
 ];
 
-export default function AdminDashboard({ onBack }: { onBack: () => void }) {
-  const [tab, setTab] = useState<Tab>('overview');
+export default function AdminDashboard({
+  onBack,
+  initialTab,
+}: {
+  onBack: () => void;
+  initialTab?: Tab;
+}) {
+  const [tab, setTab] = useState<Tab>(initialTab || 'overview');
 
   const activeLabel = NAV.find((n) => n.key === tab)?.label || '';
 
@@ -39,7 +46,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
               className={`admin-nav-item ${tab === n.key ? 'active' : ''}`}
               onClick={() => setTab(n.key)}
             >
-              <span className="admin-nav-icon">{n.icon}</span>
+              <span className="admin-nav-icon"><DynamicIcon name={n.icon} size={16} /></span>
               {n.label}
             </button>
           ))}
@@ -63,7 +70,7 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
               className={`admin-tab ${tab === n.key ? 'active' : ''}`}
               onClick={() => setTab(n.key)}
             >
-              <span className="admin-tab-icon">{n.icon}</span>
+              <span className="admin-tab-icon"><DynamicIcon name={n.icon} size={16} /></span>
               {n.label}
             </button>
           ))}

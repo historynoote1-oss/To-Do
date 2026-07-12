@@ -7,8 +7,11 @@ export const SITE_SETTINGS_DEFAULTS: Record<string, string> = {
   siteName: 'قوائم المهام',
   registrationEnabled: 'true',
   maintenanceMode: 'false',
-  maintenanceMessage: 'الموقع تحت الصيانة حاليًا، هنرجع قريب 🛠️',
-  maintenanceEmoji: '🛠️',
+  maintenanceMessage: 'الموقع تحت الصيانة حاليًا، هنرجع قريب',
+  // اسم مفتاح أيقونة Lucide (شوف frontend/src/lib/icons.tsx) بدل إيموجي خام —
+  // الاسم "maintenanceEmoji" فضل زي ما هو عشان نتجنب migration على العمود
+  // في جدول SiteSetting، لكن القيمة بقت key نصي بدل رمز إيموجي.
+  maintenanceEmoji: 'wrench',
   maxListsPerUser: '0',
   maxItemsPerList: '0',
   announcementBanner: '',

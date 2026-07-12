@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { updateList } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
+import { DynamicIcon } from '../lib/icons';
 
 // نسبة الوقت المتبقي اللي عندها بنعتبر المهمة "قريبة من النهاية" (بنطلق
 // تنبيه صوتي وبصري مرة واحدة)، وبنفس القيمة تقريبًا بيدخل الشريط في وضع
@@ -101,19 +102,19 @@ export default function TaskTimeline({ list, onChange }: Props) {
     if (phase === 'active' && prev !== 'active' && !firedStartRef.current) {
       firedStartRef.current = true;
       sounds.timelineStart();
-      toast.info(`⏱️ بدأت المهمة "${list.title}"`);
+      toast.info(`بدأت المهمة "${list.title}"`);
     }
 
     if (phase === 'active' && fraction <= WARN_FRACTION && !firedWarnRef.current) {
       firedWarnRef.current = true;
       sounds.timelineWarning();
-      toast.reminder(`⚠️ الوقت قرّب يخلص في "${list.title}"`);
+      toast.reminder(`الوقت قرّب يخلص في "${list.title}"`);
     }
 
     if (phase === 'ended' && prev !== 'ended' && !firedEndRef.current) {
       firedEndRef.current = true;
       sounds.timelineEnd();
-      toast.error(`⌛ انتهى وقت المهمة "${list.title}"`);
+      toast.error(`انتهى وقت المهمة "${list.title}"`);
     }
 
     prevPhaseRef.current = phase;
@@ -175,7 +176,7 @@ export default function TaskTimeline({ list, onChange }: Props) {
     <div className="timeline-block">
       {!scheduled && (
         <button type="button" className="timeline-set-btn" onClick={openEditor}>
-          ⏱️ إضافة جدول زمني للمهمة
+          <DynamicIcon name="timer" size={14} /> إضافة جدول زمني للمهمة
         </button>
       )}
 
@@ -183,7 +184,7 @@ export default function TaskTimeline({ list, onChange }: Props) {
         <div className={`timeline-panel timeline-${phase} ${critical ? 'timeline-critical' : ''}`}>
           <div className="timeline-head">
             <span className="timeline-icon" aria-hidden="true">
-              ⏱️
+              <DynamicIcon name="timer" size={16} />
             </span>
             <span className="timeline-status-text">
               {phase === 'upcoming' && 'المهمة هتبدأ قريبًا'}
@@ -197,7 +198,7 @@ export default function TaskTimeline({ list, onChange }: Props) {
               aria-label="تعديل الجدول الزمني"
               title="تعديل الجدول الزمني"
             >
-              ✎
+              <DynamicIcon name="pencil" size={13} />
             </button>
           </div>
 
@@ -234,7 +235,7 @@ export default function TaskTimeline({ list, onChange }: Props) {
               <span className="timeline-when">
                 {formatWhen(start!)} → {formatWhen(end!)}
               </span>
-              <span className="timeline-ended-badge">انتهى ⌛</span>
+              <span className="timeline-ended-badge"><DynamicIcon name="hourglass" size={12} /> انتهى</span>
             </div>
           )}
         </div>
@@ -243,7 +244,7 @@ export default function TaskTimeline({ list, onChange }: Props) {
       {editing && (
         <div className="modal-overlay" onClick={() => setEditing(false)}>
           <div className="modal-box timeline-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>⏱️ الجدول الزمني لـ «{list.title}»</h2>
+            <h2><DynamicIcon name="timer" size={18} /> الجدول الزمني لـ «{list.title}»</h2>
             <div className="timeline-form-row">
               <label>وقت البداية</label>
               <input type="datetime-local" value={startDraft} onChange={(e) => setStartDraft(e.target.value)} />

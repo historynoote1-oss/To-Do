@@ -15,33 +15,27 @@ import {
 } from './lib/api';
 import { sounds } from './lib/sounds';
 import { toast } from './lib/toast';
-import { getPushState, enablePush, disablePush, PushSupportState } from './lib/push';
+import { getPushState, enablePush, disablePush, PushSupportState, PushError } from './lib/push';
 import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
 import AdminDashboard from './components/AdminDashboard';
 import Profile from './components/Profile';
 import LifeAreasManager from './components/LifeAreasManager';
+import RecurringTasksManager from './components/RecurringTasksManager';
 import ArchivePage from './components/Archive';
 import MaintenancePage from './components/MaintenancePage';
 import ToastContainer from './components/ToastContainer';
 import ThemeToggle from './components/ThemeToggle';
-import { PriorityPicker } from './components/Priority';
-import { CategoryPicker } from './components/Category';
-import { LifeAreaPicker } from './components/LifeArea';
-import FilterBar from './components/FilterBar';
-import FilterPanel from './components/FilterPanel';
+import SideMenu from './components/SideMenu';
+import ConfirmModal from './components/ConfirmModal';
+import AddTaskModal from './components/AddTaskModal';
 import { PriorityKey } from './lib/priority';
 import { CategoryKey } from './lib/category';
 import { LifeAreaData } from './lib/lifeArea';
-import {
-  FilterCriteria,
-  SavedFilter,
-  addSavedFilter,
-  defaultFilters,
-  getSavedFilters,
-  matchesFilters,
-  removeSavedFilter,
-} from './lib/filters';
+import { groupByLifeArea, urgentLists, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
+import { DynamicIcon } from './lib/icons';
+import TaskDistributionCard from './components/TaskDistributionCard';
+import CompletionRateCard from './components/CompletionRateCard';
 
 interface List {
   id: string;
@@ -53,6 +47,7 @@ interface List {
   targetYear?: number | null;
   lifeAreaId?: string | null;
   lifeArea?: { id: string; name: string; color: string; icon: string | null; imageUrl: string | null } | null;
+  recurringTaskId?: string | null;
   items: any[];
 }
 
@@ -61,25 +56,23 @@ export default function App() {
     localStorage.getItem('token') ? localStorage.getItem('username') : null
   );
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
-  const [view, setView] = useState<'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive'>('todos');
+  const [view, setView] = useState<'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring'>('todos');
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [lists, setLists] = useState<List[]>([]);
   const [archiveCount, setArchiveCount] = useState<number>(0);
-  const [filters, setFilters] = useState<FilterCriteria>(() => defaultFilters());
-  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
-  const [newTitle, setNewTitle] = useState('');
-  const [newPriority, setNewPriority] = useState<PriorityKey>('NONE');
-  const [newCategory, setNewCategory] = useState<CategoryKey | null>(null);
-  const [newTargetYear, setNewTargetYear] = useState<number | null>(null);
-  const [newLifeAreaId, setNewLifeAreaId] = useState<string | null>(null);
+  const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const [highlightedListId, setHighlightedListId] = useState<string | null>(null);
+  const highlightTimeoutRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [muted, setMuted] = useState(() => sounds.isMuted());
   const [siteStatus, setSiteStatus] = useState<SiteStatus | null>(null);
   const [statusChecked, setStatusChecked] = useState(false);
   const [pushState, setPushState] = useState<PushSupportState>('unsupported');
   const [lifeAreas, setLifeAreas] = useState<LifeAreaData[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [adminInitialTab, setAdminInitialTab] = useState<'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security'>('overview');
   const shownReminderIds = useRef<Set<string>>(new Set());
 
   // زرار الكتم في الهيدر لازم يفضل متزامن حتى لو الكتم اتغيّر من صفحة
@@ -87,14 +80,6 @@ export default function App() {
   useEffect(() => {
     return sounds.subscribe(({ muted: m }) => setMuted(m));
   }, []);
-
-  useEffect(() => {
-    if (username) {
-      setSavedFilters(getSavedFilters(username));
-    } else {
-      setSavedFilters([]);
-    }
-  }, [username]);
 
   useEffect(() => {
     if (username) {
@@ -216,13 +201,20 @@ export default function App() {
       toast.info('اتلغى تفعيل إشعارات الجهاز');
       return;
     }
-    const ok = await enablePush();
-    if (ok) {
+    try {
+      await enablePush();
       setPushState('subscribed');
-      toast.success('اتفعّلت إشعارات الجهاز 🔔');
+      toast.success('اتفعّلت إشعارات الجهاز');
       sounds.success();
-    } else {
-      toast.error('تعذّر تفعيل إشعارات الجهاز');
+    } catch (err) {
+      if (err instanceof PushError && err.code === 'permission_denied') {
+        setPushState('denied');
+      }
+      const message = err instanceof PushError ? err.message : 'تعذّر تفعيل إشعارات الجهاز — حصل خطأ غير متوقع';
+      if (!(err instanceof PushError)) {
+        console.error('[push] unexpected error while enabling push:', err);
+      }
+      toast.error(message);
     }
   }
 
@@ -263,29 +255,49 @@ export default function App() {
     sounds.click();
   }
 
+  // بدل ما زرار الخروج يسجّل خروج فورًا، بنفتح نافذة تأكيد الأول عشان
+  // نتجنب أي خروج بالغلط بضغطة واحدة.
+  function requestLogout() {
+    setLogoutConfirmOpen(true);
+  }
+
+  function confirmLogout() {
+    setLogoutConfirmOpen(false);
+    handleLogout();
+  }
+
+  // اختصار "إعدادات الموقع" من القائمة الجانبية بيودّي مباشرة لتبويب
+  // الإعدادات جوه لوحة التحكم، بدل ما الأدمن يفتح اللوحة ويدور عليه.
+  function openSiteSettings() {
+    setAdminInitialTab('settings');
+    setView('admin');
+  }
+
+  function openDashboard() {
+    setAdminInitialTab('overview');
+    setView('admin');
+  }
+
   function handleToggleMute() {
     setMuted(sounds.toggleMuted());
   }
 
-  async function handleCreate() {
-    if (!newTitle.trim()) return;
-    const title = newTitle.trim();
-    const priority = newPriority;
-    const category = newCategory;
-    const targetYear = newCategory === 'YEARLY' ? newTargetYear : null;
-    const lifeAreaId = newLifeAreaId;
+  async function handleCreate(data: {
+    title: string;
+    priority: PriorityKey;
+    category: CategoryKey | null;
+    targetYear: number | null;
+    lifeAreaId: string | null;
+  }) {
+    const { title, priority, category, targetYear, lifeAreaId } = data;
     sounds.addItem();
-    setNewTitle('');
-    setNewPriority('NONE');
-    setNewCategory(null);
-    setNewTargetYear(null);
-    setNewLifeAreaId(null);
     // تحديث تفاؤلي: المهمة الرئيسية بتظهر فورًا من غير ما ننتظر السيرفر
     const tempId = `temp-${Date.now()}`;
     setLists((prev) => [...prev, { id: tempId, title, priority, category, targetYear, lifeAreaId, items: [] }]);
     try {
       await createList(title, priority, category, targetYear, lifeAreaId);
       await refresh();
+      toast.success(`"${title}" اتضافت بنجاح`);
     } catch (err) {
       setLists((prev) => prev.filter((l) => l.id !== tempId));
       sounds.error();
@@ -306,44 +318,39 @@ export default function App() {
     }
   }
 
-  function handleSaveFilter(name: string) {
-    if (!username) return;
-    const exists = savedFilters.some((f) => f.name.trim() === name.trim());
-    if (exists) {
-      toast.error('في فلتر محفوظ بنفس الاسم ده بالفعل');
+  // بيودّي الشاشة لأي قسم (عاجل / مجال حياة معيّن) بالاسكرول الناعم — ده
+  // تنقّل بس (مش فلترة)، فمفيش أي مهمة بتختفي، بس بيوصلك لمكانها بثانية.
+  function scrollToSection(sectionId: string) {
+    sounds.click();
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // اختصار من بطاقات الإحصائيات: بيوديك لأول مهمة رئيسية غير مكتملة من
+  // نفس التصنيف ويضيء حواليها لثانيتين، بدل ما يخفي باقي المهام بفلتر.
+  function jumpToCategory(key: CategoryKey) {
+    const target = lists.find((l) => l.category === key && !isListDone(l as any));
+    if (!target) {
+      sounds.error();
+      toast.info('مفيش مهمة رئيسية غير مكتملة من التصنيف ده حاليًا');
       return;
     }
-    setSavedFilters(addSavedFilter(username, name, filters));
-    toast.success('اتحفظ الفلتر بنجاح');
-  }
-
-  function handleApplySavedFilter(f: SavedFilter) {
     sounds.click();
-    setFilters(f.criteria);
-  }
-
-  function handleDeleteSavedFilter(id: string) {
-    if (!username) return;
-    setSavedFilters(removeSavedFilter(username, id));
-    sounds.notify();
-    toast.info('اتحذف الفلتر المحفوظ');
-  }
-
-  function handleResetFilters() {
-    sounds.click();
-    setFilters(defaultFilters());
+    setHighlightedListId(target.id);
+    document.getElementById(`list-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
   }
 
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
 
-  const totalLists = lists.length;
-  const totalItems = lists.reduce((sum, l) => sum + l.items.length, 0);
-  const doneItems = lists.reduce((sum, l) => sum + l.items.filter((i: any) => i.isDone).length, 0);
-
   // ملاحظة: القائمة النشطة (lists) بترجع من السيرفر من غير أي مهمة اكتملت
   // بالكامل، لأنها بتتؤرشف تلقائيًا وتتنقل لصفحة الأرشيف — فمفيش داعي لتبويب
   // "مكتملة" هنا تاني، "نشطة" هي كل حاجة موجودة أصلًا.
-  const visibleLists = lists.filter((l) => matchesFilters(l, filters));
+  // التنظيم الجديد: بدل فلترة يدوية مستمرة، المهام بتترتب تلقائيًا حسب
+  // الأولوية وتتجمّع حسب مجال الحياة — قسم "عاجل الآن" بيوفّر وصول فوري
+  // لأهم المهام من غير ما يحتاج المستخدم يدوّر أو يفعّل أي فلتر.
+  const urgent = urgentLists(lists as any, 6);
+  const groups = groupByLifeArea(lists as any, lifeAreas);
 
   if (!statusChecked) {
     return (
@@ -363,7 +370,7 @@ export default function App() {
         <ToastContainer />
         <ThemeToggle />
         <MaintenancePage
-          emoji={siteStatus?.maintenanceEmoji || '🛠️'}
+          emoji={siteStatus?.maintenanceEmoji || 'wrench'}
           message={siteStatus?.maintenanceMessage || 'الموقع تحت الصيانة حاليًا، هنرجع قريب'}
           siteName={siteStatus?.siteName || 'الموقع'}
           onAdminSuccess={handleAuthSuccess}
@@ -379,20 +386,26 @@ export default function App() {
         <ThemeToggle />
         <div className="auth-shell view-fade">
           <div className="auth-shell-brand">
-            <span className="auth-shell-mark" aria-hidden="true">📋</span>
+            <DynamicIcon name="clipboard-list" size={22} className="auth-shell-mark" />
             <h2 className="auth-shell-name">قائمة المهام</h2>
             <p className="auth-shell-tagline">مساحتك لتنظيم مهامك، بتصميم بسيط وسريع يخليك تركّز على اللي محتاج تخلّصه.</p>
             <ul className="auth-shell-points">
               <li>
-                <span className="auth-shell-point-icon">✓</span>
+                <span className="auth-shell-point-icon">
+                  <DynamicIcon name="check" size={14} />
+                </span>
                 قوائم رئيسية ومهام فرعية بترتيب أولويات واضح
               </li>
               <li>
-                <span className="auth-shell-point-icon">✓</span>
+                <span className="auth-shell-point-icon">
+                  <DynamicIcon name="check" size={14} />
+                </span>
                 تتبّع تقدمك بنسب مئوية ومؤشرات حية
               </li>
               <li>
-                <span className="auth-shell-point-icon">✓</span>
+                <span className="auth-shell-point-icon">
+                  <DynamicIcon name="check" size={14} />
+                </span>
                 حماية بخطوتين وكود استرجاع لحسابك
               </li>
             </ul>
@@ -411,7 +424,7 @@ export default function App() {
         <ToastContainer />
         <ThemeToggle />
         <div className="view-fade">
-          <AdminDashboard onBack={() => setView('todos')} />
+          <AdminDashboard onBack={() => setView('todos')} initialTab={adminInitialTab} />
         </div>
       </>
     );
@@ -457,6 +470,21 @@ export default function App() {
     );
   }
 
+  if (view === 'recurring') {
+    return (
+      <>
+        <ToastContainer />
+        <ThemeToggle />
+        <RecurringTasksManager
+          lifeAreas={lifeAreas}
+          onBack={() => setView('todos')}
+          onChange={refresh}
+          onManageLifeAreas={() => setView('lifeAreas')}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <ToastContainer />
@@ -464,7 +492,7 @@ export default function App() {
       <div className="container view-fade">
         {isAdmin && siteStatus?.maintenanceMode && (
           <div className="maintenance-banner">
-            <span>🛠️ وضع الصيانة مفعّل حاليًا — المستخدمين العاديين مش شايفين الموقع غيرك.</span>
+            <span><DynamicIcon name="wrench" size={16} /> وضع الصيانة مفعّل حاليًا — المستخدمين العاديين مش شايفين الموقع غيرك.</span>
             <button className="small" onClick={() => setView('admin')} type="button">
               إدارة الإعدادات
             </button>
@@ -473,114 +501,115 @@ export default function App() {
         <div className="top-bar">
           <div className="top-bar-main">
             <div className="brand">
-              <span className="brand-mark" aria-hidden="true">📋</span>
+              <DynamicIcon name="clipboard-list" size={22} className="brand-mark" />
               <div className="brand-text">
                 <h1>المهام الرئيسية</h1>
                 <span className="brand-subtitle">مساحتك لتنظيم مهامك اليومية</span>
               </div>
             </div>
-            <button
-              className="user-chip user-chip-button"
-              onClick={() => setView('profile')}
-              type="button"
-              title="الملف الشخصي"
-            >
-              <span className="user-chip-avatar">
-                {avatarUrl ? (
-                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
-                ) : (
-                  (displayName || username)?.trim().charAt(0).toUpperCase()
-                )}
-              </span>
-              <span className="user-chip-name">{displayName || username}</span>
-            </button>
-          </div>
-          <div className="user-actions">
-            <button
-              className={`icon-btn ${muted ? '' : 'active'}`}
-              onClick={handleToggleMute}
-              title={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
-              aria-label={muted ? 'تشغيل الصوت' : 'كتم الصوت'}
-            >
-              {muted ? '🔇' : '🔊'}
-            </button>
-            {pushState !== 'unsupported' && (
+            <div className="top-bar-actions">
               <button
-                className={`icon-btn ${pushState === 'subscribed' ? 'active' : ''}`}
-                onClick={handleTogglePush}
-                title={pushState === 'subscribed' ? 'إشعارات الجهاز مفعّلة' : 'تفعيل إشعارات الجهاز للتذكيرات'}
-                aria-label="إشعارات الجهاز"
+                className="user-chip user-chip-button"
+                onClick={() => setView('profile')}
+                type="button"
+                title="الملف الشخصي"
               >
-                {pushState === 'subscribed' ? '🔔' : '🔕'}
+                <span className="user-chip-avatar">
+                  {avatarUrl ? (
+                    <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+                  ) : (
+                    (displayName || username)?.trim().charAt(0).toUpperCase()
+                  )}
+                </span>
+                <span className="user-chip-name">{displayName || username}</span>
               </button>
-            )}
-            <button className="small" onClick={() => setView('lifeAreas')} type="button" title="مجالات الحياة">
-              🧭 مجالات الحياة
-            </button>
-            <button className="small" onClick={() => setView('archive')} type="button" title="الأرشيف">
-              🗄️ الأرشيف{archiveCount > 0 ? ` (${archiveCount})` : ''}
-            </button>
-            {isAdmin && (
-              <button className="small" onClick={() => setView('admin')}>
-                لوحة التحكم
+              <button
+                className="icon-btn hamburger-btn"
+                onClick={() => setMenuOpen(true)}
+                type="button"
+                title="القائمة"
+                aria-label="فتح القائمة"
+                aria-haspopup="true"
+                aria-expanded={menuOpen}
+              >
+                <span className="hamburger-icon" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
               </button>
-            )}
-            <button className="danger small" onClick={handleLogout}>
-              خروج
-            </button>
+            </div>
           </div>
         </div>
 
+        <SideMenu
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          isAdmin={isAdmin}
+          archiveCount={archiveCount}
+          muted={muted}
+          pushState={pushState}
+          onOpenDashboard={openDashboard}
+          onOpenArchive={() => setView('archive')}
+          onOpenLifeAreas={() => setView('lifeAreas')}
+          onOpenRecurring={() => setView('recurring')}
+          onOpenSiteSettings={openSiteSettings}
+          onToggleMute={handleToggleMute}
+          onTogglePush={handleTogglePush}
+          onRequestLogout={requestLogout}
+        />
+
+        {logoutConfirmOpen && (
+          <ConfirmModal
+            title="تسجيل الخروج"
+            description="هتحتاج تسجّل دخول تاني عشان تكمل شغلك. متأكد إنك عايز تخرج؟"
+            confirmLabel="تسجيل الخروج"
+            cancelLabel="إلغاء"
+            danger
+            onCancel={() => setLogoutConfirmOpen(false)}
+            onConfirm={confirmLogout}
+          />
+        )}
+
         <div className="stats-row">
-          <div className="stat-card">
-            <span className="stat-card-value">{totalLists}</span>
-            <span className="stat-card-label">إجمالي المهام الرئيسية</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-card-value">{doneItems}/{totalItems}</span>
-            <span className="stat-card-label">مهام فرعية منجزة</span>
-          </div>
+          <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
+          <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
           <button className="stat-card stat-card-button" onClick={() => setView('archive')} type="button">
             <span className="stat-card-value stat-card-success">{archiveCount}</span>
-            <span className="stat-card-label">🗄️ في الأرشيف</span>
+            <span className="stat-card-label"><DynamicIcon name="archive" size={14} /> في الأرشيف</span>
           </button>
         </div>
 
-        <div className="new-list">
-          <div className="new-list-row">
-            <input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="اسم المهمة الرئيسية الجديدة"
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            />
-            <button onClick={handleCreate}>إضافة مهمة رئيسية</button>
-          </div>
-          <div className="new-list-priority">
-            <span className="new-list-priority-label">الأولوية:</span>
-            <PriorityPicker value={newPriority} onChange={setNewPriority} />
-          </div>
-          <div className="new-list-priority">
-            <span className="new-list-priority-label">التصنيف:</span>
-            <CategoryPicker
-              value={newCategory}
-              targetYear={newTargetYear}
-              onChange={(key, year) => {
-                setNewCategory(key);
-                setNewTargetYear(key === 'YEARLY' ? year ?? new Date().getFullYear() : null);
-              }}
-            />
-          </div>
-          <div className="new-list-priority">
-            <span className="new-list-priority-label">مجال الحياة:</span>
-            <LifeAreaPicker
-              value={newLifeAreaId}
-              areas={lifeAreas}
-              onChange={setNewLifeAreaId}
-              onManage={() => setView('lifeAreas')}
-            />
-          </div>
-        </div>
+        <button className="add-task-cta" onClick={() => setAddTaskOpen(true)} type="button">
+          <span className="add-task-cta-icon">
+            <DynamicIcon name="plus" size={20} />
+          </span>
+          <span className="add-task-cta-text">
+            <strong>إضافة مهمة رئيسية جديدة</strong>
+            <span>اسم، أولوية، تصنيف، ومجال حياة — في نافذة واحدة مرتبة</span>
+          </span>
+        </button>
+
+        <button className="add-task-cta recurring-cta" onClick={() => setView('recurring')} type="button">
+          <span className="add-task-cta-icon recurring-cta-icon">
+            <DynamicIcon name="repeat" size={20} />
+          </span>
+          <span className="add-task-cta-text">
+            <strong>مهمة متكررة جديدة</strong>
+            <span>يوميًا، أسبوعيًا، شهريًا، أو سنويًا — وهي بتتولّد لوحدها</span>
+          </span>
+        </button>
+
+        <AddTaskModal
+          open={addTaskOpen}
+          lifeAreas={lifeAreas}
+          onClose={() => setAddTaskOpen(false)}
+          onManageLifeAreas={() => {
+            setAddTaskOpen(false);
+            setView('lifeAreas');
+          }}
+          onCreate={handleCreate}
+        />
 
         {loading && (
           <div className="lists-grid">
@@ -591,61 +620,93 @@ export default function App() {
 
         {!loading && lists.length === 0 && (
           <p className="empty">
-            <span className="empty-icon">🗒️</span>
+            <DynamicIcon name="sticky-note" size={32} className="empty-icon" />
             مفيش مهام رئيسية لسه، ابدأ بإنشاء أول مهمة
           </p>
         )}
 
-        {!loading && lists.length > 0 && (
-          <>
-            <FilterBar
-              criteria={filters}
-              lifeAreas={lifeAreas}
-              savedFilters={savedFilters}
-              resultCount={visibleLists.length}
-              onOpenPanel={() => setFilterPanelOpen(true)}
-              onChange={setFilters}
-              onApplySaved={handleApplySavedFilter}
-              onResetAll={handleResetFilters}
-            />
-            <FilterPanel
-              open={filterPanelOpen}
-              criteria={filters}
-              lifeAreas={lifeAreas}
-              savedFilters={savedFilters}
-              resultCount={visibleLists.length}
-              onChange={setFilters}
-              onReset={handleResetFilters}
-              onClose={() => setFilterPanelOpen(false)}
-              onSave={handleSaveFilter}
-              onApplySaved={handleApplySavedFilter}
-              onDeleteSaved={handleDeleteSavedFilter}
-            />
-          </>
-        )}
-
-        {!loading && lists.length > 0 && visibleLists.length === 0 && (
-          <p className="empty">
-            <span className="empty-icon">🔍</span>
-            مفيش قوائم مطابقة للفلتر ده حاليًا
-          </p>
-        )}
-
-        {!loading && visibleLists.length > 0 && (
-          <div className="lists-grid">
-            {visibleLists.map((list, i) => (
-              <TodoList
-                key={list.id}
-                list={list}
-                onChange={refresh}
-                onDeleteList={handleDelete}
-                delay={i * 60}
-                lifeAreas={lifeAreas}
-                onManageLifeAreas={() => setView('lifeAreas')}
-              />
+        {!loading && lists.length > 0 && (groups.length > 1 || urgent.length > 0) && (
+          <nav className="quick-nav" aria-label="تنقّل سريع بين الأقسام">
+            {urgent.length > 0 && (
+              <button className="quick-nav-chip quick-nav-urgent" onClick={() => scrollToSection('section-urgent')} type="button">
+                <DynamicIcon name="alert" size={13} /> عاجل الآن
+                <span className="quick-nav-count">{urgent.length}</span>
+              </button>
+            )}
+            {groups.map((g) => (
+              <button
+                key={g.id}
+                className="quick-nav-chip"
+                style={{ ['--chip-color' as any]: g.color }}
+                onClick={() => scrollToSection(`section-area-${g.id}`)}
+                type="button"
+              >
+                <DynamicIcon name={(g.icon as any) || 'tag'} size={13} /> {g.name}
+                <span className="quick-nav-count">{g.lists.length}</span>
+              </button>
             ))}
-          </div>
+          </nav>
         )}
+
+        {!loading && urgent.length > 0 && (
+          <section id="section-urgent" className="task-section task-section-urgent">
+            <div className="task-section-header">
+              <h3>
+                <DynamicIcon name="alert" size={16} /> عاجل الآن
+              </h3>
+              <span className="task-section-count">{urgent.length}</span>
+            </div>
+            <p className="task-section-hint">أعلى أولوية أو أقرب موعد استحقاق — دي أول حاجة تستاهل وقتك</p>
+            <div className="lists-grid">
+              {urgent.map((list, i) => (
+                <TodoList
+                  key={`urgent-${list.id}`}
+                  list={list}
+                  onChange={refresh}
+                  onDeleteList={handleDelete}
+                  delay={i * 60}
+                  lifeAreas={lifeAreas}
+                  onManageLifeAreas={() => setView('lifeAreas')}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {!loading &&
+          groups.map((group) => (
+            <section id={`section-area-${group.id}`} className="task-section" key={group.id}>
+              <div className="task-section-header" style={{ ['--chip-color' as any]: group.color }}>
+                <h3>
+                  {group.id !== NO_LIFE_AREA_GROUP && (
+                    <span className="task-section-dot" style={{ background: group.color }} />
+                  )}
+                  <DynamicIcon name={(group.icon as any) || 'tag'} size={16} />
+                  {group.name}
+                </h3>
+                <span className="task-section-count">{group.lists.length}</span>
+              </div>
+              <div className="lists-grid">
+                {group.lists.map((list, i) => (
+                  <div id={`list-${list.id}`} key={list.id}>
+                    <TodoList
+                      list={list}
+                      onChange={refresh}
+                      onDeleteList={handleDelete}
+                      delay={i * 60}
+                      lifeAreas={lifeAreas}
+                      onManageLifeAreas={() => setView('lifeAreas')}
+                      highlighted={highlightedListId === list.id}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+
+        <button className="fab-add-task" onClick={() => setAddTaskOpen(true)} type="button" aria-label="إضافة مهمة رئيسية جديدة" title="إضافة مهمة رئيسية جديدة">
+          <DynamicIcon name="plus" size={22} />
+        </button>
       </div>
     </>
   );

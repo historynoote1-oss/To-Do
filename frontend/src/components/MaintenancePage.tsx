@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import AuthForm from './AuthForm';
+import { DynamicIcon } from '../lib/icons';
 
 interface Props {
   emoji: string;
@@ -18,7 +19,7 @@ export default function MaintenancePage({ emoji, message, siteName, onAdminSucce
     <div className="maintenance-page">
       <div className="maintenance-card">
         <div className="maintenance-icon" aria-hidden="true">
-          {emoji || '🛠️'}
+          <DynamicIcon name={emoji} fallback="wrench" size={40} />
         </div>
         <h1>{siteName || 'الموقع'} تحت الصيانة</h1>
         <p className="maintenance-message">{message}</p>

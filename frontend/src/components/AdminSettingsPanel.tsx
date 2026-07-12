@@ -3,8 +3,9 @@ import { SiteSettings, getAdminSettings, updateAdminSettings } from '../lib/api'
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import AdminConfirmModal from './AdminConfirmModal';
+import { DynamicIcon, IconKey } from '../lib/icons';
 
-const MAINTENANCE_EMOJIS = ['🛠️', '🚧', '⚙️', '🔧', '🌙', '⏳', '🧰', '🚀'];
+const MAINTENANCE_ICONS: IconKey[] = ['wrench', 'construction', 'settings-2', 'settings', 'moon', 'hourglass', 'rocket', 'sparkles'];
 
 function MaintenanceModeCard({
   settings,
@@ -15,17 +16,17 @@ function MaintenanceModeCard({
 }) {
   const isOn = settings.maintenanceMode === 'true';
   const [message, setMessage] = useState(settings.maintenanceMessage);
-  const [emoji, setEmoji] = useState(settings.maintenanceEmoji || '🛠️');
+  const [emoji, setEmoji] = useState(settings.maintenanceEmoji || 'wrench');
   const [confirmToggle, setConfirmToggle] = useState<null | boolean>(null); // القيمة الجديدة اللي هنحولّها ليها
   const [confirmSave, setConfirmSave] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     setMessage(settings.maintenanceMessage);
-    setEmoji(settings.maintenanceEmoji || '🛠️');
+    setEmoji(settings.maintenanceEmoji || 'wrench');
   }, [settings.maintenanceMessage, settings.maintenanceEmoji]);
 
-  const dirty = message !== settings.maintenanceMessage || emoji !== (settings.maintenanceEmoji || '🛠️');
+  const dirty = message !== settings.maintenanceMessage || emoji !== (settings.maintenanceEmoji || 'wrench');
 
   async function doToggle(password: string) {
     setBusy(true);
@@ -85,7 +86,7 @@ function MaintenanceModeCard({
         <div className="settings-field">
           <label>الأيقونة اللي هتظهر للزوار</label>
           <div className="emoji-picker">
-            {MAINTENANCE_EMOJIS.map((e) => (
+            {MAINTENANCE_ICONS.map((e) => (
               <button
                 key={e}
                 type="button"
@@ -93,7 +94,7 @@ function MaintenanceModeCard({
                 onClick={() => setEmoji(e)}
                 aria-label={`اختيار ${e}`}
               >
-                {e}
+                <DynamicIcon name={e} size={20} />
               </button>
             ))}
           </div>
@@ -105,12 +106,12 @@ function MaintenanceModeCard({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={3}
-            placeholder="مثال: بنعمل تحديثات على الموقع، هنرجع قريب 🛠️"
+            placeholder="مثال: بنعمل تحديثات على الموقع، هنرجع قريب"
           />
         </div>
 
         <div className="maintenance-preview">
-          <div className="maintenance-preview-icon">{emoji}</div>
+          <div className="maintenance-preview-icon"><DynamicIcon name={emoji} fallback="wrench" size={24} /></div>
           <div>
             <strong>{settings.siteName || 'الموقع'} تحت الصيانة</strong>
             <p>{message || 'اكتب رسالة عشان تظهر هنا...'}</p>

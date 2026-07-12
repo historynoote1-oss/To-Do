@@ -14,8 +14,10 @@ const router = Router();
 
 const MAX_NAME_LEN = 40;
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
-// أيقونة نصية (إيموجي غالبًا) — بنحدد طول معقول عشان محدش يبعت نص طويل بدل إيموجي.
-const MAX_ICON_LEN = 8;
+// الأيقونة بقت تخزّن *مفتاح أيقونة Lucide* (مثلاً "graduation-cap")، مش
+// إيموجي — فالحد لازم يستوعب أطول مفتاح ممكن (مع هامش أمان)، مع سماح
+// بالتوافق مع أي إيموجي قديم مخزّن قبل التحديث ده.
+const MAX_ICON_LEN = 30;
 
 function serializeArea(area: any) {
   const totalLists = area.lists?.length ?? 0;

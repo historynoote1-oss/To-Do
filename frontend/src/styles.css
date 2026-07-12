@@ -102,6 +102,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -571,6 +572,241 @@ button:disabled {
   color: var(--text-muted);
 }
 
+/* شريحة البروفايل وزرار القائمة (الهامبرجر) في نفس الصف على جنب الشعار */
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ===== Hamburger button ===== */
+.hamburger-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius);
+}
+
+.hamburger-icon {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 13px;
+}
+
+.hamburger-icon span {
+  position: absolute;
+  inset-inline-start: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform var(--dur) var(--ease-spring), opacity var(--dur-fast) var(--ease-out);
+}
+
+.hamburger-icon span:nth-child(1) {
+  top: 0;
+}
+
+.hamburger-icon span:nth-child(2) {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.hamburger-icon span:nth-child(3) {
+  bottom: 0;
+}
+
+.hamburger-btn[aria-expanded='true'] .hamburger-icon span:nth-child(1) {
+  transform: translateY(5.5px) rotate(45deg);
+}
+
+.hamburger-btn[aria-expanded='true'] .hamburger-icon span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-btn[aria-expanded='true'] .hamburger-icon span:nth-child(3) {
+  transform: translateY(-5.5px) rotate(-45deg);
+}
+
+/* ===== Side menu (hamburger drawer) ===== */
+.side-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(38, 39, 31, 0.42);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease-out);
+}
+
+.side-menu-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.side-menu-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  inset-inline-start: 0;
+  z-index: 61;
+  width: min(320px, 86vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-inline-end: 1px solid var(--border);
+  box-shadow: var(--shadow-lift);
+  transform: translateX(-100%);
+  transition: transform var(--dur-slow) var(--ease-spring);
+}
+
+[dir='rtl'] .side-menu-panel {
+  transform: translateX(100%);
+}
+
+.side-menu-panel.open {
+  transform: translateX(0);
+}
+
+.side-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+
+.side-menu-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.side-menu-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.side-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: start;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.side-menu-item:hover {
+  background: var(--surface-2);
+  border-color: var(--border-soft);
+  filter: none;
+  box-shadow: none;
+  transform: none;
+}
+
+.side-menu-item:active {
+  transform: scale(0.98);
+}
+
+.side-menu-item-icon {
+  font-size: 17px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.side-menu-item-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.side-menu-item-arrow {
+  color: var(--text-faint);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.side-menu-item-badge {
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.side-menu-divider {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 8px 4px;
+  flex-shrink: 0;
+}
+
+.side-menu-item-danger {
+  color: #d24b4b;
+}
+
+.side-menu-item-danger:hover {
+  background: rgba(210, 75, 75, 0.1);
+  border-color: rgba(210, 75, 75, 0.3);
+}
+
+/* مفتاح تشغيل/إيقاف بسيط لعناصر القائمة اللي بتمثل حالة (صوت/إشعارات) */
+.side-menu-switch {
+  width: 38px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+
+.side-menu-switch-knob {
+  position: absolute;
+  top: 2px;
+  inset-inline-start: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: inset-inline-start var(--dur) var(--ease-spring);
+}
+
+.side-menu-switch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.side-menu-switch.on .side-menu-switch-knob {
+  inset-inline-start: 18px;
+  background: #fff;
+}
+
+@media (max-width: 420px) {
+  .side-menu-panel {
+    width: min(300px, 88vw);
+  }
+}
+
 /* ===== Brand mark ===== */
 .brand {
   display: flex;
@@ -702,6 +938,251 @@ button:disabled {
 @media (min-width: 720px) {
   .stats-row {
     grid-template-columns: repeat(3, minmax(0, 200px));
+  }
+}
+
+/* ===== بطاقة توزيع المهام التفاعلية (الصفحة الرئيسية) ===== */
+.task-distribution-trigger {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  font-family: inherit;
+  width: 100%;
+}
+
+.task-distribution-trigger:hover:not(.disabled) {
+  filter: none;
+  border-color: rgba(46, 139, 87, 0.4);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+.task-distribution-trigger.disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.task-distribution-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.task-distribution-caret {
+  color: var(--text-faint);
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.task-distribution-trigger.expanded .task-distribution-caret {
+  transform: rotate(180deg);
+}
+
+.task-distribution-minibar {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-top: 8px;
+  background: var(--surface-2);
+}
+
+.task-distribution-minibar span {
+  height: 100%;
+  transition: width var(--dur) var(--ease-out);
+}
+
+.task-distribution-minibar-empty {
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--border-soft),
+    var(--border-soft) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.task-distribution-panel {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: taskDistributionPanelIn var(--dur) var(--ease-out);
+}
+
+@keyframes taskDistributionPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-distribution-panel-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.task-distribution-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 6px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  text-align: right;
+  font-family: var(--font-body);
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+
+.task-distribution-row:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.task-distribution-row:disabled {
+  cursor: default;
+}
+
+.task-distribution-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.task-distribution-row-label {
+  font-size: 13px;
+  color: var(--text);
+  flex-shrink: 0;
+  min-width: 62px;
+}
+
+.task-distribution-row-track {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.task-distribution-row-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--dur) var(--ease-out);
+}
+
+.task-distribution-row-count {
+  font-family: var(--font-num);
+  font-size: 13px;
+  color: var(--text-muted);
+  min-width: 20px;
+  text-align: left;
+}
+
+@media (max-width: 360px) {
+  .task-distribution-row-label {
+    min-width: 48px;
+    font-size: 11.5px;
+  }
+}
+
+/* ===== بطاقة نسبة الإنجاز التفاعلية (الصفحة الرئيسية) ===== */
+.completion-rate-trigger {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  font-family: inherit;
+  width: 100%;
+}
+
+.completion-rate-trigger:hover:not(.disabled) {
+  filter: none;
+  border-color: rgba(46, 139, 87, 0.4);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+.completion-rate-trigger.disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.completion-rate-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.completion-ring-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.completion-ring-fill {
+  transition: stroke-dashoffset var(--dur) var(--ease-out);
+}
+
+.completion-ring-value {
+  position: absolute;
+  font-family: var(--font-num);
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* ===== أصغر الهواتف (≤360px): آيفون SE، أندرويد قديم، إلخ ===== */
+@media (max-width: 360px) {
+  .stats-row {
+    gap: 6px;
+  }
+  .stat-card {
+    padding: 10px 6px;
+  }
+  .stat-card-value {
+    font-size: 19px;
+  }
+  .stat-card-label {
+    font-size: 9.5px;
+  }
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    font-size: 17px;
+  }
+  .brand-text h1 {
+    font-size: 17px;
+  }
+  .user-chip-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  .user-chip-name {
+    max-width: 56px;
+    font-size: 11.5px;
+  }
+  .top-bar-actions {
+    gap: 6px;
   }
 }
 
@@ -1229,6 +1710,7 @@ li input[type='checkbox'] {
 /* ===== Auth screen ===== */
 .auth-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: 1fr;
 }
@@ -1338,7 +1820,7 @@ li input[type='checkbox'] {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 16px 60px;
+  padding: 32px 16px calc(40px + env(safe-area-inset-bottom, 0px));
 }
 
 .auth-shell-form .auth-container {
@@ -1370,8 +1852,9 @@ li input[type='checkbox'] {
 }
 
 .auth-container {
+  width: 100%;
   max-width: 380px;
-  margin: 8vh auto 0;
+  margin: 0 auto;
   padding: 34px 26px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1404,6 +1887,16 @@ li input[type='checkbox'] {
   50% {
     opacity: 0.9;
     scale: 1.12;
+  }
+}
+
+@media (max-width: 420px) {
+  .auth-shell-form {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .auth-container {
+    padding: 26px 18px;
   }
 }
 
@@ -1454,6 +1947,10 @@ li input[type='checkbox'] {
   position: absolute;
   top: 4px;
   bottom: 4px;
+  /* بنثبّت مكانها الافتراضي بدل ما نسيبها تعتمد على "الموضع الافتراضي"
+     لعنصر absolute جوه flex container — الاعتماد ده مش موثوق وهو سبب
+     ظهورها في مكان غلط أول تحميل أو بعد تغيير الاتجاه. */
+  inset-inline-start: 4px;
   width: calc(50% - 4px);
   background: var(--accent);
   border-radius: 7px;
@@ -1461,12 +1958,18 @@ li input[type='checkbox'] {
   box-shadow: 0 2px 10px rgba(29, 111, 115, 0.3);
 }
 
+/* في LTR: تبويب "حساب جديد" بييجي على يمين "تسجيل دخول"، فبنحرك المؤشر
+   لليمين (قيمة موجبة). */
 .auth-tabs-indicator.mode-register {
-  transform: translateX(calc(-100% - 4px));
+  transform: translateX(calc(100% + 4px));
 }
 
+/* في RTL (وضع الموقع الافتراضي): تبويب "حساب جديد" بييجي على شمال
+   "تسجيل دخول"، فلازم المؤشر يتحرك لليسار (قيمة سالبة). كانت القيمة هنا
+   معكوسة، وده اللي كان بيخلي المؤشر يتحرك برّه الصندوق بدل ما يستقر على
+   التبويب التاني. */
 [dir='rtl'] .auth-tabs-indicator.mode-register {
-  transform: translateX(calc(100% + 4px));
+  transform: translateX(calc(-100% - 4px));
 }
 
 .auth-form {
@@ -1795,7 +2298,7 @@ li input[type='checkbox'] {
   font-weight: 700;
   padding: 2px 9px;
   border-radius: var(--radius-pill);
-  margin-right: 6px;
+  margin-inline-end: 6px;
 }
 
 .admin-section-header {
@@ -1851,6 +2354,8 @@ li input[type='checkbox'] {
 .modal-box {
   width: 100%;
   max-width: 380px;
+  max-height: 90vh;
+  overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -2506,7 +3011,7 @@ li input[type='checkbox'] {
 
 .sound-toggle-hint {
   margin: 0;
-  padding-right: 26px;
+  padding-inline-end: 26px;
 }
 
 .sound-volume-value {
@@ -3324,25 +3829,70 @@ li input[type='checkbox'] {
   box-shadow: 0 2px 8px rgba(38, 39, 31, 0.1);
 }
 
-.reminders-offset-row {
+.reminders-offset-block {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reminders-offset-fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
-.reminders-offset-row input[type='number'] {
-  width: 72px;
-  flex-shrink: 0;
+.reminders-offset-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.reminders-offset-row select {
-  flex-shrink: 0;
+.reminders-offset-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
-.reminders-offset-suffix {
-  font-size: 12.5px;
+.reminders-offset-field input[type='number'] {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  -moz-appearance: textfield;
+}
+
+.reminders-offset-field input[type='number']::-webkit-outer-spin-button,
+.reminders-offset-field input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.reminders-offset-field span {
+  font-size: 11.5px;
   color: var(--text-muted);
-  white-space: nowrap;
+  font-weight: 600;
+  text-align: center;
+}
+
+.reminders-offset-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--accent-soft);
+  font-weight: 700;
+  background: var(--accent-dim);
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  text-align: center;
 }
 
 .reminders-message-input {
@@ -3375,7 +3925,10 @@ li input[type='checkbox'] {
   background: var(--surface-2);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
     background var(--dur) var(--ease-out);
 }
@@ -3408,12 +3961,11 @@ li input[type='checkbox'] {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
 }
 
 .timeline-icon {
-  font-size: 14px;
   flex-shrink: 0;
+  display: inline-flex;
 }
 
 .timeline-status-text {
@@ -3438,7 +3990,6 @@ li input[type='checkbox'] {
   border-radius: var(--radius-pill);
   background: var(--surface-3);
   overflow: hidden;
-  margin-bottom: 8px;
 }
 
 .timeline-bar-fill {
@@ -3447,45 +3998,92 @@ li input[type='checkbox'] {
   transition: width 1s linear, background var(--dur-slow) var(--ease-out);
 }
 
+/* صف البيانات الوصفية (المدة/الوقت المتبقي) — بيتحول لعمود واحد تلقائيًا
+   لو المساحة مش كفاية، عشان مفيش عنصرين يتزنقوا جنب بعض ويتقطعوا. */
 .timeline-meta-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px 10px;
   font-size: 11.5px;
   color: var(--text-muted);
 }
 
 .timeline-when {
+  flex: 1 1 150px;
+  min-width: 0;
   overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 
 .timeline-remaining {
+  display: inline-flex;
+  align-items: center;
   font-family: var(--font-num);
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--accent-soft);
-  font-weight: 700;
+  font-weight: 800;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 4px 11px;
   flex-shrink: 0;
   white-space: nowrap;
+  margin-inline-start: auto;
 }
 
 .timeline-critical .timeline-remaining {
   color: var(--danger);
+  border-color: rgba(193, 68, 58, 0.4);
+  background: var(--danger-dim);
 }
 
 .timeline-ended-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11.5px;
   font-weight: 800;
   color: var(--danger);
   background: var(--danger-dim);
   border-radius: var(--radius-pill);
-  padding: 3px 9px;
+  padding: 4px 10px;
   flex-shrink: 0;
   white-space: nowrap;
+  margin-inline-start: auto;
+}
+
+/* شاشات صغيرة جدًا: الوقت المتبقي/شارة الانتهاء بتاخد سطر لوحدها بعرض كامل
+   وواضح بدل ما تتزنق جنب نص التاريخ الطويل. */
+@media (max-width: 420px) {
+  .timeline-panel {
+    padding: 12px 13px;
+  }
+
+  .timeline-meta-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .timeline-when {
+    flex-basis: auto;
+  }
+
+  .timeline-remaining,
+  .timeline-ended-badge {
+    justify-content: center;
+    margin-inline-start: 0;
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
 }
 
 .timeline-modal {
   max-width: 380px;
+  max-height: 88vh;
+  overflow-y: auto;
 }
 
 .timeline-form-row {
@@ -3974,6 +4572,31 @@ li input[type='checkbox'] {
   height: 14px;
 }
 
+/* ---- شارة الأيقونة الموحّدة (دائرة بتدرج لوني) — بتتحط جنب اسم كل مجال
+   حياة في كل حتة بالموقع (الشارة، القوائم، شرائح الفلاتر، الأرشيف...) ---- */
+.life-area-glyph-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.life-area-glyph-chip-empty {
+  background: var(--surface-3);
+}
+
+.life-area-glyph-chip-icon {
+  color: #fff;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
+}
+
+.life-area-glyph-chip-empty .life-area-glyph-chip-icon {
+  color: var(--text-muted);
+  filter: none;
+}
+
 .life-area-menu {
   min-width: 220px;
   max-height: 320px;
@@ -4069,6 +4692,117 @@ li input[type='checkbox'] {
   margin-bottom: 14px;
 }
 
+/* ---- تخطيط نموذج الإنشاء: معاينة حية على اليمين + الحقول على الشمال ---- */
+.life-area-create-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.life-area-create-preview-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.life-area-avatar-picker {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.life-area-avatar-picker:hover {
+  transform: scale(1.04);
+}
+
+.life-area-avatar-picker-badge {
+  position: absolute;
+  bottom: -4px;
+  left: -4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.life-area-avatar-clear {
+  font-size: 11px;
+}
+
+.life-area-avatar-hint {
+  font-size: 11px;
+  text-align: center;
+  max-width: 90px;
+}
+
+.life-area-create-fields {
+  flex: 1;
+  min-width: 240px;
+}
+
+.life-area-edit-subtitle {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ---- شارة معاينة الأفتار (دائرة/مربّع بتدرج) — تُستخدم في نموذج
+   الإنشاء/التعديل وفي كارت المجال بالقائمة ---- */
+.life-area-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+}
+
+.life-area-avatar-icon {
+  color: #fff;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18));
+}
+
+.life-area-avatar-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---- شبكة الألوان: مقسّمة لعائلات لونية متناسقة، كل سواتش تدرج (gradient) ---- */
+.life-area-color-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.life-area-color-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.life-area-color-group-label {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
 .life-area-color-grid,
 .life-area-icon-grid {
   display: flex;
@@ -4078,31 +4812,31 @@ li input[type='checkbox'] {
 }
 
 .life-area-color-swatch {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   padding: 0;
   border: 2px solid transparent;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .life-area-color-swatch:hover {
-  transform: scale(1.08);
+  transform: scale(1.1);
 }
 
 .life-area-color-swatch.selected {
   border-color: var(--text);
-  transform: scale(1.1);
+  transform: scale(1.12);
 }
 
 .life-area-color-custom {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   overflow: hidden;
-  border: 1px dashed var(--border);
+  border: 2px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4117,6 +4851,7 @@ li input[type='checkbox'] {
   padding: 0;
   cursor: pointer;
   background: none;
+  opacity: 0;
 }
 
 .life-area-icon-choice {
@@ -4140,13 +4875,6 @@ li input[type='checkbox'] {
 .life-area-icon-choice.selected {
   border-color: var(--accent);
   background: var(--accent-dim);
-}
-
-.life-area-icon-custom-input {
-  width: 84px;
-  height: 34px;
-  text-align: center;
-  padding: 0 6px;
 }
 
 .life-area-list {
@@ -4185,23 +4913,9 @@ li input[type='checkbox'] {
   font-size: 11px;
 }
 
-.life-area-card-glyph {
-  width: 52px;
-  height: 52px;
-  border-radius: var(--radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  flex-shrink: 0;
+.life-area-card-glyph-wrap {
   position: relative;
-  overflow: hidden;
-}
-
-.life-area-card-glyph img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .life-area-card-body {
@@ -4256,6 +4970,18 @@ li input[type='checkbox'] {
   flex-wrap: wrap;
 }
 
+@media (max-width: 520px) {
+  .life-area-create-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .life-area-create-fields {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 /* =========================================================================
    الأرشيف (Archive)
    ========================================================================= */
@@ -4265,7 +4991,14 @@ li input[type='checkbox'] {
 }
 
 .archive-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  grid-template-columns: unset;
   margin-bottom: 20px;
+}
+
+.archive-stats-row .stat-card {
+  flex: 1 1 160px;
 }
 
 .stat-card-button {
@@ -4332,6 +5065,18 @@ li input[type='checkbox'] {
 .archive-search-clear:hover {
   color: var(--danger);
   filter: none;
+}
+
+.archive-expand-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.archive-expand-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* ---- تجميع سنة/شهر/يوم ---- */
@@ -4420,10 +5165,27 @@ li input[type='checkbox'] {
 
 .archive-day-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
+  width: 100%;
   margin-bottom: 8px;
-  padding: 0 2px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: right;
+  font-family: var(--font-body);
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+
+.archive-day-header:hover {
+  background: var(--surface-2);
+  border-color: var(--border-soft);
+}
+
+.archive-day-body {
+  padding-inline-start: 10px;
 }
 
 .archive-day-number {
@@ -4552,4 +5314,502 @@ li input[type='checkbox'] {
   font-size: 11.5px;
   color: var(--success);
   font-weight: 700;
+}
+
+/* ===================================================================
+   إعادة تصميم "إضافة مهمة جديدة" + نظام التنظيم الجديد (بديل الفلاتر)
+   =================================================================== */
+
+/* ----- زرار الدعوة لإضافة مهمة رئيسية (بديل الفورم القديم المفتوح) ----- */
+.add-task-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+  background: var(--surface);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+}
+
+.add-task-cta:hover,
+.add-task-cta:focus-visible {
+  border-color: var(--accent);
+  border-style: solid;
+  background: var(--accent-dim);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.add-task-cta-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #f4fbfa;
+  box-shadow: var(--shadow-sm);
+}
+
+.add-task-cta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.add-task-cta-text strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.add-task-cta-text span:last-child {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* ----- زرار عائم (FAB) للإضافة السريعة على الموبايل ----- */
+.fab-add-task {
+  position: fixed;
+  bottom: 20px;
+  inset-inline-end: 16px;
+  z-index: 40;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #f4fbfa;
+  box-shadow: var(--shadow-lift);
+  transition: transform var(--dur) var(--ease-spring), box-shadow var(--dur) var(--ease-out);
+}
+
+.fab-add-task:hover,
+.fab-add-task:focus-visible {
+  transform: scale(1.06);
+  box-shadow: var(--shadow-glow);
+}
+
+.fab-add-task:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 719px) {
+  .fab-add-task {
+    display: flex;
+  }
+}
+
+body.modal-lock-scroll {
+  overflow: hidden;
+}
+
+/* ----- نافذة إضافة مهمة رئيسية جديدة ----- */
+.add-task-overlay {
+  align-items: flex-end;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .add-task-overlay {
+    align-items: center;
+    padding: 20px;
+  }
+}
+
+.add-task-modal {
+  width: 100%;
+  max-width: 100%;
+  max-height: 92vh;
+  padding: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: sheet-up var(--dur-slow) var(--ease-spring) both;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (min-width: 640px) {
+  .add-task-modal {
+    max-width: 460px;
+    max-height: 88vh;
+    border-radius: var(--radius-lg);
+    animation: pop-in var(--dur) var(--ease-spring) both;
+  }
+}
+
+.add-task-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+
+.add-task-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--accent-soft);
+  margin: 0;
+}
+
+.add-task-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.add-task-field {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 0;
+}
+
+.add-task-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.add-task-title-input {
+  width: 100%;
+  font-size: 16px;
+  padding: 13px 14px;
+}
+
+.add-task-body .priority-picker,
+.add-task-body .category-picker,
+.add-task-body .life-area-picker {
+  flex-wrap: wrap;
+}
+
+.add-task-footer {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-soft);
+  flex-shrink: 0;
+  /* مساحة أمان تحت لأجهزة فيها home-indicator (آيفون) */
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+}
+
+.add-task-footer button.small {
+  flex: 0 0 auto;
+}
+
+.add-task-submit {
+  flex: 1;
+  background: var(--accent);
+  color: #f4fbfa;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+}
+
+.add-task-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ----- تنقّل سريع بين الأقسام (بديل شريط الفلاتر) ----- */
+.quick-nav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 14px;
+  margin-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.quick-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-nav-chip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  transition: border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.quick-nav-chip:hover {
+  border-color: var(--chip-color, var(--accent));
+  transform: translateY(-1px);
+}
+
+.quick-nav-chip svg {
+  color: var(--chip-color, var(--accent));
+}
+
+.quick-nav-urgent {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.quick-nav-urgent svg {
+  color: var(--danger);
+}
+
+.quick-nav-count {
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* ----- أقسام التنظيم (عاجل / مجالات الحياة) ----- */
+.task-section {
+  margin-bottom: 30px;
+  scroll-margin-top: 16px;
+}
+
+.task-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 2px 4px;
+}
+
+.task-section-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.task-section-header h3 svg {
+  color: var(--chip-color, var(--accent));
+}
+
+.task-section-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.task-section-count {
+  font-family: var(--font-num);
+  font-size: 13px;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+}
+
+.task-section-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 2px 12px;
+}
+
+.task-section-urgent .task-section-header h3 {
+  color: var(--danger);
+}
+
+.task-section-urgent .task-section-header h3 svg {
+  color: var(--danger);
+}
+
+/* ----- إضاءة مؤقتة لمهمة اتوصّل لها من بطاقات الإحصائيات ----- */
+.list-card-jump-highlight {
+  animation: jump-pulse 1.8s var(--ease-out) both;
+}
+
+@keyframes jump-pulse {
+  0%, 100% {
+    box-shadow: var(--shadow-sm);
+  }
+  15%, 55% {
+    box-shadow: 0 0 0 3px var(--accent-dim), var(--shadow-lift);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .add-task-modal {
+    animation: none;
+  }
+  .list-card-jump-highlight {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--accent-dim), var(--shadow-lift);
+  }
+}
+
+/* ===== المهام المتكررة (Recurring Tasks) ===== */
+
+.recurring-frequency-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recurring-frequency-picker {
+  flex-wrap: wrap;
+}
+
+.recurring-interval-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.recurring-interval-field input[type='number'] {
+  width: 64px;
+  text-align: center;
+}
+
+.recurring-subtask-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recurring-subtask-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recurring-subtask-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface-2, var(--surface));
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+.recurring-subtask-content {
+  overflow-wrap: anywhere;
+}
+
+.recurring-subtask-add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.recurring-subtask-add-row input {
+  flex: 1;
+}
+
+.recurring-task-card {
+  align-items: flex-start;
+}
+
+.recurring-task-card.recurring-paused {
+  opacity: 0.7;
+  border-inline-start-color: var(--text-muted);
+}
+
+.recurring-task-icon-wrap {
+  flex-shrink: 0;
+}
+
+.recurring-task-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+}
+
+.recurring-frequency-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--accent-soft);
+}
+
+.recurring-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.recurring-task-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.recurring-paused-label {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.recurring-task-actions {
+  justify-content: flex-start;
+}
+
+.recurring-cta {
+  margin-bottom: 22px;
+}
+
+.recurring-cta-icon {
+  background: var(--accent-strong);
+}
+
+.recurring-origin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+  flex-shrink: 0;
 }

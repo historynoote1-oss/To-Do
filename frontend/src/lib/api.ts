@@ -857,6 +857,90 @@ export async function regenerateOwnRecoveryCode(currentPassword: string): Promis
   return handle(res);
 }
 
+// ===== المهام المتكررة (Recurring Tasks) =====
+
+export interface RecurringTaskItemData {
+  id: string;
+  content: string;
+  priority: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  position: number;
+}
+
+export interface RecurringTaskData {
+  id: string;
+  title: string;
+  priority: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  interval: number;
+  startDate: string;
+  isActive: boolean;
+  lastGeneratedAt: string | null;
+  nextRunAt: string;
+  lifeAreaId: string | null;
+  lifeArea: { id: string; name: string; color: string; icon: string | null; imageUrl: string | null } | null;
+  items: RecurringTaskItemData[];
+  _count: { generatedLists: number };
+}
+
+export interface RecurringTaskInput {
+  title: string;
+  priority?: string;
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  interval?: number;
+  startDate: string;
+  lifeAreaId?: string | null;
+  items?: { content: string; priority?: string }[];
+}
+
+export async function getRecurringTasks(): Promise<RecurringTaskData[]> {
+  const res = await fetch(`${API_URL}/api/recurring-tasks`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function createRecurringTask(data: RecurringTaskInput): Promise<RecurringTaskData> {
+  const res = await fetch(`${API_URL}/api/recurring-tasks`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+export async function updateRecurringTask(
+  id: string,
+  data: Partial<RecurringTaskInput> & { isActive?: boolean }
+): Promise<RecurringTaskData> {
+  const res = await fetch(`${API_URL}/api/recurring-tasks/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
+export async function pauseRecurringTask(id: string): Promise<RecurringTaskData> {
+  const res = await fetch(`${API_URL}/api/recurring-tasks/${id}/pause`, { method: 'POST', headers: authHeaders() });
+  return handle(res);
+}
+
+export async function resumeRecurringTask(id: string): Promise<RecurringTaskData> {
+  const res = await fetch(`${API_URL}/api/recurring-tasks/${id}/resume`, { method: 'POST', headers: authHeaders() });
+  return handle(res);
+}
+
+export async function generateRecurringTaskNow(id: string) {
+  const res = await fetch(`${API_URL}/api/recurring-tasks/${id}/generate-now`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function deleteRecurringTask(id: string) {
+  const res = await fetch(`${API_URL}/api/recurring-tasks/${id}`, { method: 'DELETE', headers: authHeaders() });
+  return handle(res);
+}
+
 // ===== حالة الموقع العامة (وضع الصيانة) =====
 
 export interface SiteStatus {

@@ -18,11 +18,13 @@ import siteRoutes from './routes/site';
 import twoFactorRoutes from './routes/twoFactor';
 import remindersRoutes from './routes/reminders';
 import pushRoutes from './routes/push';
+import recurringTasksRoutes from './routes/recurringTasks';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
 import { rehabilitationGate } from './middleware/rehabilitationGate';
 import { startReminderScheduler } from './lib/reminderScheduler';
+import { startRecurringTaskScheduler } from './lib/recurringTaskScheduler';
 
 const app = express();
 
@@ -127,6 +129,7 @@ app.use('/api/site', siteStatusLimiter, siteRoutes);
 app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRoutes);
 app.use('/api/archive', verifyUser, rehabilitationGate, maintenanceGate, archiveRoutes);
 app.use('/api/life-areas', verifyUser, rehabilitationGate, maintenanceGate, lifeAreasRoutes);
+app.use('/api/recurring-tasks', verifyUser, rehabilitationGate, maintenanceGate, recurringTasksRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, remindersRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, pushRoutes);
 app.use('/api/profile', verifyUser, rehabilitationGate, maintenanceGate, profileLimiter, profileRoutes);
@@ -145,3 +148,4 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // جدولة فحص التذكيرات المستحقة (كل 15 ثانية) وإرسال إشعارات الجهاز لها —
 // شغالة طول عمر البروسيس، مش محتاجة مسار API منفصل.
 startReminderScheduler();
+startRecurringTaskScheduler();

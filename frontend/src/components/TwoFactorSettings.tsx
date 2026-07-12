@@ -7,6 +7,7 @@ import {
 } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
+import { DynamicIcon } from '../lib/icons';
 
 type Stage = 'loading' | 'idle' | 'setup' | 'recovery-codes' | 'disable';
 
@@ -107,7 +108,7 @@ export default function TwoFactorSettings() {
 
   return (
     <div className="security-panel">
-      <h2>🔐 التحقق بخطوتين (2FA)</h2>
+      <h2><DynamicIcon name="shield-check" size={18} /> التحقق بخطوتين (2FA)</h2>
       <p className="modal-text">
         طبقة حماية إضافية لحساب الأدمن: حتى لو حد عرف كلمة مرورك، مش هيقدر يدخل من غير كود من تطبيق
         مصادقة زي Google Authenticator أو Authy على موبايلك.
@@ -116,7 +117,11 @@ export default function TwoFactorSettings() {
       {stage === 'idle' && (
         <div className="security-status-card">
           <span className={`twofa-badge ${enabled ? 'twofa-on' : 'twofa-off'}`}>
-            {enabled ? '✅ مفعّل' : '⚠️ غير مفعّل'}
+            {enabled ? (
+              <><DynamicIcon name="check-circle" size={14} /> مفعّل</>
+            ) : (
+              <><DynamicIcon name="alert" size={14} /> غير مفعّل</>
+            )}
           </span>
           {enabled && enabledAt && (
             <span className="user-row-meta">
@@ -176,7 +181,7 @@ export default function TwoFactorSettings() {
       {stage === 'recovery-codes' && (
         <div className="security-status-card">
           <p className="modal-text">
-            ✅ تم تفعيل التحقق بخطوتين. احفظ أكواد الاسترجاع دي في مكان آمن — كل كود بيتستخدم مرة
+            <DynamicIcon name="check-circle" size={14} /> تم تفعيل التحقق بخطوتين. احفظ أكواد الاسترجاع دي في مكان آمن — كل كود بيتستخدم مرة
             واحدة بس، وهتحتاجهم لو فقدت جهاز المصادقة بتاعك. مش هيظهروا تاني بعد ما تكمّل.
           </p>
           <div className="twofa-recovery-grid">

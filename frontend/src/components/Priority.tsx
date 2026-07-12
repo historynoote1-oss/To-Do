@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { PRIORITIES, PriorityKey, priorityOf } from '../lib/priority';
 import { sounds } from '../lib/sounds';
+import { DynamicIcon } from '../lib/icons';
 
 // أيقونة "أعمدة متدرّجة" بتوصّف مستوى الأولوية بصريًا (0 لحد 4 أعمدة مضيئة)،
 // أوضح من إيموجي وبتنسجم مع باقي أيقونات SVG في الموقع.
@@ -95,7 +96,11 @@ export function PriorityBadge({ value, onChange, size = 'md', disabled }: BadgeP
               >
                 <PriorityIcon level={p.level} color={p.color} size={13} />
                 <span>{p.label}</span>
-                {p.key === def.key && <span className="priority-check">✓</span>}
+                {p.key === def.key && (
+                  <span className="priority-check">
+                    <DynamicIcon name="check" size={14} />
+                  </span>
+                )}
               </button>
             </li>
           ))}
