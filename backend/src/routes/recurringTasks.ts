@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Prisma } from '@prisma/client';
+import { Prisma, Priority } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import {
@@ -58,7 +58,7 @@ async function parseLifeAreaId(value: unknown, userId: string): Promise<string |
 
 interface ParsedItem {
   content: string;
-  priority: string;
+  priority: Priority;
 }
 
 function parseItems(value: unknown): ParsedItem[] {
@@ -69,7 +69,7 @@ function parseItems(value: unknown): ParsedItem[] {
     const content = typeof raw?.content === 'string' ? raw.content.trim() : '';
     if (!content) throw new Error('محتوى المهمة الفرعية مينفعش يبقى فاضي');
     if (content.length > MAX_ITEM_LENGTH) throw new Error('محتوى المهمة الفرعية طويل جدًا');
-    const priority = typeof raw?.priority === 'string' && VALID_PRIORITIES.includes(raw.priority) ? raw.priority : 'NONE';
+    const priority = (typeof raw?.priority === 'string' && VALID_PRIORITIES.includes(raw.priority) ? raw.priority : 'NONE') as Priority;
     return { content, priority };
   });
 }
