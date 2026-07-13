@@ -1188,12 +1188,6 @@ button:disabled {
   font-family: var(--font-body);
 }
 
-.header-user-avatar-wrap {
-  position: relative;
-  display: inline-flex;
-  flex-shrink: 0;
-}
-
 .header-user-avatar {
   width: 46px;
   height: 46px;
@@ -1244,7 +1238,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
   text-align: end;
 }
@@ -1263,76 +1257,33 @@ button:disabled {
   font-weight: 700;
 }
 
-/* عنصر الاستريك (Placeholder فقط، بدون منطق) — شارة بارزة تحت سطر
-   "مرحبًا، الاسم" مباشرة (مش معلّقة على الصورة الشخصية زي الإصدار
-   القديم)، عشان تبقى واضحة من أول نظرة. تدرّج لوني دافئ (أحمر → ذهبي)
-   يوحي بالنار، مع توهج نابض هادي حواليها وأيقونة النار في دائرة متدرّجة
-   خاصة بيها عشان تدي إحساس "شارة إنجاز" فخمة. جاهزة لاحقًا لاستقبال
-   بيانات الاستريك الحقيقية من غير ما تحتاج تغيير بصري. */
+/* عنصر الاستريك (Placeholder فقط، بدون منطق) — شارة صغيرة مضغوطة تحت
+   التحية مباشرة: أيقونة نار + رقم بارز، بتصميم "Badge" هادي متسق مع باقي
+   شارات الموقع، جاهزة لاحقًا لاستقبال بيانات الاستريك الحقيقية من غير ما
+   تحتاج تغيير بصري. */
 .header-streak {
-  align-self: flex-end;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: fit-content;
-  padding: 4px 13px 4px 6px;
+  padding: 1px 7px 1px 6px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--danger) 24%, var(--surface)) 0%,
-    color-mix(in srgb, var(--timeline-warn) 28%, var(--surface)) 100%
-  );
-  border: 1px solid color-mix(in srgb, var(--timeline-warn) 45%, transparent);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-    0 3px 10px -3px color-mix(in srgb, var(--danger) 55%, transparent),
-    0 0 16px -3px color-mix(in srgb, var(--timeline-warn) 60%, transparent);
-  animation: header-streak-glow 2.6s ease-in-out infinite;
+  background: var(--gradient-brand-soft);
+  border: 1px solid var(--border-soft);
 }
 
 .header-streak-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 21px;
-  height: 21px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1;
-  background: linear-gradient(135deg, var(--danger) 0%, var(--timeline-warn) 100%);
-  box-shadow: 0 0 10px -1px color-mix(in srgb, var(--timeline-warn) 70%, transparent);
-  filter: saturate(1.2);
+  filter: saturate(1.15);
 }
 
 .header-streak-count {
   font-family: var(--font-num);
-  font-size: 14.5px;
-  font-weight: 800;
+  font-size: 11.5px;
+  font-weight: 400;
   color: var(--text);
   line-height: 1;
-}
-
-@keyframes header-streak-glow {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-      0 3px 10px -3px color-mix(in srgb, var(--danger) 55%, transparent),
-      0 0 16px -3px color-mix(in srgb, var(--timeline-warn) 60%, transparent);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.14) inset,
-      0 4px 14px -3px color-mix(in srgb, var(--danger) 70%, transparent),
-      0 0 24px 0px color-mix(in srgb, var(--timeline-warn) 80%, transparent);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .header-streak {
-    animation: none;
-  }
 }
 
 /* ===== Dashboard stats — كل إحصائية في Block مستقل، مكدّسة رأسيًا،
@@ -1607,18 +1558,6 @@ button:disabled {
     width: 38px;
     height: 38px;
     font-size: 15px;
-  }
-  .header-streak {
-    padding: 3px 10px 3px 5px;
-    gap: 5px;
-  }
-  .header-streak-icon {
-    width: 18px;
-    height: 18px;
-    font-size: 11px;
-  }
-  .header-streak-count {
-    font-size: 13px;
   }
   .header-user-greeting {
     max-width: 78px;
