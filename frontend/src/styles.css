@@ -1201,31 +1201,35 @@ button:disabled {
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
-  /* تفادي تسنّن (aliasing) حواف الدائرة عند القص: بنجبر المتصفح يرسم
-     الطبقة دي على الـ GPU بدل الـ CPU، وده بيخلي حواف border-radius
-     تتقص بنعومة بدل ما تطلع فيها حتت مقطعة زي درج. */
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  /* حلقة "فخامة" مركّبة من طبقات: فاصل خفيف حول الصورة نفسها، حلقة لونية
-     رفيعة (Ring) بلمسة الهوية، وتوهج خارجي ناعم جدًا — نفس أسلوب صور
-     البروفايل في المنتجات العالمية الكبرى، من غير ما يبان تقيل أو مبالغ فيه. */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 0 0 2.5px var(--surface),
-    0 0 0 4px color-mix(in srgb, var(--accent) 40%, var(--border-soft)),
-    0 6px 18px -6px var(--aurora-1);
-  transition: box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+  /* الحلقة اتبنت بحدود حقيقية (border) بدل box-shadow متعدد الطبقات:
+     border و outline بيترسموا كخطوط متجهة (vector) فبتفضل حوافها ناعمة
+     100% مهما كبّرت أو زوّمت الصفحة، عكس box-shadow اللي ممكن يترسم
+     كصورة (raster) في بعض المتصفحات ويبان مقطّع عند التكبير. */
+  border: 2px solid var(--surface);
+  transition: border-color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+
+.header-user-avatar::after {
+  content: "";
+  position: absolute;
+  inset: -4.5px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 40%, var(--border-soft));
+  box-shadow: 0 6px 18px -6px var(--aurora-1);
+  pointer-events: none;
+  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
 
 .header-user:hover .header-user-avatar {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 0 0 2.5px var(--surface),
-    0 0 0 4px var(--accent),
-    0 8px 22px -6px var(--aurora-1),
-    0 0 0 8px var(--accent-dim);
+  border-color: var(--surface);
   transform: scale(1.045);
+}
+
+.header-user:hover .header-user-avatar::after {
+  border-color: var(--accent);
+  box-shadow: 0 8px 22px -6px var(--aurora-1);
+  outline: 3px solid var(--accent-dim);
+  outline-offset: 2px;
 }
 
 .header-user:active .header-user-avatar {
