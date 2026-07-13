@@ -1,15 +1,21 @@
 import { prisma } from './prisma';
 
-// بيفحص حالة اكتمال مهمة رئيسية (كل مهامها الفرعية منجزة، وفيه مهمة فرعية
-// واحدة على الأقل) وبيزامن حالة الأرشفة بتاعتها تلقائيًا مع الحالة دي:
+// بيفحص حالة اكتمال مهمة رئيسية وبيزامن حالة الأرشفة بتاعتها تلقائيًا معاها.
 //
-// - اكتملت ولسه مش مؤرشفة  => تتؤرشف تلقائيًا (archivedAt = دلوقتي).
+// مهم: اكتمال كل المهام الفرعية (isDone = true للكل) لوحده مش كافي عشان
+// المهمة الرئيسية تتؤرشف. لازم كمان المستخدم يكون أكّد بنفسه على مربع
+// الإنجاز النهائي في الكارت (confirmedDone = true) — شوف routes/lists.ts
+// (POST /:id/confirm-done). المزامنة هنا بتشتغل كالتالي:
+//
+// - كل المهام الفرعية منجزة + المستخدم أكّد (confirmedDone) + لسه مش
+//   مؤرشفة  => تتؤرشف تلقائيًا (archivedAt = دلوقتي).
 // - بقت غير مكتملة (رجّع المستخدم مهمة فرعية، أو ضاف واحدة جديدة، أو حذف
-//   واحدة منجزة) وكانت مؤرشفة => بترجع تلقائيًا للقائمة النشطة (archivedAt = null).
+//   واحدة منجزة) => بيتصفّر التأكيد تلقائيًا (confirmedDone = false)، ولو
+//   كانت مؤرشفة بترجع تلقائيًا للقائمة النشطة (archivedAt = null).
 //
 // بيتنادى بعد أي عملية ممكن تغيّر عدد/حالة المهام الفرعية (إضافة، حذف،
-// تبديل الإنجاز). بيرجع المهمة الرئيسية بعد التحديث لو حصل تغيير في حالة
-// الأرشفة، أو null لو محصلش أي تغيير.
+// تبديل الإنجاز) أو حالة التأكيد نفسها. بيرجع المهمة الرئيسية بعد التحديث
+// لو حصل تغيير، أو null لو محصلش أي تغيير.
 export async function syncListArchiveState(listId: string) {
   const list = await prisma.todoList.findUnique({
     where: { id: listId },
@@ -25,13 +31,24 @@ export async function syncListArchiveState(listId: string) {
 
   const total = list.items.length;
   const done = list.items.filter((i) => i.isDone).length;
-  const isComplete = total > 0 && done === total;
+  const allSubtasksDone = total > 0 && done === total;
+  const isComplete = allSubtasksDone && list.confirmedDone;
+
+  const data: { archivedAt?: Date | null; confirmedDone?: boolean } = {};
+
+  // التأكيد النهائي مالوش معنى غير لو كل المهام الفرعية منجزة فعلاً. أي
+  // رجوع لمهمة فرعية غير منجزة (أو إضافة واحدة جديدة) بيصفّر التأكيد
+  // تلقائيًا عشان المستخدم يضطر يأكّد تاني بعد ما يخلص فعلاً.
+  if (!allSubtasksDone && list.confirmedDone) {
+    data.confirmedDone = false;
+  }
 
   if (isComplete && !list.archivedAt) {
-    return prisma.todoList.update({ where: { id: listId }, data: { archivedAt: new Date() } });
+    data.archivedAt = new Date();
+  } else if (!isComplete && list.archivedAt) {
+    data.archivedAt = null;
   }
-  if (!isComplete && list.archivedAt) {
-    return prisma.todoList.update({ where: { id: listId }, data: { archivedAt: null } });
-  }
-  return null;
+
+  if (Object.keys(data).length === 0) return null;
+  return prisma.todoList.update({ where: { id: listId }, data });
 }

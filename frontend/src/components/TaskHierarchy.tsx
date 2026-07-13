@@ -148,11 +148,12 @@ export default function TaskHierarchy({
                             const prKey = `${catKey}-${pr.key}`;
                             const prCollapsed = collapsedPriorities.has(prKey);
                             return (
-                              <div className="archive-day-group" key={prKey}>
+                              <div className="hier-priority-group" key={prKey}>
                                 <button
                                   type="button"
-                                  className="archive-day-header"
+                                  className="hier-priority-header"
                                   onClick={() => togglePriority(prKey)}
+                                  style={{ ['--pr-color' as any]: pr.color }}
                                   aria-expanded={!prCollapsed}
                                 >
                                   <span className={`archive-collapse-caret ${prCollapsed ? 'collapsed' : ''}`} aria-hidden="true">

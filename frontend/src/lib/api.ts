@@ -209,6 +209,25 @@ export async function updateList(
   return handle(res);
 }
 
+// تأكيد/إلغاء تأكيد الإنجاز النهائي للمهمة الرئيسية (مربع الـ Check في
+// الكارت) — منفصل تمامًا عن تعليم المهام الفرعية. confirmListDone بيرفض
+// الطلب من السيرفر لو لسه فيه مهام فرعية غير منجزة.
+export async function confirmListDone(id: string) {
+  const res = await fetch(`${API_URL}/api/lists/${id}/confirm-done`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function unconfirmListDone(id: string) {
+  const res = await fetch(`${API_URL}/api/lists/${id}/unconfirm-done`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
 // ===== الأرشيف (Archive) =====
 
 export async function getArchive() {

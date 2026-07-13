@@ -1,5 +1,14 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { addItem, toggleItem, deleteItem, updateItemPriority, updateItemContent, updateList } from '../lib/api';
+import {
+  addItem,
+  toggleItem,
+  deleteItem,
+  updateItemPriority,
+  updateItemContent,
+  updateList,
+  confirmListDone,
+  unconfirmListDone,
+} from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import { useUndoRedo } from '../lib/undoRedo';
@@ -40,6 +49,10 @@ export default function TodoList({
   const [confirmDeleteList, setConfirmDeleteList] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<any>(null);
+  // بتتحكم في إظهار/إخفاء المهام الفرعية — مقفولة افتراضيًا عشان الكارت
+  // يفضل صغير ومضغوط، وبتتفتح لما المستخدم يضغط على اسم المهمة الرئيسية.
+  const [subtasksOpen, setSubtasksOpen] = useState(false);
+  const [confirmingDone, setConfirmingDone] = useState(false);
   const [remindersTarget, setRemindersTarget] = useState<
     { kind: 'list'; id: string; title: string } | { kind: 'item'; id: string; title: string; dueDate: string | null } | null
   >(null);
@@ -57,7 +70,12 @@ export default function TodoList({
   const sortedItems = useMemo(() => sortItems(list.items), [list.items]);
   const done = list.items.filter((i: any) => i.isDone).length;
   const progress = total === 0 ? 0 : Math.round((done / total) * 100);
-  const isComplete = total > 0 && done === total;
+  // كل المهام الفرعية خلصت — شرط ضروري (بس مش كافي لوحده) عشان مربع
+  // التأكيد النهائي يتفعّل. لسه محتاج المستخدم يعلّم عليه بنفسه.
+  const allSubtasksDone = total > 0 && done === total;
+  // المهمة الرئيسية "خلصت فعلًا" بس لو المستخدم أكّد بنفسه على مربع
+  // الإنجاز النهائي — مش مجرد إن كل المهام الفرعية اتعلّمت.
+  const isComplete = !!list.confirmedDone && allSubtasksDone;
   const priorityColor = priorityOf(list.priority).color;
 
   const confettiPieces = useMemo(
@@ -109,25 +127,39 @@ export default function TodoList({
     setConfirmDeleteList(true);
   }
 
-  // بديل الشيك بوكس بتاع المهمة الرئيسية: بيبدّل حالة كل المهام الفرعية
-  // مرة واحدة (كلها تخلص أو كلها ترجع)، فيتحول تلقائيًا لأرشيف عند الاكتمال.
+  // مربع الـ Check بتاع المهمة الرئيسية بقى "تأكيد إنجاز نهائي" مستقل تمامًا
+  // عن تعليم المهام الفرعية. ممنوع يتفعّل (يبقى أخضر) إلا لو كل المهام
+  // الفرعية اتعلّمت خلاص. تعليمها كلها لوحده مش بيأرشف المهمة — الأرشفة
+  // بتحصل بس لما المستخدم يعلّم هنا بنفسه.
   async function handleToggleWholeList() {
-    if (total === 0) return;
-    const willBeDone = !isComplete;
+    if (total === 0 || confirmingDone) return;
+
+    if (!list.confirmedDone && !allSubtasksDone) {
+      sounds.error();
+      toast.error('لازم تخلّص كل المهام الفرعية الأول قبل ما تأكّد إنهاء المهمة الرئيسية');
+      return;
+    }
+
     sounds.click();
+    setConfirmingDone(true);
     try {
-      await Promise.all(list.items.map((i: any) => toggleItem(i.id, willBeDone)));
-      if (willBeDone) {
+      if (list.confirmedDone) {
+        await unconfirmListDone(list.id);
+        onChange();
+      } else {
+        await confirmListDone(list.id);
         setConfettiOn(true);
         setBurstKey((k) => k + 1);
         sounds.celebrate();
         window.setTimeout(() => setConfettiOn(false), 900);
         toast.success(`أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف`);
+        onChange();
       }
-      onChange();
     } catch (err) {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر تحديث المهمة');
+    } finally {
+      setConfirmingDone(false);
     }
   }
 
@@ -170,6 +202,11 @@ export default function TodoList({
   function cancelTitleEdit() {
     setTitleDraft(list.title);
     setEditingTitle(false);
+  }
+
+  function startTitleEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditingTitle(true);
   }
 
   async function handleItemEdit(item: any, content: string) {
@@ -255,14 +292,13 @@ export default function TodoList({
           onChange();
         },
       });
+      // خلاص كل المهام الفرعية معلّمة — ده لسه مش كافي لإنهاء المهمة
+      // الرئيسية، فقط بيفعّل مربع التأكيد النهائي. مفيش أرشفة تلقائية هنا.
       if (willBeDone && total > 0) {
         const doneAfter = list.items.filter((i: any) => (i.id === item.id ? true : i.isDone)).length;
         if (doneAfter === total) {
-          setConfettiOn(true);
-          setBurstKey((k) => k + 1);
-          sounds.celebrate();
-          window.setTimeout(() => setConfettiOn(false), 900);
-          toast.success(`أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف`);
+          sounds.click();
+          toast.info(`كل المهام الفرعية خلصت في "${list.title}" — علّم على المهمة الرئيسية عشان تأكّد الإنهاء`);
         }
       }
       onChange();
@@ -320,6 +356,15 @@ export default function TodoList({
     }, 220);
   }
 
+  const checkboxTitle =
+    total === 0
+      ? 'أضف مهمة فرعية الأول'
+      : list.confirmedDone
+      ? 'إلغاء تأكيد إنهاء المهمة'
+      : allSubtasksDone
+      ? 'تأكيد إنهاء المهمة'
+      : 'لازم تخلّص كل المهام الفرعية الأول';
+
   return (
     <div
       className={`list-card list-card-compact ${isComplete ? 'list-complete' : ''} ${highlighted ? 'list-card-jump-highlight' : ''} ${pendingRestore ? 'list-card-pending-restore' : ''}`}
@@ -349,17 +394,18 @@ export default function TodoList({
 
       <div className="list-header">
         <span
-          className={`checkbox list-checkbox ${isComplete ? 'checked' : ''} ${total === 0 ? 'disabled' : ''}`}
+          className={`checkbox list-checkbox ${isComplete ? 'checked' : ''} ${total === 0 || (!allSubtasksDone && !list.confirmedDone) ? 'disabled' : ''}`}
           onClick={handleToggleWholeList}
           role="checkbox"
           aria-checked={isComplete}
-          aria-label="إنهاء المهمة الرئيسية"
-          title={total === 0 ? 'أضف مهمة فرعية الأول' : 'إنهاء المهمة'}
+          aria-label="تأكيد إنجاز المهمة الرئيسية"
+          title={checkboxTitle}
         >
           <svg viewBox="0 0 16 16">
             <polyline points="3,9 6.5,12.5 13,4" />
           </svg>
         </span>
+
         <div className="list-header-title">
           {editingTitle ? (
             <input
@@ -375,7 +421,24 @@ export default function TodoList({
               autoFocus
             />
           ) : (
-            <h2 onDoubleClick={() => setEditingTitle(true)}>{list.title}</h2>
+            <button
+              type="button"
+              className="list-title-toggle"
+              onClick={() => setSubtasksOpen((o) => !o)}
+              onDoubleClick={startTitleEdit}
+              aria-expanded={subtasksOpen}
+              title={subtasksOpen ? 'إخفاء المهام الفرعية' : 'عرض المهام الفرعية'}
+            >
+              <span className={`list-title-caret ${subtasksOpen ? 'open' : ''}`} aria-hidden="true">
+                <DynamicIcon name="chevron-down" size={14} />
+              </span>
+              <h2>{list.title}</h2>
+              {total > 0 && (
+                <span className="list-title-subcount">
+                  {done}/{total}
+                </span>
+              )}
+            </button>
           )}
           {list.recurringTaskId && (
             <span className="recurring-origin-badge" title="اتولّدت تلقائيًا من مهمة متكررة">
@@ -387,19 +450,11 @@ export default function TodoList({
               <DynamicIcon name="undo" size={12} /> بانتظار المراجعة
             </span>
           )}
-          <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="sm" />
-          <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="sm" />
-          <LifeAreaBadge
-            value={list.lifeArea || null}
-            areas={lifeAreas}
-            onChange={handleListLifeAreaChange}
-            onManage={onManageLifeAreas}
-            size="sm"
-          />
         </div>
+
         <div className="row-actions">
           {!editingTitle && (
-            <button className="icon-btn small" onClick={() => setEditingTitle(true)} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
+            <button className="icon-btn small" onClick={startTitleEdit} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
               <DynamicIcon name="pencil" size={14} />
             </button>
           )}
@@ -408,6 +463,23 @@ export default function TodoList({
           </button>
         </div>
       </div>
+
+      {/* شريط بيانات معروضة فقط — أولوية / تصنيف / مجال حياة، ومعاهم العدّاد
+          أو الجدول الزمني للمهمة. مفيش أي حاجة هنا قابلة للنقر للتعديل. */}
+      <div className="list-meta-row">
+        <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="sm" disabled />
+        <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="sm" disabled />
+        <LifeAreaBadge
+          value={list.lifeArea || null}
+          areas={lifeAreas}
+          onChange={handleListLifeAreaChange}
+          onManage={onManageLifeAreas}
+          size="sm"
+          disabled
+        />
+      </div>
+
+      <TaskTimeline list={list} onChange={onChange} />
 
       {total > 0 && (
         <div className="list-progress-row">
@@ -420,57 +492,60 @@ export default function TodoList({
         </div>
       )}
 
-      <TaskTimeline list={list} onChange={onChange} />
-
-      {addOpen ? (
-        <div className="new-item">
-          <div className="new-item-row">
-            <input
-              autoFocus
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              placeholder="مهمة فرعية جديدة"
-              onFocus={() => setShowItemPriority(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAdd();
-                if (e.key === 'Escape') setAddOpen(false);
-              }}
-            />
-            <button onClick={handleAdd}>+</button>
-          </div>
-          {showItemPriority && (
-            <div className="new-item-priority">
-              <PriorityPicker value={newItemPriority} onChange={setNewItemPriority} />
+      {subtasksOpen && (
+        <div className="subtask-panel">
+          {addOpen ? (
+            <div className="new-item">
+              <div className="new-item-row">
+                <input
+                  autoFocus
+                  value={newItem}
+                  onChange={(e) => setNewItem(e.target.value)}
+                  placeholder="مهمة فرعية جديدة"
+                  onFocus={() => setShowItemPriority(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAdd();
+                    if (e.key === 'Escape') setAddOpen(false);
+                  }}
+                />
+                <button onClick={handleAdd}>+</button>
+              </div>
+              {showItemPriority && (
+                <div className="new-item-priority">
+                  <PriorityPicker value={newItemPriority} onChange={setNewItemPriority} />
+                </div>
+              )}
             </div>
+          ) : (
+            <button className="add-subtask-trigger" onClick={() => setAddOpen(true)} type="button">
+              <DynamicIcon name="plus" size={13} /> مهمة فرعية جديدة
+            </button>
+          )}
+
+          {total === 0 ? (
+            <p className="empty small">لسه مفيش مهام فرعية هنا</p>
+          ) : (
+            <ul className="subtask-tree">
+              {sortedItems.map((item: any, i: number) => (
+                <TodoItemRow
+                  key={item.id}
+                  item={item}
+                  delay={i * 40}
+                  leaving={leavingIds.has(item.id)}
+                  onToggle={() => handleToggle(item)}
+                  onDelete={() => handleDeleteItem(item)}
+                  onPriorityChange={(p: PriorityKey) => handleItemPriorityChange(item, p)}
+                  onEdit={(content: string) => handleItemEdit(item, content)}
+                  onOpenReminders={(it: any) =>
+                    setRemindersTarget({ kind: 'item', id: it.id, title: it.content, dueDate: it.dueDate || null })
+                  }
+                />
+              ))}
+            </ul>
           )}
         </div>
-      ) : (
-        <button className="add-subtask-trigger" onClick={() => setAddOpen(true)} type="button">
-          <DynamicIcon name="plus" size={13} /> مهمة فرعية جديدة
-        </button>
       )}
 
-      {total === 0 ? (
-        <p className="empty small">لسه مفيش مهام فرعية هنا</p>
-      ) : (
-        <ul className="subtask-tree">
-          {sortedItems.map((item: any, i: number) => (
-            <TodoItemRow
-              key={item.id}
-              item={item}
-              delay={i * 40}
-              leaving={leavingIds.has(item.id)}
-              onToggle={() => handleToggle(item)}
-              onDelete={() => handleDeleteItem(item)}
-              onPriorityChange={(p: PriorityKey) => handleItemPriorityChange(item, p)}
-              onEdit={(content: string) => handleItemEdit(item, content)}
-              onOpenReminders={(it: any) =>
-                setRemindersTarget({ kind: 'item', id: it.id, title: it.content, dueDate: it.dueDate || null })
-              }
-            />
-          ))}
-        </ul>
-      )}
       {pendingRestore && (
         <div className="pending-restore-footer">
           <p className="pending-restore-footer-hint">

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
+import { syncListArchiveState } from '../lib/archive';
 
 const router = Router();
 
@@ -82,6 +83,49 @@ router.post('/:id/finalize-restore', async (req: AuthRequest, res) => {
     include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
   });
   res.json(updated);
+});
+
+// تأكيد الإنجاز النهائي — دي مربع الـ Check بتاع المهمة الرئيسية في الكارت.
+// مسموح بيه بس لو كل المهام الفرعية منجزة فعلاً (وفيه مهمة فرعية واحدة على
+// الأقل)، وده اللي بيفرّق المهمة "خلصت فعلاً" عن مجرد "كل مهامها الفرعية
+// معلّمة" — التأكيد ده هو اللي بيحصّل الأرشفة الفعلية (شوف lib/archive.ts).
+router.post('/:id/confirm-done', async (req: AuthRequest, res) => {
+  const list = await prisma.todoList.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    include: { items: { select: { isDone: true } } },
+  });
+  if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
+
+  const total = list.items.length;
+  const done = list.items.filter((i) => i.isDone).length;
+  if (total === 0 || done !== total) {
+    return res.status(400).json({ error: 'لازم تخلّص كل المهام الفرعية الأول قبل ما تأكّد إنهاء المهمة' });
+  }
+
+  await prisma.todoList.update({ where: { id: list.id }, data: { confirmedDone: true } });
+  const updated = await syncListArchiveState(list.id);
+  res.json(
+    updated ?? (await prisma.todoList.findUnique({
+      where: { id: list.id },
+      include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
+    }))
+  );
+});
+
+// إلغاء تأكيد الإنجاز النهائي — بترجّع المربع لغير معلّم، ولو كانت المهمة
+// اتؤرشفت بسبب التأكيد ده بترجع تلقائيًا للقائمة النشطة.
+router.post('/:id/unconfirm-done', async (req: AuthRequest, res) => {
+  const list = await prisma.todoList.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
+
+  await prisma.todoList.update({ where: { id: list.id }, data: { confirmedDone: false } });
+  const updated = await syncListArchiveState(list.id);
+  res.json(
+    updated ?? (await prisma.todoList.findUnique({
+      where: { id: list.id },
+      include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
+    }))
+  );
 });
 
 const VALID_PRIORITIES = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];

@@ -2012,6 +2012,13 @@ li input[type='checkbox'] {
   transform: translateY(0) scale(0.96);
 }
 
+/* شارات معروضة فقط (disabled) — بتتستخدم في كارت المهمة المضغوط لعرض
+   الأولوية/التصنيف/مجال الحياة كمعلومة ثابتة من غير أي إمكانية للتعديل. */
+.priority-badge:disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
 .priority-badge.critical-pulse {
   animation: priority-critical-glow 1.6s ease-in-out infinite;
 }
@@ -7063,31 +7070,108 @@ body.modal-lock-scroll {
 }
 
 /* ===== كارت المهمة المضغوط (Compact Task Card) ===== */
+/* هدف التصميم ده: كارت صغير وقصير، شكل واضح ومرتب، مفيهوش أي حاجة زيادة
+   ظاهرة طول الوقت — المهام الفرعية مقفولة افتراضيًا ومش بتظهر إلا لما
+   المستخدم يضغط على اسم المهمة نفسه. */
 
 .list-card-compact {
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
 .list-card-compact .list-header {
-  margin-bottom: 10px;
-  align-items: flex-start;
+  margin-bottom: 8px;
+  align-items: center;
+  gap: 8px;
 }
 
 .list-card-compact .list-header-title {
-  gap: 7px;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .list-card-compact h2 {
-  font-size: 15px;
+  font-size: 14.5px;
+  font-weight: 700;
 }
 
 .list-checkbox {
-  margin-top: 1px;
+  margin-top: 0;
 }
 
 .list-checkbox.disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* زر اسم المهمة الرئيسية — بيلف كل السطر (السهم + الاسم + عدّاد المهام
+   الفرعية) في عنصر واحد قابل للنقر بيفتح/يقفل قائمة المهام الفرعية. */
+.list-title-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  margin-inline-start: -6px;
+  border-radius: var(--radius);
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.list-title-toggle:hover {
+  background: var(--surface-2);
+}
+
+.list-title-toggle h2 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.list-title-caret {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--text-faint);
+  transition: transform var(--dur) var(--ease-spring);
+}
+
+.list-title-caret.open {
+  transform: rotate(180deg);
+  color: var(--accent-soft);
+}
+
+.list-title-subcount {
+  flex-shrink: 0;
+  font-family: var(--font-num);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  padding: 2px 7px;
+}
+
+/* شريط البيانات الثابتة (أولوية / تصنيف / مجال حياة) — معروضة بس، مفيش
+   تعديل هنا خالص، شكلها أهدأ شوية من الشارات القابلة للنقر في أي مكان
+   تاني بالتطبيق. */
+.list-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.list-meta-row .priority-badge,
+.list-meta-row .category-badge,
+.list-meta-row .life-area-badge {
+  opacity: 0.92;
 }
 
 .add-subtask-trigger {
@@ -7115,6 +7199,28 @@ body.modal-lock-scroll {
   opacity: 0.7;
 }
 
+/* لوحة المهام الفرعية — بتتفتح جوه الكارت نفسه في صندوق فخم شكله متميز
+   عن جسم الكارت، وبتتقفل تاني بضغطة على اسم المهمة. */
+.subtask-panel {
+  margin-top: 4px;
+  padding: 10px 12px 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  animation: subtask-panel-open var(--dur) var(--ease-out) both;
+}
+
+@keyframes subtask-panel-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* المهام الفرعية بشكل هرمي — خط اتصال رفيع يوصل كل مهمة فرعية بأصلها،
    عشان يبان إنها جوه المهمة الرئيسية حتى لو الكارت بقى أصغر. */
 .subtask-tree {
@@ -7126,6 +7232,7 @@ body.modal-lock-scroll {
 
 .subtask-tree li {
   position: relative;
+  padding-block: 8px;
 }
 
 .subtask-tree li::before {
@@ -7136,6 +7243,64 @@ body.modal-lock-scroll {
   width: 10px;
   height: 1px;
   background: var(--border-soft);
+}
+
+/* مربعات الـ Check بتاعة المهام الفرعية بتبقى دوائر (مش مربعات) — نفس
+   سلوك المربع الأساسي (لونها بيبقى أخضر لما تتعلّم) بس شكلها دائري عشان
+   تتفرق بصريًا عن مربع التأكيد النهائي بتاع المهمة الرئيسية. */
+.subtask-tree .checkbox {
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+}
+
+.subtask-tree .checkbox svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* الجدول الزمني/العدّاد جوه الكارت المضغوط — بنفس فكرة كل حاجة "أصغر"،
+   من غير ما نلمس منطق العدّاد نفسه (بيفضل هو اللي بيقرر يعرض أرقام
+   تنازلية للميعاد اللي لسه ما جاش، أو الشريط المتحرك لما المهمة تبقى
+   شغالة فعلًا). */
+.list-card-compact .timeline-block {
+  margin-bottom: 8px;
+}
+
+.list-card-compact .timeline-set-btn {
+  padding: 5px 9px;
+  font-size: 11.5px;
+  gap: 5px;
+}
+
+.list-card-compact .timeline-panel {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+}
+
+.list-card-compact .timeline-head {
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.list-card-compact .timeline-status-text {
+  font-size: 11.5px;
+}
+
+.list-card-compact .timeline-meta-row {
+  font-size: 11px;
+}
+
+.list-card-compact .timeline-when {
+  font-size: 10.5px;
+}
+
+.list-card-compact .timeline-remaining {
+  font-size: 13px;
+}
+
+.list-card-compact .list-progress-row {
+  margin-bottom: 4px;
 }
 
 /* ===== العرض الهرمي: مجال الحياة ← التصنيف ← الأولوية ===== */
@@ -7267,6 +7432,38 @@ details[open] > summary .hier-caret {
   min-width: 0;
   overflow-wrap: anywhere;
   font-family: var(--font-body);
+}
+
+/* هيدر الأولوية (آخر مستوى قبل كروت المهام) — مختلف عن هيدر يوم الأرشيف
+   لأن ده شفاف افتراضيًا ومش بيبان غير لما تعمل hover عليه، وده كان بيخلّيه
+   يختفي في التصميم الفاتح. هنا بنديله خلفية وحدود ثابتة عشان يبان واضح. */
+.hier-priority-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-inline-start: 3px solid var(--pr-color, var(--border-soft));
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: right;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+}
+
+.hier-priority-header:hover {
+  background: var(--gradient-brand-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
+}
+
+.hier-priority-group {
+  margin-bottom: 12px;
 }
 
 /* ===== زرار الرجوع الموحّد (Back Button) ===== */
