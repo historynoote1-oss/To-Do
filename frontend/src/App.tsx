@@ -473,19 +473,21 @@ export default function App() {
   // (Undo) عن الإضافة وحب يرجّعها. بترجع الـ list الناتج عشان نعرف الـ id
   // الجديد (بيتغيّر كل مرة لأن كل إنشاء بياخد id مختلف من السيرفر).
   async function createTaskFromPayload(data: NewTaskPayload) {
-    const { title, subtasks, priority, category, targetYear, lifeAreaId, startTime, endTime, reminder } = data;
+    const { title, subtasks, priority, category, targetYear, lifeAreaId, startTime, endTime, reminders } = data;
     const list = await createList(title, priority, category, targetYear, lifeAreaId, startTime, endTime);
     for (const content of subtasks) {
       await addItem(list.id, content);
     }
-    if (reminder && startTime) {
-      const remindAt = new Date(new Date(startTime).getTime() - reminder.offsetMinutes * 60 * 1000).toISOString();
-      await createReminder({
-        listId: list.id,
-        mode: 'CUSTOM',
-        remindAt,
-        message: reminder.message || undefined,
-      });
+    if (reminders.length > 0 && startTime) {
+      for (const reminder of reminders) {
+        const remindAt = new Date(new Date(startTime).getTime() - reminder.offsetMinutes * 60 * 1000).toISOString();
+        await createReminder({
+          listId: list.id,
+          mode: 'CUSTOM',
+          remindAt,
+          message: reminder.message || undefined,
+        });
+      }
     }
     return list;
   }

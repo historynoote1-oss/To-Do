@@ -23,7 +23,7 @@ export interface NewTaskPayload {
   lifeAreaId: string | null;
   startTime: string | null;
   endTime: string | null;
-  reminder: NewTaskReminder | null;
+  reminders: NewTaskReminder[];
 }
 
 interface Props {
@@ -44,6 +44,13 @@ function formatOffsetParts(days: number, hours: number, minutes: number): string
   if (hours > 0) parts.push(hours === 1 ? 'ساعة' : hours === 2 ? 'ساعتين' : `${hours} ساعات`);
   if (minutes > 0) parts.push(minutes === 1 ? 'دقيقة' : minutes === 2 ? 'دقيقتين' : `${minutes} دقيقة`);
   return parts.join(' و');
+}
+
+function formatOffsetFromMinutes(totalMinutes: number): string {
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  return formatOffsetParts(days, hours, minutes);
 }
 
 type StepId = 'title' | 'subtasks' | 'priority' | 'category' | 'lifeArea' | 'reminder' | 'timeline' | 'review';
@@ -94,12 +101,15 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
     return extra.length > 0 ? [...lifeAreas, ...extra] : lifeAreas;
   }, [lifeAreas, createdAreas]);
 
-  // التذكير الجديد: ثلاث خانات مستقلة (أيام / ساعات / دقايق) — الرقم
-  // المُدخل بيدل على المدة قبل موعد بداية المهمة (الجدول الزمني بتاعها).
+  // التذكير الجديد: ثلاث خانات مستقلة (أيام / ساعات / دقايق) بتمثّل مسودة
+  // التذكير اللي بيتم تجهيزه دلوقتي — بعد الضغط على "إضافة تذكير" بينضاف
+  // لقايمة `reminders` وبتتصفّر المسودة عشان يقدر المستخدم يضيف تذكير
+  // تاني كمان. مفيش حد أقصى لعدد التذكيرات اللي ممكن تتضاف للمهمة.
   const [reminderDays, setReminderDays] = useState('');
   const [reminderHours, setReminderHours] = useState('');
   const [reminderMinutes, setReminderMinutes] = useState('');
   const [reminderMessage, setReminderMessage] = useState('');
+  const [reminders, setReminders] = useState<NewTaskReminder[]>([]);
 
   const [startDraft, setStartDraft] = useState('');
   const [endDraft, setEndDraft] = useState('');
@@ -108,6 +118,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   const [stepError, setStepError] = useState('');
   const titleRef = useRef<HTMLInputElement>(null);
   const subtaskRef = useRef<HTMLInputElement>(null);
+  const reminderMessageRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -123,6 +134,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
       setReminderHours('');
       setReminderMinutes('');
       setReminderMessage('');
+      setReminders([]);
       setStartDraft('');
       setEndDraft('');
       setSubmitting(false);
@@ -174,6 +186,38 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
     setSubtasks((prev) => prev.filter((_, i) => i !== index));
   }
 
+  // بيبدّل مكان مهمة فرعية مع اللي قبلها أو بعدها — عشان يقدر المستخدم
+  // يرتب الخطوات بالترتيب اللي هيمشي عليه فعليًا لإنجاز المهمة الرئيسية.
+  function moveSubtask(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    setSubtasks((prev) => {
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  // بيضيف مسودة التذكير الحالية (المدة + الرسالة) لقايمة التذكيرات، وبعدين
+  // بيصفّر الخانات عشان المستخدم يقدر يجهّز تذكير تاني على طول من غير ما
+  // يقفل الخطوة. مفيش حد أقصى لعدد التذكيرات.
+  function addReminder() {
+    if (!hasReminder) return;
+    const msg = reminderMessage.trim();
+    if (!msg) return;
+    setReminders((prev) => [...prev, { offsetMinutes: Math.round(totalReminderMinutes), message: msg }]);
+    setReminderDays('');
+    setReminderHours('');
+    setReminderMinutes('');
+    setReminderMessage('');
+    sounds.hover();
+    requestAnimationFrame(() => reminderMessageRef.current?.focus());
+  }
+
+  function removeReminder(index: number) {
+    setReminders((prev) => prev.filter((_, i) => i !== index));
+  }
+
   // فحص صارم لكل مرحلة بالاسم (مش بس المرحلة الحالية) — بيتنادى مرتين:
   // مرة على المرحلة الحالية بس (goNext)، ومرة تانية بتلف على كل المراحل
   // قبل الإنشاء النهائي كخط دفاع تاني، عشان محدش يقدر يوصل لمرحلة
@@ -204,13 +248,16 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
     }
     if (id === 'reminder') {
       if (!hasTimelineStart) {
-        return 'حدد وقت بداية المهمة في خطوة "الجدول الزمني" الأول عشان تقدر تضبط التذكير';
+        return 'حدد وقت بداية المهمة في خطوة "الجدول الزمني" الأول عشان تقدر تضبط التذكيرات';
       }
-      if (!hasReminder) {
-        return 'لازم تضبط مدة التذكير قبل بداية المهمة';
+      if (hasReminder && reminderMessage.trim()) {
+        return 'عندك تذكير جاهز ولسه مضفتهوش — دوس "إضافة تذكير" أو امسح الخانات عشان تكمل';
       }
-      if (!reminderMessage.trim()) {
-        return 'اكتب رسالة التذكير';
+      if (hasReminder !== !!reminderMessage.trim()) {
+        return 'كمّل بيانات التذكير (المدة والرسالة) قبل ما تضيفه، أو امسح الخانات';
+      }
+      if (reminders.length === 0) {
+        return 'لازم تضيف تذكير واحد على الأقل';
       }
     }
     return null;
@@ -282,10 +329,6 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
     try {
       const startTime = startDraft ? new Date(startDraft).toISOString() : null;
       const endTime = endDraft ? new Date(endDraft).toISOString() : null;
-      const reminderMsg = reminderMessage.trim();
-      const reminder: NewTaskReminder | null = hasReminder
-        ? { offsetMinutes: Math.round(totalReminderMinutes), message: reminderMsg ? reminderMsg : null }
-        : null;
       await onCreate({
         title: trimmedTitle,
         subtasks: subtasks.map((s) => s.trim()).filter(Boolean),
@@ -295,7 +338,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
         lifeAreaId,
         startTime,
         endTime,
-        reminder,
+        reminders,
       });
       onClose();
     } finally {
@@ -404,8 +447,28 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 <ul className="subtask-draft-list">
                   {subtasks.map((s, i) => (
                     <li key={i} className="subtask-draft-item">
-                      <DynamicIcon name="circle" size={12} />
+                      <span className="subtask-draft-order" aria-hidden="true">{i + 1}.</span>
                       <span>{s}</span>
+                      <div className="subtask-draft-move">
+                        <button
+                          type="button"
+                          className="icon-btn small"
+                          onClick={() => moveSubtask(i, -1)}
+                          disabled={i === 0}
+                          aria-label="تحريك لأعلى"
+                        >
+                          <DynamicIcon name="chevron-up" size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn small"
+                          onClick={() => moveSubtask(i, 1)}
+                          disabled={i === subtasks.length - 1}
+                          aria-label="تحريك لأسفل"
+                        >
+                          <DynamicIcon name="chevron-down" size={13} />
+                        </button>
+                      </div>
                       <button type="button" className="icon-btn small" onClick={() => removeSubtask(i)} aria-label="حذف">
                         <DynamicIcon name="x" size={13} />
                       </button>
@@ -456,9 +519,9 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
 
           {step.id === 'reminder' && !hasTimelineStart && (
             <div className="add-task-field">
-              <span className="add-task-label">إعداد التذكير</span>
+              <span className="add-task-label">إعداد التذكيرات</span>
               <p className="wizard-empty-hint">
-                <DynamicIcon name="timer" size={12} /> التذكير بيتحسب من وقت بداية المهمة — لازم تحدده الأول في خطوة
+                <DynamicIcon name="timer" size={12} /> التذكيرات بتتحسب من وقت بداية المهمة — لازم تحدده الأول في خطوة
                 "الجدول الزمني" قبل ما تكمل هنا.
               </p>
               <button
@@ -476,10 +539,28 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
 
           {step.id === 'reminder' && hasTimelineStart && (
             <div className="add-task-field">
-              <span className="add-task-label">إعداد التذكير</span>
+              <span className="add-task-label">إعداد التذكيرات</span>
               <p className="wizard-empty-hint">
-                هيوصلك تنبيه قبل وقت بداية المهمة بالمدة اللي تحددها هنا — اضبط خانة واحدة على الأقل.
+                هيوصلك تنبيه قبل وقت بداية المهمة بالمدة اللي تحددها هنا — تقدر تضيف أكتر من تذكير.
               </p>
+
+              {reminders.length > 0 && (
+                <ul className="reminder-draft-list">
+                  {reminders.map((r, i) => (
+                    <li key={i} className="reminder-draft-item">
+                      <DynamicIcon name="bell" size={12} />
+                      <span>
+                        قبل البداية بـ {formatOffsetFromMinutes(r.offsetMinutes)}
+                        {r.message ? ` — ${r.message}` : ''}
+                      </span>
+                      <button type="button" className="icon-btn small" onClick={() => removeReminder(i)} aria-label="حذف التذكير">
+                        <DynamicIcon name="x" size={13} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
               <div className="reminders-offset-fields">
                 <label className="reminders-offset-field">
                   <input
@@ -525,13 +606,25 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 </div>
               )}
               {hasReminder && (
-                <input
-                  className="reminders-message-input"
-                  value={reminderMessage}
-                  onChange={(e) => setReminderMessage(e.target.value)}
-                  placeholder="رسالة التذكير"
-                  maxLength={200}
-                />
+                <div className="subtask-add-row">
+                  <input
+                    ref={reminderMessageRef}
+                    className="reminders-message-input"
+                    value={reminderMessage}
+                    onChange={(e) => setReminderMessage(e.target.value)}
+                    placeholder="رسالة التذكير"
+                    maxLength={200}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addReminder();
+                      }
+                    }}
+                  />
+                  <button type="button" className="small" onClick={addReminder} disabled={!reminderMessage.trim()}>
+                    <DynamicIcon name="plus" size={14} /> إضافة تذكير
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -552,9 +645,9 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                   <DynamicIcon name="alert" size={13} /> وقت النهاية لازم يكون بعد وقت البداية
                 </p>
               )}
-              {hasReminder && (
+              {reminders.length > 0 && (
                 <p className="wizard-empty-hint">
-                  <DynamicIcon name="bell" size={12} /> ضبطت تذكير قبل بداية المهمة، فلازم تحدد وقت البداية هنا.
+                  <DynamicIcon name="bell" size={12} /> ضبطت تذكيرات قبل بداية المهمة، فلازم تحدد وقت البداية هنا.
                 </p>
               )}
             </div>
@@ -566,9 +659,17 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 <span className="wizard-review-label"><DynamicIcon name="sparkles" size={14} /> الاسم</span>
                 <span className="wizard-review-value">{trimmedTitle}</span>
               </div>
-              <div className="wizard-review-row">
+              <div className="wizard-review-row wizard-review-row-subtasks">
                 <span className="wizard-review-label"><DynamicIcon name="list-checks" size={14} /> فرعية</span>
-                <span className="wizard-review-value">{subtasks.length > 0 ? `${subtasks.length} مهمة فرعية` : 'مفيش'}</span>
+                {subtasks.length > 0 ? (
+                  <ol className="wizard-review-subtask-list">
+                    {subtasks.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <span className="wizard-review-value">مفيش</span>
+                )}
               </div>
               <div className="wizard-review-row">
                 <span className="wizard-review-label"><DynamicIcon name="flag" size={14} /> الأولوية</span>
@@ -582,13 +683,20 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 <span className="wizard-review-label"><DynamicIcon name="compass" size={14} /> مجال الحياة</span>
                 <span className="wizard-review-value">{reviewLifeArea ? reviewLifeArea.name : 'مفيش'}</span>
               </div>
-              <div className="wizard-review-row">
-                <span className="wizard-review-label"><DynamicIcon name="bell" size={14} /> التذكير</span>
-                <span className="wizard-review-value">
-                  {hasReminder
-                    ? `قبل البداية بـ ${formatOffsetParts(Number(reminderDays) || 0, Number(reminderHours) || 0, Number(reminderMinutes) || 0)}`
-                    : 'مفيش'}
-                </span>
+              <div className="wizard-review-row wizard-review-row-subtasks">
+                <span className="wizard-review-label"><DynamicIcon name="bell" size={14} /> التذكيرات</span>
+                {reminders.length > 0 ? (
+                  <ul className="wizard-review-subtask-list">
+                    {reminders.map((r, i) => (
+                      <li key={i}>
+                        قبل البداية بـ {formatOffsetFromMinutes(r.offsetMinutes)}
+                        {r.message ? ` — ${r.message}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className="wizard-review-value">مفيش</span>
+                )}
               </div>
               <div className="wizard-review-row">
                 <span className="wizard-review-label"><DynamicIcon name="timer" size={14} /> الجدول الزمني</span>

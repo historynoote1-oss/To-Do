@@ -6713,6 +6713,31 @@ body.modal-lock-scroll {
   flex-shrink: 0;
 }
 
+.subtask-draft-order {
+  flex-shrink: 0;
+  min-width: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+.subtask-draft-move {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 1px;
+}
+
+.subtask-draft-move .icon-btn {
+  padding: 1px;
+  line-height: 0;
+}
+
+.subtask-draft-move .icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 .subtask-draft-item span {
   flex: 1;
   min-width: 0;
@@ -6722,6 +6747,60 @@ body.modal-lock-scroll {
 }
 
 .subtask-draft-item .icon-btn {
+  flex-shrink: 0;
+}
+
+.wizard-review-row-subtasks {
+  align-items: flex-start;
+}
+
+.wizard-review-subtask-list {
+  margin: 0;
+  padding: 0 18px 0 0;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.reminder-draft-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.reminder-draft-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.reminder-draft-item svg:first-child {
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.reminder-draft-item span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminder-draft-item .icon-btn {
   flex-shrink: 0;
 }
 
