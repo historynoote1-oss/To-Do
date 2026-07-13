@@ -7253,6 +7253,22 @@ details[open] > summary .hier-caret {
   }
 }
 
+/* ---- عرض هرمي للمهام الرئيسية بنفس تصميم شجرة الأرشيف (سنة/شهر/يوم) ---- */
+.hier-expand-controls {
+  margin-bottom: 14px;
+}
+
+.hier-area-header {
+  border-inline-start: 3px solid var(--chip-color, var(--border));
+}
+
+.hier-area-title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-body);
+}
+
 /* ===== زرار الرجوع الموحّد (Back Button) ===== */
 /* دائرة أيقونة مضغوطة من غير نص — بتاخد مساحة أقل في الهيدر، لكن
    مساحة اللمس الفعلية (padding + min-width/height) فضلت مريحة على
