@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import AdminOverview from './AdminOverview';
 import AdminAnalytics from './AdminAnalytics';
 import AdminUsersPanel from './AdminUsersPanel';
@@ -8,9 +7,9 @@ import TwoFactorSettings from './TwoFactorSettings';
 import { DynamicIcon, IconKey } from '../lib/icons';
 import BackButton from './BackButton';
 
-type Tab = 'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security';
+export type AdminTab = 'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security';
 
-const NAV: { key: Tab; label: string; icon: IconKey }[] = [
+const NAV: { key: AdminTab; label: string; icon: IconKey }[] = [
   { key: 'overview', label: 'نظرة عامة', icon: 'home' },
   { key: 'analytics', label: 'التحليلات', icon: 'bar-chart' },
   { key: 'users', label: 'المستخدمين', icon: 'users' },
@@ -19,19 +18,22 @@ const NAV: { key: Tab; label: string; icon: IconKey }[] = [
   { key: 'security', label: 'الأمان', icon: 'shield-check' },
 ];
 
+// التبويب بقى "مُتحكَّم فيه" من App (controlled) بدل ما يكون state داخلي —
+// كده الرابط في المتصفح بيتغيّر فعليًا مع كل تبويب (/admin/analytics،
+// /admin/users...) وزرار رجوع المتصفح بيرجّع نفس التبويب اللي كنت فيه.
 export default function AdminDashboard({
   onBack,
-  initialTab,
+  tab,
+  onTabChange,
   onOpenMenu,
   menuOpen,
 }: {
   onBack: () => void;
-  initialTab?: Tab;
+  tab: AdminTab;
+  onTabChange: (tab: AdminTab) => void;
   onOpenMenu: () => void;
   menuOpen: boolean;
 }) {
-  const [tab, setTab] = useState<Tab>(initialTab || 'overview');
-
   const activeLabel = NAV.find((n) => n.key === tab)?.label || '';
 
   return (
@@ -64,7 +66,7 @@ export default function AdminDashboard({
               key={n.key}
               type="button"
               className={`admin-nav-item ${tab === n.key ? 'active' : ''}`}
-              onClick={() => setTab(n.key)}
+              onClick={() => onTabChange(n.key)}
             >
               <span className="admin-nav-icon"><DynamicIcon name={n.icon} size={16} /></span>
               {n.label}
@@ -100,7 +102,7 @@ export default function AdminDashboard({
               key={n.key}
               type="button"
               className={`admin-tab ${tab === n.key ? 'active' : ''}`}
-              onClick={() => setTab(n.key)}
+              onClick={() => onTabChange(n.key)}
             >
               <span className="admin-tab-icon"><DynamicIcon name={n.icon} size={16} /></span>
               {n.label}

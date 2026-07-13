@@ -5576,6 +5576,7 @@ li input[type='checkbox'] {
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   border: 1px solid var(--border-soft);
+  color: var(--text-muted);
   font-size: 16px;
   box-shadow: none;
   display: flex;
@@ -5585,11 +5586,13 @@ li input[type='checkbox'] {
 
 .life-area-icon-choice:hover {
   background: var(--surface-3);
+  color: var(--text);
 }
 
 .life-area-icon-choice.selected {
   border-color: var(--accent);
   background: var(--accent-dim);
+  color: var(--accent);
 }
 
 .life-area-list {

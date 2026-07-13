@@ -26,7 +26,7 @@ import { toast } from './lib/toast';
 import { getPushState, enablePush, disablePush, PushSupportState, PushError } from './lib/push';
 import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
-import AdminDashboard from './components/AdminDashboard';
+import AdminDashboard, { AdminTab } from './components/AdminDashboard';
 import Profile from './components/Profile';
 import LifeAreasManager from './components/LifeAreasManager';
 import RecurringTasksManager from './components/RecurringTasksManager';
@@ -64,8 +64,30 @@ const PATH_VIEWS: Record<string, ViewName> = Object.fromEntries(
   Object.entries(VIEW_PATHS).map(([viewName, path]) => [path, viewName])
 ) as Record<string, ViewName>;
 
-function getViewFromPath(): ViewName {
-  return PATH_VIEWS[window.location.pathname] ?? 'todos';
+// نفس فكرة VIEW_PATHS بالظبط، لكن لتبويبات لوحة الإدارة الداخلية — كل
+// تبويب (نظرة عامة، تحليلات، مستخدمين...) بقى ليه رابط فرعي تحت /admin
+// بدل ما كل التبويبات تشترك في نفس رابط /admin الثابت.
+const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
+  overview: '/admin',
+  analytics: '/admin/analytics',
+  users: '/admin/users',
+  content: '/admin/content',
+  settings: '/admin/settings',
+  security: '/admin/security',
+};
+
+const ADMIN_PATH_TABS: Record<string, AdminTab> = Object.fromEntries(
+  Object.entries(ADMIN_TAB_PATHS).map(([tabName, path]) => [path, tabName])
+) as Record<string, AdminTab>;
+
+// بيقرأ الرابط الحالي ويرجّع الشاشة الرئيسية + تبويب الإدارة (لو الشاشة
+// إدارة) المطابقين له. مركزي عشان يُستخدم مع التحميل الأول ومع popstate.
+function resolveFromPath(): { view: ViewName; adminTab: AdminTab } {
+  const path = window.location.pathname;
+  if (path in ADMIN_PATH_TABS) {
+    return { view: 'admin', adminTab: ADMIN_PATH_TABS[path] };
+  }
+  return { view: PATH_VIEWS[path] ?? 'todos', adminTab: 'overview' };
 }
 
 interface List {
@@ -87,24 +109,43 @@ export default function App() {
     localStorage.getItem('token') ? localStorage.getItem('username') : null
   );
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
-  const [view, setViewState] = useState<ViewName>(() => getViewFromPath());
+  const [view, setViewState] = useState<ViewName>(() => resolveFromPath().view);
+  const [adminTab, setAdminTabState] = useState<AdminTab>(() => resolveFromPath().adminTab);
 
   // بيحدّث state الشاشة الحالية، وكمان بيدفع مسار جديد للمتصفح عشان الرابط
   // فوق يتغيّر فعليًا مع كل تنقّل (زي setView القديمة بالظبط من ناحية
   // الاستخدام، فمفيش داعي نغيّر أي نداء setView(...) تاني في الملف).
+  // الانتقال لشاشة تانية غير الإدارة بيصفّر تبويب الإدارة لـ"نظرة عامة"،
+  // فلو المستخدم رجع للوحة الإدارة تاني يبدأ من التبويب الافتراضي.
   const setView = useCallback((next: ViewName) => {
     setViewState(next);
-    const path = VIEW_PATHS[next];
+    if (next !== 'admin') {
+      setAdminTabState('overview');
+    }
+    const path = next === 'admin' ? ADMIN_TAB_PATHS.overview : VIEW_PATHS[next];
     if (window.location.pathname !== path) {
       window.history.pushState({ view: next }, '', path);
     }
   }, []);
 
-  // بيتابع زرار "رجوع"/"تقدّم" في المتصفح، ويحدّث الشاشة المعروضة على طول
-  // بدون ما يعمل push جديد (عشان منلفّش في حلقة).
+  // بيحدّث تبويب لوحة الإدارة الحالي، وبيدفع الرابط الفرعي المطابق له
+  // (/admin/analytics، /admin/users...) عشان يبقى كل تبويب قابل للمشاركة
+  // ورجوع المتصفح يشتغل معاه برضه.
+  const setAdminTab = useCallback((next: AdminTab) => {
+    setAdminTabState(next);
+    const path = ADMIN_TAB_PATHS[next];
+    if (window.location.pathname !== path) {
+      window.history.pushState({ view: 'admin', adminTab: next }, '', path);
+    }
+  }, []);
+
+  // بيتابع زرار "رجوع"/"تقدّم" في المتصفح، ويحدّث الشاشة (وتبويب الإدارة
+  // لو موجود) المعروضة على طول بدون ما يعمل push جديد (عشان منلفّش في حلقة).
   useEffect(() => {
     function handlePopState() {
-      setViewState(getViewFromPath());
+      const next = resolveFromPath();
+      setViewState(next.view);
+      setAdminTabState(next.adminTab);
     }
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -133,7 +174,6 @@ export default function App() {
   const [lifeAreas, setLifeAreas] = useState<LifeAreaData[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [adminInitialTab, setAdminInitialTab] = useState<'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security'>('overview');
   const shownReminderIds = useRef<Set<string>>(new Set());
   const { canUndo, canRedo, undoLabel, redoLabel, isBusy: undoRedoBusy, pushCommand, undo, redo } = useUndoRedo();
 
@@ -421,7 +461,6 @@ export default function App() {
   }
 
   function openDashboard() {
-    setAdminInitialTab('overview');
     setView('admin');
   }
 
@@ -713,7 +752,8 @@ export default function App() {
         <div className="view-fade">
           <AdminDashboard
             onBack={() => setView('todos')}
-            initialTab={adminInitialTab}
+            tab={adminTab}
+            onTabChange={setAdminTab}
             onOpenMenu={() => setMenuOpen(true)}
             menuOpen={menuOpen}
           />
