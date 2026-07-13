@@ -180,19 +180,38 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   // المراجعة وبيانات ناقصة أو غير متسقة من غير ما يتوقف عندها.
   function validateStepById(id: StepId): string | null {
     if (id === 'title' && !trimmedTitle) return 'اكتب اسم المهمة الأول';
-    if (id === 'subtasks' && subtaskDraft.trim() && subtasks.every((s) => s !== subtaskDraft.trim())) {
-      return 'كتبت مهمة فرعية ولسه مضفتهاش — دوس "إضافة" أو امسح الخانة عشان تكمل';
+    if (id === 'subtasks') {
+      if (subtaskDraft.trim() && subtasks.every((s) => s !== subtaskDraft.trim())) {
+        return 'كتبت مهمة فرعية ولسه مضفتهاش — دوس "إضافة" أو امسح الخانة عشان تكمل';
+      }
+      if (subtasks.length === 0) {
+        return 'لازم تضيف مهمة فرعية واحدة على الأقل';
+      }
+    }
+    if (id === 'category' && !category) {
+      return 'لازم تختار تصنيف للمهمة';
+    }
+    if (id === 'lifeArea' && !lifeAreaId) {
+      return 'لازم تختار مجال حياة للمهمة';
     }
     if (id === 'timeline') {
-      if ((startDraft && !endDraft) || (!startDraft && endDraft)) {
-        return 'حدد وقت البداية والنهاية مع بعض، أو سيب الاتنين فاضيين';
+      if (!startDraft || !endDraft) {
+        return 'لازم تحدد وقت البداية والنهاية للمهمة';
       }
-      if (startDraft && endDraft && new Date(endDraft).getTime() <= new Date(startDraft).getTime()) {
+      if (new Date(endDraft).getTime() <= new Date(startDraft).getTime()) {
         return 'وقت النهاية لازم يكون بعد وقت البداية';
       }
     }
-    if (id === 'reminder' && hasReminder && !hasTimelineStart) {
-      return 'التذكير محسوب من وقت بداية المهمة — ارجع لخطوة "الجدول الزمني" وحدده الأول';
+    if (id === 'reminder') {
+      if (!hasTimelineStart) {
+        return 'حدد وقت بداية المهمة في خطوة "الجدول الزمني" الأول عشان تقدر تضبط التذكير';
+      }
+      if (!hasReminder) {
+        return 'لازم تضبط مدة التذكير قبل بداية المهمة';
+      }
+      if (!reminderMessage.trim()) {
+        return 'اكتب رسالة التذكير';
+      }
     }
     return null;
   }
@@ -360,7 +379,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
 
           {step.id === 'subtasks' && (
             <div className="add-task-field">
-              <span className="add-task-label">المهام الفرعية (اختياري)</span>
+              <span className="add-task-label">المهام الفرعية</span>
               <div className="subtask-add-row">
                 <input
                   ref={subtaskRef}
@@ -380,7 +399,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 </button>
               </div>
               {subtasks.length === 0 ? (
-                <p className="wizard-empty-hint">لسه مفيش مهام فرعية — تقدر تضيفها دلوقتي أو تتخطى الخطوة</p>
+                <p className="wizard-empty-hint">لسه مفيش مهام فرعية — لازم تضيف مهمة واحدة على الأقل عشان تكمل</p>
               ) : (
                 <ul className="subtask-draft-list">
                   {subtasks.map((s, i) => (
@@ -406,7 +425,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
 
           {step.id === 'category' && (
             <div className="add-task-field">
-              <span className="add-task-label">التصنيف (اختياري)</span>
+              <span className="add-task-label">التصنيف</span>
               <CategoryPicker
                 value={category}
                 targetYear={targetYear}
@@ -420,7 +439,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
 
           {step.id === 'lifeArea' && (
             <div className="add-task-field">
-              <span className="add-task-label">مجال الحياة (اختياري)</span>
+              <span className="add-task-label">مجال الحياة</span>
               <LifeAreaPicker
                 value={lifeAreaId}
                 areas={displayLifeAreas}
@@ -437,10 +456,10 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
 
           {step.id === 'reminder' && !hasTimelineStart && (
             <div className="add-task-field">
-              <span className="add-task-label">إعداد التذكير (اختياري)</span>
+              <span className="add-task-label">إعداد التذكير</span>
               <p className="wizard-empty-hint">
-                <DynamicIcon name="timer" size={12} /> التذكير بيتحسب من وقت بداية المهمة، ولسه مافيش وقت بداية محدد.
-                تقدر تتخطى الخطوة دي عادي، أو ترجع تحدد وقت البداية الأول.
+                <DynamicIcon name="timer" size={12} /> التذكير بيتحسب من وقت بداية المهمة — لازم تحدده الأول في خطوة
+                "الجدول الزمني" قبل ما تكمل هنا.
               </p>
               <button
                 type="button"
@@ -457,9 +476,9 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
 
           {step.id === 'reminder' && hasTimelineStart && (
             <div className="add-task-field">
-              <span className="add-task-label">إعداد التذكير (اختياري)</span>
+              <span className="add-task-label">إعداد التذكير</span>
               <p className="wizard-empty-hint">
-                هيوصلك تنبيه قبل وقت بداية المهمة بالمدة اللي تحددها هنا — اضبط أي خانة أو أكتر.
+                هيوصلك تنبيه قبل وقت بداية المهمة بالمدة اللي تحددها هنا — اضبط خانة واحدة على الأقل.
               </p>
               <div className="reminders-offset-fields">
                 <label className="reminders-offset-field">
@@ -510,7 +529,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                   className="reminders-message-input"
                   value={reminderMessage}
                   onChange={(e) => setReminderMessage(e.target.value)}
-                  placeholder="رسالة التذكير (اختياري)"
+                  placeholder="رسالة التذكير"
                   maxLength={200}
                 />
               )}
@@ -519,7 +538,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
 
           {step.id === 'timeline' && (
             <div className="add-task-field">
-              <span className="add-task-label">الجدول الزمني (اختياري)</span>
+              <span className="add-task-label">الجدول الزمني</span>
               <div className="timeline-form-row">
                 <label>وقت البداية</label>
                 <input type="datetime-local" value={startDraft} onChange={(e) => setStartDraft(e.target.value)} />

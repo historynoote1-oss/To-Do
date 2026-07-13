@@ -145,9 +145,34 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
+  // فحص صارم لكل مرحلة بالاسم (مش بس المرحلة الحالية) — نفس فلسفة نافذة
+  // "إضافة مهمة" العادية بالظبط، بيتنادى مرتين: مرة على المرحلة الحالية
+  // بس (goNext)، ومرة تانية بتلف على كل المراحل قبل الإنشاء النهائي كخط
+  // دفاع تاني، عشان محدش يقدر يوصل لمرحلة المراجعة وبيانات ناقصة.
+  function validateStepById(id: StepId): string | null {
+    if (id === 'title' && !trimmedTitle) return 'اكتب اسم المهمة الأول';
+    if (id === 'subtasks') {
+      if (itemDraft.trim() && items.every((it) => it.content !== itemDraft.trim())) {
+        return 'كتبت مهمة فرعية ولسه مضفتهاش — دوس "إضافة" أو امسح الخانة عشان تكمل';
+      }
+      if (items.length === 0) {
+        return 'لازم تضيف مهمة فرعية ثابتة واحدة على الأقل';
+      }
+    }
+    if (id === 'startDate' && !startDate) return 'حدد تاريخ أول تكرار';
+    if (id === 'lifeArea' && !lifeAreaId) return 'لازم تختار مجال حياة للمهمة';
+    return null;
+  }
+
   function validateStep(): string | null {
-    if (step.id === 'title' && !trimmedTitle) return 'اكتب اسم المهمة الأول';
-    if (step.id === 'startDate' && !startDate) return 'حدد تاريخ أول تكرار';
+    return validateStepById(step.id);
+  }
+
+  function validateAllSteps(): { stepIndex: number; message: string } | null {
+    for (let i = 0; i < STEPS.length; i++) {
+      const err = validateStepById(STEPS[i].id);
+      if (err) return { stepIndex: i, message: err };
+    }
     return null;
   }
 
@@ -185,6 +210,16 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
       sounds.error();
       return;
     }
+    // خط دفاع تاني: كل المراحل مع بعض — لو فيه أي حاجة ناقصة اتسابت من
+    // مرحلة سابقة، مانوصلش نحفظ حاجة ناقصة؛ بنرجّع المستخدم للمرحلة
+    // اللي فيها المشكلة مباشرة.
+    const fullCheck = validateAllSteps();
+    if (fullCheck) {
+      setStepIndex(fullCheck.stepIndex);
+      setStepError(fullCheck.message);
+      sounds.error();
+      return;
+    }
     if (submitting) return;
     setSubmitting(true);
     try {
@@ -212,7 +247,13 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
       >
         <div className="add-task-header">
           <h2 id="add-recurring-title">
-            <DynamicIcon name={step.icon} size={18} /> {step.label}
+            <span className="add-task-header-icon" aria-hidden="true">
+              <DynamicIcon name={step.icon} size={20} strokeWidth={2.25} />
+            </span>
+            <span className="add-task-header-text">
+              <span className="add-task-header-step">الخطوة {stepIndex + 1} من {STEPS.length}</span>
+              <span className="add-task-header-title">{step.label}</span>
+            </span>
           </h2>
           <button className="icon-btn" onClick={onClose} type="button" aria-label="إغلاق">
             <DynamicIcon name="x" size={16} />
@@ -262,7 +303,7 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
 
           {step.id === 'subtasks' && (
             <div className="add-task-field">
-              <span className="add-task-label">المهام الفرعية الثابتة (اختياري)</span>
+              <span className="add-task-label">المهام الفرعية الثابتة</span>
               <p className="wizard-empty-hint">بتتكرر تلقائيًا مع كل نسخة جديدة تتولّد من القالب ده.</p>
               <div className="subtask-add-row">
                 <input
@@ -284,7 +325,7 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
                 </button>
               </div>
               {items.length === 0 ? (
-                <p className="wizard-empty-hint">لسه مفيش مهام فرعية — تقدر تضيفها دلوقتي أو تتخطى الخطوة</p>
+                <p className="wizard-empty-hint">لسه مفيش مهام فرعية — لازم تضيف مهمة واحدة على الأقل عشان تكمل</p>
               ) : (
                 <ul className="subtask-draft-list">
                   {items.map((it, i) => (
@@ -360,7 +401,7 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
 
           {step.id === 'lifeArea' && (
             <div className="add-task-field">
-              <span className="add-task-label">مجال الحياة (اختياري)</span>
+              <span className="add-task-label">مجال الحياة</span>
               <LifeAreaPicker
                 value={lifeAreaId}
                 areas={displayLifeAreas}
