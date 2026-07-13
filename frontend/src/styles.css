@@ -1236,8 +1236,10 @@ button:disabled {
 .header-user-meta {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 3px;
   min-width: 0;
+  text-align: end;
 }
 
 .header-user-greeting {
@@ -1246,7 +1248,7 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 122px;
+  max-width: 132px;
 }
 
 .header-user-name {

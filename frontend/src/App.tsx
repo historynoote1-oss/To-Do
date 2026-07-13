@@ -793,13 +793,6 @@ export default function App() {
               type="button"
               title="الملف الشخصي"
             >
-              <span className="header-user-avatar">
-                {avatarUrl ? (
-                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
-                ) : (
-                  (displayName || username)?.trim().charAt(0).toUpperCase()
-                )}
-              </span>
               <span className="header-user-meta">
                 <span className="header-user-greeting">
                   مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
@@ -811,6 +804,13 @@ export default function App() {
                   <span className="header-streak-icon" aria-hidden="true">🔥</span>
                   <span className="header-streak-count">0</span>
                 </span>
+              </span>
+              <span className="header-user-avatar">
+                {avatarUrl ? (
+                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+                ) : (
+                  (displayName || username)?.trim().charAt(0).toUpperCase()
+                )}
               </span>
             </button>
           </div>
