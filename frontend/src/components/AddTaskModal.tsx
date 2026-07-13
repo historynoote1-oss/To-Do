@@ -111,9 +111,7 @@ export default function AddTaskModal({
   onSave,
 }: Props) {
   const isEditing = !!editTarget;
-  // في وضع التعديل، خطوة "المهام الفرعية" مالهاش معنى (المهمة عندها
-  // مهام فرعية حقيقية أصلًا بتتدار من مكان تاني)، فبنشيلها من القايمة.
-  const STEPS = useMemo(() => ALL_STEPS.filter((s) => !(isEditing && s.id === 'subtasks')), [isEditing]);
+  const STEPS = ALL_STEPS;
   const [stepIndex, setStepIndex] = useState(0);
 
   const [title, setTitle] = useState('');
@@ -274,7 +272,7 @@ export default function AddTaskModal({
       if (subtaskDraft.trim() && subtasks.every((s) => s !== subtaskDraft.trim())) {
         return 'كتبت مهمة فرعية ولسه مضفتهاش — دوس "إضافة" أو امسح الخانة عشان تكمل';
       }
-      if (subtasks.length === 0) {
+      if (!isEditing && subtasks.length === 0) {
         return 'لازم تضيف مهمة فرعية واحدة على الأقل';
       }
     }
@@ -474,7 +472,7 @@ export default function AddTaskModal({
 
           {step.id === 'subtasks' && (
             <div className="add-task-field">
-              <span className="add-task-label">المهام الفرعية</span>
+              <span className="add-task-label">{isEditing ? 'إضافة مهام فرعية جديدة' : 'المهام الفرعية'}</span>
               <div className="subtask-add-row">
                 <input
                   ref={subtaskRef}
@@ -494,7 +492,11 @@ export default function AddTaskModal({
                 </button>
               </div>
               {subtasks.length === 0 ? (
-                <p className="wizard-empty-hint">لسه مفيش مهام فرعية — لازم تضيف مهمة واحدة على الأقل عشان تكمل</p>
+                <p className="wizard-empty-hint">
+                  {isEditing
+                    ? 'ولّة أضيف مهام فرعية جديدة هنا لو حابب، أو كمّل من غير ما تضيف حاجة'
+                    : 'لسه مفيش مهام فرعية — لازم تضيف مهمة واحدة على الأقل عشان تكمل'}
+                </p>
               ) : (
                 <ul className="subtask-draft-list">
                   {subtasks.map((s, i) => (

@@ -19,7 +19,7 @@ import RemindersModal from './RemindersModal';
 import TaskTimeline from './TaskTimeline';
 import AddTaskModal, { NewTaskPayload } from './AddTaskModal';
 import Portal from './Portal';
-import { PriorityBadge, PriorityPicker } from './Priority';
+import { PriorityBadge } from './Priority';
 import { CategoryBadge } from './Category';
 import { LifeAreaBadge } from './LifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
@@ -41,9 +41,6 @@ export default function TodoList({
   pendingRestore = false,
   onFinalizeRestore,
 }: any) {
-  const [newItem, setNewItem] = useState('');
-  const [newItemPriority, setNewItemPriority] = useState<PriorityKey>('LOW');
-  const [showItemPriority, setShowItemPriority] = useState(false);
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [burstKey, setBurstKey] = useState(0);
   const [confettiOn, setConfettiOn] = useState(false);
@@ -53,10 +50,11 @@ export default function TodoList({
   // بتفتح نافذة تعديل المهمة (نفس مراحل الإنشاء بالظبط بس في وضع تعديل) —
   // بتتفتح لما يدوس المستخدم على أيقونة القلم في رأس الكارت.
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<any>(null);
   // بتتحكم في إظهار/إخفاء المهام الفرعية — مقفولة افتراضيًا عشان الكارت
-  // يفضل صغير ومضغوط، وبتتفتح لما المستخدم يضغط على اسم المهمة الرئيسية.
+  // يفضل صغير ومضغوط، وبتتفتح لما المستخدم يضغط على أيقونة المهام الفرعية
+  // في رأس الكارت. النافذة دي للعرض والتأشير بس — إضافة مهام فرعية جديدة
+  // بقت بس من خطوة "المهام الفرعية" في نافذة التعديل (أيقونة القلم).
   const [subtasksOpen, setSubtasksOpen] = useState(false);
   const [confirmingDone, setConfirmingDone] = useState(false);
   const [remindersTarget, setRemindersTarget] = useState<
@@ -97,35 +95,9 @@ export default function TodoList({
     [burstKey]
   );
 
-  async function handleAdd() {
-    if (!newItem.trim()) return;
-    const content = newItem.trim();
-    const priority = newItemPriority;
-    sounds.addItem();
-    setNewItem('');
-    setNewItemPriority('LOW');
-    setShowItemPriority(false);
-    setAddOpen(false);
-    try {
-      const created = await addItem(list.id, content, priority);
-      const ref = { id: created.id as string };
-      pushCommand({
-        label: `إضافة "${content}"`,
-        undo: async () => {
-          await deleteItem(ref.id);
-          onChange();
-          toast.info(`تم التراجع عن إضافة "${content}"`);
-        },
-        redo: async () => {
-          const recreated = await addItem(list.id, content, priority);
-          ref.id = recreated.id;
-          onChange();
-        },
-      });
-      onChange();
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّرت إضافة المهمة الفرعية');
+  async function handleEditSaveNewSubtasks(newSubtasks: string[]) {
+    for (const content of newSubtasks) {
+      await addItem(list.id, content);
     }
   }
 
@@ -229,6 +201,9 @@ export default function TodoList({
         startTime: data.startTime,
         endTime: data.endTime,
       });
+      if (data.subtasks.length > 0) {
+        await handleEditSaveNewSubtasks(data.subtasks);
+      }
       for (const r of data.reminders) {
         await createReminder({
           listId: id,
@@ -459,20 +434,14 @@ export default function TodoList({
               autoFocus
             />
           ) : (
-            <button
-              type="button"
-              className="list-title-toggle"
-              onClick={() => setSubtasksOpen(true)}
-              onDoubleClick={startTitleEdit}
-              title="عرض المهام الفرعية"
-            >
+            <div className="list-title-plain" onDoubleClick={startTitleEdit} title="دبل كليك للتعديل السريع للاسم">
               <h2>{list.title}</h2>
               {total > 0 && (
                 <span className="list-title-subcount">
                   {done}/{total}
                 </span>
               )}
-            </button>
+            </div>
           )}
           {list.recurringTaskId && (
             <span className="recurring-origin-badge" title="اتولّدت تلقائيًا من مهمة متكررة">
@@ -490,6 +459,12 @@ export default function TodoList({
           {!editingTitle && (
             <button className="card-icon-action" onClick={() => setEditModalOpen(true)} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
               <DynamicIcon name="pencil" size={17} />
+            </button>
+          )}
+          {!editingTitle && (
+            <button className="card-icon-action" onClick={() => setSubtasksOpen(true)} aria-label="عرض المهام الفرعية" type="button" title="المهام الفرعية">
+              <DynamicIcon name="list-checks" size={17} />
+              {total > 0 && <span className="subtask-count-badge">{total}</span>}
             </button>
           )}
           <button className="card-icon-action danger" onClick={handleDeleteList} aria-label="حذف المهمة الرئيسية" type="button" title="حذف">
@@ -550,36 +525,8 @@ export default function TodoList({
               {total > 0 && <span className="list-title-subcount">{done}/{total}</span>}
             </div>
 
-            {addOpen ? (
-              <div className="new-item">
-                <div className="new-item-row">
-                  <input
-                    autoFocus
-                    value={newItem}
-                    onChange={(e) => setNewItem(e.target.value)}
-                    placeholder="مهمة فرعية جديدة"
-                    onFocus={() => setShowItemPriority(true)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleAdd();
-                      if (e.key === 'Escape') setAddOpen(false);
-                    }}
-                  />
-                  <button onClick={handleAdd}>+</button>
-                </div>
-                {showItemPriority && (
-                  <div className="new-item-priority">
-                    <PriorityPicker value={newItemPriority} onChange={setNewItemPriority} />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <button className="add-subtask-trigger" onClick={() => setAddOpen(true)} type="button">
-                <DynamicIcon name="plus" size={13} /> مهمة فرعية جديدة
-              </button>
-            )}
-
             {total === 0 ? (
-              <p className="empty small">لسه مفيش مهام فرعية هنا</p>
+              <p className="empty small">لسه مفيش مهام فرعية هنا — تقدر تضيف من أيقونة القلم فوق</p>
             ) : (
               <ul className="subtask-tree subtasks-modal-list">
                 {sortedItems.map((item: any, i: number) => (

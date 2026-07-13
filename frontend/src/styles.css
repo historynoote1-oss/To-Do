@@ -6952,6 +6952,7 @@ body.modal-lock-scroll {
    بصري إن العنصر قابل للنقر. الألوان مبنية على متغيّرات الثيم، فبتتلوّن
    صح تلقائيًا في الوضعين الفاتح والغامق. */
 .card-icon-action {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -6990,35 +6991,43 @@ body.modal-lock-scroll {
   outline-offset: 2px;
 }
 
+.subtask-count-badge {
+  position: absolute;
+  top: -4px;
+  inset-inline-end: -4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--font-num);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 15px;
+  text-align: center;
+  border: 1.5px solid var(--surface);
+}
+
 .list-checkbox.disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-/* زر اسم المهمة الرئيسية — بيلف الاسم + عدّاد المهام الفرعية في عنصر
-   واحد قابل للنقر، وبيفتح نافذة منفصلة فوق المحتوى (مش بيتمدد جوه
-   الكارت نفسه). الاسم لازم يبان كامل وواضح من غير ما يتقطع. */
-.list-title-toggle {
+/* اسم المهمة الرئيسية — بيلف الاسم + عدّاد المهام الفرعية في عنصر واحد،
+   لكنه دلوقتي نص عادي مش زرار: مفيش خلفية ولا حدود قابلة للنقر. عرض
+   المهام الفرعية بقى من أيقونة مستقلة (شوف .card-icon-action)، والدبل
+   كليك على الاسم لسه بيفتح تعديل سريع للعنوان بس. الاسم لازم يبان كامل
+   وواضح من غير ما يتقطع. */
+.list-title-plain {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
   flex: 1;
-  background: transparent;
-  border: none;
-  padding: 5px 8px;
-  margin-inline-start: -8px;
-  border-radius: var(--radius-sm);
-  text-align: start;
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out);
 }
 
-.list-title-toggle:hover {
-  background: var(--surface-2);
-}
-
-.list-title-toggle h2 {
+.list-title-plain h2 {
   margin: 0;
   overflow: visible;
   text-overflow: unset;
