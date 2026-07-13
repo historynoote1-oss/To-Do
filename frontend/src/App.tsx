@@ -765,37 +765,6 @@ export default function App() {
         )}
         <div className="top-bar">
           <div className="top-bar-grid">
-            <button
-              className="header-user"
-              onClick={() => setView('profile')}
-              type="button"
-              title="الملف الشخصي"
-            >
-              <span className="header-user-meta">
-                <span className="header-user-greeting">
-                  مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
-                </span>
-                {/* TODO: عنصر Placeholder فقط — سيتم لاحقاً إضافة نظام الاستريك
-                    الحقيقي (حساب الأيام المتتالية) وربطه بالبيانات الفعلية.
-                    من غير أي منطق أو state دلوقتي عن قصد. */}
-                <span className="header-streak" title="أيام الإنجاز المتتالية">
-                  <span className="header-streak-icon" aria-hidden="true">🔥</span>
-                  <span className="header-streak-count">0</span>
-                </span>
-              </span>
-              <span className="header-user-avatar">
-                {avatarUrl ? (
-                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
-                ) : (
-                  (displayName || username)?.trim().charAt(0).toUpperCase()
-                )}
-              </span>
-            </button>
-
-            <div className="brand">
-              <h1 className="brand-title">المهام الرئيسية</h1>
-            </div>
-
             <div className="top-bar-controls">
               <button
                 className="icon-btn hamburger-btn"
@@ -813,6 +782,37 @@ export default function App() {
                 </span>
               </button>
             </div>
+
+            <div className="brand">
+              <h1 className="brand-title">المهام الرئيسية</h1>
+            </div>
+
+            <button
+              className="header-user"
+              onClick={() => setView('profile')}
+              type="button"
+              title="الملف الشخصي"
+            >
+              <span className="header-user-avatar">
+                {avatarUrl ? (
+                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+                ) : (
+                  (displayName || username)?.trim().charAt(0).toUpperCase()
+                )}
+              </span>
+              <span className="header-user-meta">
+                <span className="header-user-greeting">
+                  مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
+                </span>
+                {/* TODO: عنصر Placeholder فقط — سيتم لاحقاً إضافة نظام الاستريك
+                    الحقيقي (حساب الأيام المتتالية) وربطه بالبيانات الفعلية.
+                    من غير أي منطق أو state دلوقتي عن قصد. */}
+                <span className="header-streak" title="أيام الإنجاز المتتالية">
+                  <span className="header-streak-icon" aria-hidden="true">🔥</span>
+                  <span className="header-streak-count">0</span>
+                </span>
+              </span>
+            </button>
           </div>
         </div>
 
