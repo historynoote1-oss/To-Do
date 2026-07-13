@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getLists,
   createList,
@@ -46,6 +46,28 @@ import TaskDistributionCard from './components/TaskDistributionCard';
 import CompletionRateCard from './components/CompletionRateCard';
 import PendingRestoreSection from './components/PendingRestoreSection';
 
+type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring';
+
+// خريطة كل شاشة لمسارها في الـ URL — ده اللي بيخلي كل قسم في الموقع يكون
+// ليه رابط فعلي (بدل ما الرابط يفضل ثابت دايمًا على الصفحة الرئيسية)، فيبقى
+// ممكن تشارك رابط مباشر لأي قسم، وزرار رجوع المتصفح يشتغل بشكل طبيعي.
+const VIEW_PATHS: Record<ViewName, string> = {
+  todos: '/',
+  admin: '/admin',
+  profile: '/profile',
+  lifeAreas: '/life-areas',
+  archive: '/archive',
+  recurring: '/recurring',
+};
+
+const PATH_VIEWS: Record<string, ViewName> = Object.fromEntries(
+  Object.entries(VIEW_PATHS).map(([viewName, path]) => [path, viewName])
+) as Record<string, ViewName>;
+
+function getViewFromPath(): ViewName {
+  return PATH_VIEWS[window.location.pathname] ?? 'todos';
+}
+
 interface List {
   id: string;
   title: string;
@@ -65,7 +87,28 @@ export default function App() {
     localStorage.getItem('token') ? localStorage.getItem('username') : null
   );
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
-  const [view, setView] = useState<'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring'>('todos');
+  const [view, setViewState] = useState<ViewName>(() => getViewFromPath());
+
+  // بيحدّث state الشاشة الحالية، وكمان بيدفع مسار جديد للمتصفح عشان الرابط
+  // فوق يتغيّر فعليًا مع كل تنقّل (زي setView القديمة بالظبط من ناحية
+  // الاستخدام، فمفيش داعي نغيّر أي نداء setView(...) تاني في الملف).
+  const setView = useCallback((next: ViewName) => {
+    setViewState(next);
+    const path = VIEW_PATHS[next];
+    if (window.location.pathname !== path) {
+      window.history.pushState({ view: next }, '', path);
+    }
+  }, []);
+
+  // بيتابع زرار "رجوع"/"تقدّم" في المتصفح، ويحدّث الشاشة المعروضة على طول
+  // بدون ما يعمل push جديد (عشان منلفّش في حلقة).
+  useEffect(() => {
+    function handlePopState() {
+      setViewState(getViewFromPath());
+    }
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [lists, setLists] = useState<List[]>([]);
@@ -362,6 +405,7 @@ export default function App() {
     setAvatarUrl(null);
     setLists([]);
     setLifeAreas([]);
+    setView('todos');
     sounds.click();
   }
 
