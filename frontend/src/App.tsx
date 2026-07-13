@@ -779,17 +779,17 @@ export default function App() {
                     (displayName || username)?.trim().charAt(0).toUpperCase()
                   )}
                 </span>
+              </span>
+              <span className="header-user-meta">
+                <span className="header-user-greeting">
+                  مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
+                </span>
                 {/* TODO: عنصر Placeholder فقط — سيتم لاحقاً إضافة نظام الاستريك
                     الحقيقي (حساب الأيام المتتالية) وربطه بالبيانات الفعلية.
                     من غير أي منطق أو state دلوقتي عن قصد. */}
                 <span className="header-streak" title="أيام الإنجاز المتتالية">
                   <span className="header-streak-icon" aria-hidden="true">🔥</span>
                   <span className="header-streak-count">0</span>
-                </span>
-              </span>
-              <span className="header-user-meta">
-                <span className="header-user-greeting">
-                  مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
                 </span>
               </span>
             </button>
