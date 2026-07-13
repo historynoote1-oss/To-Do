@@ -38,10 +38,6 @@ function formatClock(totalSeconds: number): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
 }
 
-function formatWhen(d: Date): string {
-  return d.toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
-}
-
 function computePhase(now: number, start: number | null, end: number | null): Phase {
   if (start === null || end === null) return 'unset';
   if (now < start) return 'upcoming';
@@ -171,75 +167,48 @@ export default function TaskTimeline({ list, onChange }: Props) {
   const barColor =
     fraction > 0.5 ? 'var(--success)' : fraction > CRITICAL_FRACTION ? 'var(--timeline-warn)' : 'var(--danger)';
   const critical = phase === 'active' && fraction <= CRITICAL_FRACTION;
+  const ended = phase === 'ended';
 
+  // مربع مضغوط بس (نص السطر تقريبًا) — من غير أي كلام/نص وصفي، بس أيقونة
+  // للعرض + بار (لو في وقت شغال) + الرقم التنازلي نفسه. لما المهمة لسه ما
+  // بدأتش بيبقى وقت تذكير تنازلي، ولما تبدأ بيتحول لعدّاد+بار، ولما ينتهي
+  // الوقت الكل بيبقى أحمر.
   return (
-    <div className="timeline-block">
-      {!scheduled && (
-        <button type="button" className="timeline-set-btn" onClick={openEditor}>
-          <DynamicIcon name="timer" size={14} /> إضافة جدول زمني للمهمة
-        </button>
-      )}
+    <>
+      <button
+        type="button"
+        className={`timeline-compact timeline-compact-${phase} ${critical || ended ? 'timeline-compact-critical' : ''}`}
+        onClick={openEditor}
+        aria-label="الجدول الزمني للمهمة"
+        title="الجدول الزمني للمهمة"
+      >
+        <span className="timeline-compact-icon" aria-hidden="true">
+          <DynamicIcon name={!scheduled ? 'timer' : phase === 'upcoming' ? 'bell' : ended ? 'hourglass' : 'timer'} size={13} />
+        </span>
 
-      {scheduled && (
-        <div className={`timeline-panel timeline-${phase} ${critical ? 'timeline-critical' : ''}`}>
-          <div className="timeline-head">
-            <span className="timeline-icon" aria-hidden="true">
-              <DynamicIcon name="timer" size={16} />
-            </span>
-            <span className="timeline-status-text">
-              {phase === 'upcoming' && 'المهمة هتبدأ قريبًا'}
-              {phase === 'active' && 'المهمة شغالة دلوقتي'}
-              {phase === 'ended' && 'انتهى وقت المهمة'}
-            </span>
-            <button
-              type="button"
-              className="icon-btn small timeline-edit-btn"
-              onClick={openEditor}
-              aria-label="تعديل الجدول الزمني"
-              title="تعديل الجدول الزمني"
-            >
-              <DynamicIcon name="pencil" size={13} />
-            </button>
-          </div>
+        {scheduled && (phase === 'active' || ended) && (
+          <span className="timeline-compact-bar">
+            <span
+              className="timeline-compact-bar-fill"
+              style={{ width: `${(ended ? 1 : fraction) * 100}%`, background: ended ? 'var(--danger)' : barColor }}
+            />
+          </span>
+        )}
 
-          {phase === 'active' && s !== null && e !== null && (
-            <>
-              <div className="timeline-bar">
-                <div
-                  className="timeline-bar-fill"
-                  style={{ width: `${fraction * 100}%`, background: barColor }}
-                />
-              </div>
-              <div className="timeline-meta-row">
-                <span className="timeline-when">
-                  {formatWhen(start!)} → {formatWhen(end!)}
-                </span>
-                <span className="timeline-remaining" dir="ltr">
-                  {formatClock((e - now) / 1000)}
-                </span>
-              </div>
-            </>
-          )}
+        {!scheduled && <span className="timeline-compact-add">جدول</span>}
 
-          {phase === 'upcoming' && s !== null && (
-            <div className="timeline-meta-row">
-              <span className="timeline-when">{formatWhen(start!)}</span>
-              <span className="timeline-remaining" dir="ltr">
-                تبدأ خلال {formatClock((s - now) / 1000)}
-              </span>
-            </div>
-          )}
+        {scheduled && phase === 'upcoming' && (
+          <span className="timeline-compact-time" dir="ltr">{formatClock((s! - now) / 1000)}</span>
+        )}
 
-          {phase === 'ended' && (
-            <div className="timeline-meta-row">
-              <span className="timeline-when">
-                {formatWhen(start!)} → {formatWhen(end!)}
-              </span>
-              <span className="timeline-ended-badge"><DynamicIcon name="hourglass" size={12} /> انتهى</span>
-            </div>
-          )}
-        </div>
-      )}
+        {scheduled && phase === 'active' && (
+          <span className="timeline-compact-time" dir="ltr">{formatClock((e! - now) / 1000)}</span>
+        )}
+
+        {scheduled && ended && (
+          <span className="timeline-compact-time" dir="ltr">00:00</span>
+        )}
+      </button>
 
       {editing && (
         <div className="modal-overlay" onClick={() => setEditing(false)}>
@@ -269,6 +238,6 @@ export default function TaskTimeline({ list, onChange }: Props) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

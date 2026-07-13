@@ -424,14 +424,10 @@ export default function TodoList({
             <button
               type="button"
               className="list-title-toggle"
-              onClick={() => setSubtasksOpen((o) => !o)}
+              onClick={() => setSubtasksOpen(true)}
               onDoubleClick={startTitleEdit}
-              aria-expanded={subtasksOpen}
-              title={subtasksOpen ? 'إخفاء المهام الفرعية' : 'عرض المهام الفرعية'}
+              title="عرض المهام الفرعية"
             >
-              <span className={`list-title-caret ${subtasksOpen ? 'open' : ''}`} aria-hidden="true">
-                <DynamicIcon name="chevron-down" size={14} />
-              </span>
               <h2>{list.title}</h2>
               {total > 0 && (
                 <span className="list-title-subcount">
@@ -467,19 +463,20 @@ export default function TodoList({
       {/* شريط بيانات معروضة فقط — أولوية / تصنيف / مجال حياة، ومعاهم العدّاد
           أو الجدول الزمني للمهمة. مفيش أي حاجة هنا قابلة للنقر للتعديل. */}
       <div className="list-meta-row">
-        <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="sm" disabled />
-        <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="sm" disabled />
-        <LifeAreaBadge
-          value={list.lifeArea || null}
-          areas={lifeAreas}
-          onChange={handleListLifeAreaChange}
-          onManage={onManageLifeAreas}
-          size="sm"
-          disabled
-        />
+        <div className="list-meta-badges">
+          <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="sm" disabled />
+          <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="sm" disabled />
+          <LifeAreaBadge
+            value={list.lifeArea || null}
+            areas={lifeAreas}
+            onChange={handleListLifeAreaChange}
+            onManage={onManageLifeAreas}
+            size="sm"
+            disabled
+          />
+        </div>
+        <TaskTimeline list={list} onChange={onChange} />
       </div>
-
-      <TaskTimeline list={list} onChange={onChange} />
 
       {total > 0 && (
         <div className="list-progress-row">
@@ -493,56 +490,69 @@ export default function TodoList({
       )}
 
       {subtasksOpen && (
-        <div className="subtask-panel">
-          {addOpen ? (
-            <div className="new-item">
-              <div className="new-item-row">
-                <input
-                  autoFocus
-                  value={newItem}
-                  onChange={(e) => setNewItem(e.target.value)}
-                  placeholder="مهمة فرعية جديدة"
-                  onFocus={() => setShowItemPriority(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAdd();
-                    if (e.key === 'Escape') setAddOpen(false);
-                  }}
-                />
-                <button onClick={handleAdd}>+</button>
-              </div>
-              {showItemPriority && (
-                <div className="new-item-priority">
-                  <PriorityPicker value={newItemPriority} onChange={setNewItemPriority} />
-                </div>
-              )}
+        <div className="modal-overlay" onClick={() => setSubtasksOpen(false)}>
+          <div className="modal-box subtasks-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="subtasks-modal-header">
+              <h2>{list.title}</h2>
+              {total > 0 && <span className="list-title-subcount">{done}/{total}</span>}
             </div>
-          ) : (
-            <button className="add-subtask-trigger" onClick={() => setAddOpen(true)} type="button">
-              <DynamicIcon name="plus" size={13} /> مهمة فرعية جديدة
-            </button>
-          )}
 
-          {total === 0 ? (
-            <p className="empty small">لسه مفيش مهام فرعية هنا</p>
-          ) : (
-            <ul className="subtask-tree">
-              {sortedItems.map((item: any, i: number) => (
-                <TodoItemRow
-                  key={item.id}
-                  item={item}
-                  delay={i * 40}
-                  leaving={leavingIds.has(item.id)}
-                  onToggle={() => handleToggle(item)}
-                  onDelete={() => handleDeleteItem(item)}
-                  onPriorityChange={(p: PriorityKey) => handleItemPriorityChange(item, p)}
-                  onEdit={(content: string) => handleItemEdit(item, content)}
-                  onOpenReminders={(it: any) =>
-                    setRemindersTarget({ kind: 'item', id: it.id, title: it.content, dueDate: it.dueDate || null })
-                  }
-                />
-              ))}
-            </ul>
-          )}
+            {addOpen ? (
+              <div className="new-item">
+                <div className="new-item-row">
+                  <input
+                    autoFocus
+                    value={newItem}
+                    onChange={(e) => setNewItem(e.target.value)}
+                    placeholder="مهمة فرعية جديدة"
+                    onFocus={() => setShowItemPriority(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAdd();
+                      if (e.key === 'Escape') setAddOpen(false);
+                    }}
+                  />
+                  <button onClick={handleAdd}>+</button>
+                </div>
+                {showItemPriority && (
+                  <div className="new-item-priority">
+                    <PriorityPicker value={newItemPriority} onChange={setNewItemPriority} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button className="add-subtask-trigger" onClick={() => setAddOpen(true)} type="button">
+                <DynamicIcon name="plus" size={13} /> مهمة فرعية جديدة
+              </button>
+            )}
+
+            {total === 0 ? (
+              <p className="empty small">لسه مفيش مهام فرعية هنا</p>
+            ) : (
+              <ul className="subtask-tree subtasks-modal-list">
+                {sortedItems.map((item: any, i: number) => (
+                  <TodoItemRow
+                    key={item.id}
+                    item={item}
+                    delay={i * 40}
+                    leaving={leavingIds.has(item.id)}
+                    onToggle={() => handleToggle(item)}
+                    onDelete={() => handleDeleteItem(item)}
+                    onPriorityChange={(p: PriorityKey) => handleItemPriorityChange(item, p)}
+                    onEdit={(content: string) => handleItemEdit(item, content)}
+                    onOpenReminders={(it: any) =>
+                      setRemindersTarget({ kind: 'item', id: it.id, title: it.content, dueDate: it.dueDate || null })
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+
+            <div className="modal-actions">
+              <button className="small" onClick={() => setSubtasksOpen(false)} type="button">
+                إغلاق
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

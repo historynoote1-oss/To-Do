@@ -4565,185 +4565,8 @@ li input[type='checkbox'] {
 }
 
 /* ===== مؤقت المهمة (Task Timeline) ===== */
-.timeline-block {
-  margin-bottom: 16px;
-}
-
-.timeline-set-btn {
-  width: 100%;
-  background: transparent;
-  border: 1.5px dashed var(--border);
-  color: var(--text-muted);
-  font-size: 12.5px;
-  font-weight: 700;
-  padding: 9px 10px;
-  box-shadow: none;
-}
-
-.timeline-set-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent-soft);
-  background: var(--accent-dim);
-}
-
-.timeline-panel {
-  background: var(--surface-2);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
-    background var(--dur) var(--ease-out);
-}
-
-.timeline-panel.timeline-upcoming {
-  border-color: color-mix(in srgb, var(--info) 35%, transparent);
-  background: color-mix(in srgb, var(--info) 7%, transparent);
-}
-
-.timeline-panel.timeline-active {
-  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-.timeline-panel.timeline-ended {
-  border-color: color-mix(in srgb, var(--danger) 30%, transparent);
-  background: var(--danger-dim);
-}
-
-.timeline-panel.timeline-critical {
-  border-color: color-mix(in srgb, var(--danger) 55%, transparent);
-  animation: timeline-pulse 1.1s ease-in-out infinite;
-}
-
-@keyframes timeline-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 22%, transparent); }
-  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 0%, transparent); }
-}
-
-.timeline-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.timeline-icon {
-  flex-shrink: 0;
-  display: inline-flex;
-}
-
-.timeline-status-text {
-  flex: 1;
-  min-width: 0;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--text);
-  overflow-wrap: anywhere;
-}
-
-.timeline-critical .timeline-status-text {
-  color: var(--danger);
-}
-
-.timeline-edit-btn {
-  flex-shrink: 0;
-}
-
-.timeline-bar {
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-3);
-  overflow: hidden;
-}
-
-.timeline-bar-fill {
-  height: 100%;
-  border-radius: var(--radius-pill);
-  transition: width 1s linear, background var(--dur-slow) var(--ease-out);
-}
-
-/* صف البيانات الوصفية (المدة/الوقت المتبقي) — بيتحول لعمود واحد تلقائيًا
-   لو المساحة مش كفاية، عشان مفيش عنصرين يتزنقوا جنب بعض ويتقطعوا. */
-.timeline-meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 10px;
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.timeline-when {
-  flex: 1 1 150px;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
-}
-
-.timeline-remaining {
-  display: inline-flex;
-  align-items: center;
-  font-family: var(--font-num);
-  font-size: 13.5px;
-  color: var(--accent-soft);
-  font-weight: 800;
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-pill);
-  padding: 4px 11px;
-  flex-shrink: 0;
-  white-space: nowrap;
-  margin-inline-start: auto;
-}
-
-.timeline-critical .timeline-remaining {
-  color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
-  background: var(--danger-dim);
-}
-
-.timeline-ended-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
-  font-weight: 800;
-  color: var(--danger);
-  background: var(--danger-dim);
-  border-radius: var(--radius-pill);
-  padding: 4px 10px;
-  flex-shrink: 0;
-  white-space: nowrap;
-  margin-inline-start: auto;
-}
-
-/* شاشات صغيرة جدًا: الوقت المتبقي/شارة الانتهاء بتاخد سطر لوحدها بعرض كامل
-   وواضح بدل ما تتزنق جنب نص التاريخ الطويل. */
-@media (max-width: 420px) {
-  .timeline-panel {
-    padding: 12px 13px;
-  }
-
-  .timeline-meta-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .timeline-when {
-    flex-basis: auto;
-  }
-
-  .timeline-remaining,
-  .timeline-ended-badge {
-    justify-content: center;
-    margin-inline-start: 0;
-    width: 100%;
-    padding: 6px 10px;
-    font-size: 13px;
-  }
-}
+/* الصندوق المضغوط نفسه (أيقونة/بار/رقم) موجود في قسم list-card-compact
+   تحت — .timeline-compact وما يتفرّع منها. هنا لسه بس نافذة التعديل. */
 
 .timeline-modal {
   max-width: 380px;
@@ -7075,13 +6898,18 @@ body.modal-lock-scroll {
    المستخدم يضغط على اسم المهمة نفسه. */
 
 .list-card-compact {
-  padding: 12px 14px;
+  padding: 10px 12px;
+  border-radius: 4px;
+}
+
+.list-card-compact:hover {
+  border-radius: 4px;
 }
 
 .list-card-compact .list-header {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .list-card-compact .list-header-title {
@@ -7091,12 +6919,33 @@ body.modal-lock-scroll {
 }
 
 .list-card-compact h2 {
-  font-size: 14.5px;
+  font-size: 16.5px;
   font-weight: 700;
 }
 
 .list-checkbox {
   margin-top: 0;
+  margin-inline-end: 4px;
+}
+
+/* أيقونتي القلم والسلة هما الأيقونتين التفاعليتين الوحيدتين على الكارت،
+   فلازم يكونوا واضحين ومتباينين مع الخلفية دايمًا (مش معتمدين على hover
+   أو ألوان باهتة). */
+.list-card-compact .list-header .row-actions .icon-btn {
+  color: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent-soft) 35%, var(--border));
+  background: var(--surface-2);
+  opacity: 1;
+}
+
+.list-card-compact .list-header .row-actions .icon-btn.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: var(--danger-dim);
+}
+
+.list-card-compact .list-header .row-actions .icon-btn:hover {
+  filter: brightness(1.1);
 }
 
 .list-checkbox.disabled {
@@ -7104,19 +6953,20 @@ body.modal-lock-scroll {
   cursor: not-allowed;
 }
 
-/* زر اسم المهمة الرئيسية — بيلف كل السطر (السهم + الاسم + عدّاد المهام
-   الفرعية) في عنصر واحد قابل للنقر بيفتح/يقفل قائمة المهام الفرعية. */
+/* زر اسم المهمة الرئيسية — بيلف الاسم + عدّاد المهام الفرعية في عنصر
+   واحد قابل للنقر، وبيفتح نافذة منفصلة فوق المحتوى (مش بيتمدد جوه
+   الكارت نفسه). الاسم لازم يبان كامل وواضح من غير ما يتقطع. */
 .list-title-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   flex: 1;
   background: transparent;
   border: none;
-  padding: 4px 6px;
-  margin-inline-start: -6px;
-  border-radius: var(--radius);
+  padding: 5px 8px;
+  margin-inline-start: -8px;
+  border-radius: var(--radius-sm);
   text-align: start;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out);
@@ -7128,22 +6978,12 @@ body.modal-lock-scroll {
 
 .list-title-toggle h2 {
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: anywhere;
   min-width: 0;
-}
-
-.list-title-caret {
-  flex-shrink: 0;
-  display: inline-flex;
-  color: var(--text-faint);
-  transition: transform var(--dur) var(--ease-spring);
-}
-
-.list-title-caret.open {
-  transform: rotate(180deg);
-  color: var(--accent-soft);
+  line-height: 1.35;
 }
 
 .list-title-subcount {
@@ -7158,20 +6998,129 @@ body.modal-lock-scroll {
 }
 
 /* شريط البيانات الثابتة (أولوية / تصنيف / مجال حياة) — معروضة بس، مفيش
-   تعديل هنا خالص، شكلها أهدأ شوية من الشارات القابلة للنقر في أي مكان
-   تاني بالتطبيق. */
+   تعديل هنا خالص. نفس السطر بيتقسم لنص فيه الشارات ونص فيه صندوق
+   الجدول الزمني المضغوط. */
 .list-meta-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+.list-meta-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 55%;
+  min-width: 120px;
 }
 
 .list-meta-row .priority-badge,
 .list-meta-row .category-badge,
 .list-meta-row .life-area-badge {
   opacity: 0.92;
+}
+
+/* ===== صندوق الجدول الزمني المضغوط — أيقونة + بار + رقم بس، من غير
+   أي نص وصفي، وبياخد تقريبًا نص عرض سطر البيانات الثابتة. ===== */
+.timeline-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 40%;
+  max-width: 50%;
+  min-width: 96px;
+  margin-inline-start: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.timeline-compact:hover {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
+  background: var(--gradient-brand-soft);
+}
+
+.timeline-compact-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--accent-soft);
+}
+
+.timeline-compact-add {
+  font-size: 11.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-compact-bar {
+  flex: 1;
+  height: 4px;
+  min-width: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.timeline-compact-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--dur) var(--ease-out);
+}
+
+.timeline-compact-time {
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: var(--text);
+}
+
+.timeline-compact-upcoming .timeline-compact-icon,
+.timeline-compact-upcoming .timeline-compact-time {
+  color: var(--accent-soft);
+}
+
+.timeline-compact-critical {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-soft));
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-2));
+}
+
+.timeline-compact-critical .timeline-compact-icon,
+.timeline-compact-critical .timeline-compact-time {
+  color: var(--danger);
+}
+
+/* ===== نافذة المهام الفرعية — بتتفتح فوق المحتوى زي أي نافذة تانية في
+   التطبيق (مش بتتمدد جوه الكارت)، وفيها تشيك ليست مرتبة قابلة للتعليم. */
+.subtasks-modal {
+  max-width: 420px;
+}
+
+.subtasks-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.subtasks-modal-header h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  flex: 1;
+}
+
+.subtasks-modal-list {
+  margin-top: 8px;
 }
 
 .add-subtask-trigger {
@@ -7197,28 +7146,6 @@ body.modal-lock-scroll {
   padding: 8px 2px;
   font-size: 12.5px;
   opacity: 0.7;
-}
-
-/* لوحة المهام الفرعية — بتتفتح جوه الكارت نفسه في صندوق فخم شكله متميز
-   عن جسم الكارت، وبتتقفل تاني بضغطة على اسم المهمة. */
-.subtask-panel {
-  margin-top: 4px;
-  padding: 10px 12px 4px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  animation: subtask-panel-open var(--dur) var(--ease-out) both;
-}
-
-@keyframes subtask-panel-open {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* المهام الفرعية بشكل هرمي — خط اتصال رفيع يوصل كل مهمة فرعية بأصلها،
@@ -7257,46 +7184,6 @@ body.modal-lock-scroll {
 .subtask-tree .checkbox svg {
   width: 11px;
   height: 11px;
-}
-
-/* الجدول الزمني/العدّاد جوه الكارت المضغوط — بنفس فكرة كل حاجة "أصغر"،
-   من غير ما نلمس منطق العدّاد نفسه (بيفضل هو اللي بيقرر يعرض أرقام
-   تنازلية للميعاد اللي لسه ما جاش، أو الشريط المتحرك لما المهمة تبقى
-   شغالة فعلًا). */
-.list-card-compact .timeline-block {
-  margin-bottom: 8px;
-}
-
-.list-card-compact .timeline-set-btn {
-  padding: 5px 9px;
-  font-size: 11.5px;
-  gap: 5px;
-}
-
-.list-card-compact .timeline-panel {
-  padding: 8px 10px;
-  border-radius: var(--radius);
-}
-
-.list-card-compact .timeline-head {
-  gap: 6px;
-  margin-bottom: 5px;
-}
-
-.list-card-compact .timeline-status-text {
-  font-size: 11.5px;
-}
-
-.list-card-compact .timeline-meta-row {
-  font-size: 11px;
-}
-
-.list-card-compact .timeline-when {
-  font-size: 10.5px;
-}
-
-.list-card-compact .timeline-remaining {
-  font-size: 13px;
 }
 
 .list-card-compact .list-progress-row {
@@ -7464,6 +7351,18 @@ details[open] > summary .hier-caret {
 
 .hier-priority-group {
   margin-bottom: 12px;
+}
+
+/* الترتيب الهرمي في الصفحة الرئيسية (مجال الحياة ← التصنيف ← الأولوية ←
+   المهام) بيستخدم نفس كلاسات شجرة الأرشيف (year/month/day body) لكن من
+   غير أي مسافة متراكمة من اليمين — كل مستوى بيتفتح/يتقفل بنفس السلاسة
+   لكن من غير ما ياكل من عرض السطر مرة بعد مرة. */
+.task-hierarchy .archive-year-body,
+.task-hierarchy .archive-month-body,
+.task-hierarchy .archive-day-body {
+  padding-inline-start: 0;
+  margin-inline-start: 0;
+  border-inline-start: none;
 }
 
 /* ===== زرار الرجوع الموحّد (Back Button) ===== */
