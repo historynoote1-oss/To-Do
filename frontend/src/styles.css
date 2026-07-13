@@ -1201,6 +1201,12 @@ button:disabled {
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
+  /* تفادي تسنّن (aliasing) حواف الدائرة عند القص: بنجبر المتصفح يرسم
+     الطبقة دي على الـ GPU بدل الـ CPU، وده بيخلي حواف border-radius
+     تتقص بنعومة بدل ما تطلع فيها حتت مقطعة زي درج. */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   /* حلقة "فخامة" مركّبة من طبقات: فاصل خفيف حول الصورة نفسها، حلقة لونية
      رفيعة (Ring) بلمسة الهوية، وتوهج خارجي ناعم جدًا — نفس أسلوب صور
      البروفايل في المنتجات العالمية الكبرى، من غير ما يبان تقيل أو مبالغ فيه. */
@@ -1231,6 +1237,11 @@ button:disabled {
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+  /* clip-path بيدّي قص دائري بحواف ناعمة (anti-aliased) أفضل بكتير من
+     الاعتماد على overflow:hidden + border-radius لوحدهم، وده اللي كان
+     سايب حتت مقطعة على حواف الصورة */
+  clip-path: circle(50% at 50% 50%);
+  display: block;
 }
 
 .header-user-meta {
