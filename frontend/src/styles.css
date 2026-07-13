@@ -662,10 +662,10 @@ button:disabled {
 }
 
 /* ===== هيدر الصفحة الرئيسية: شبكة 3 أعمدة =====
-   عمود 1 (يمين، أول عنصر بترتيب DOM لأن الاتجاه RTL): زرار القائمة (Menu).
-   عمود 2 (وسط): شعار الموقع. عمود 3 (يسار): معلومات المستخدم (الصورة +
-   الاسم + التحية + الاستريك). العمودين الجانبيين بعرض متساوٍ (1fr) عشان
-   عمود الشعار يفضل في المنتصف فعليًا مهما اختلف عرض المحتوى على الجنبين. */
+   عمود 1 (يمين، أول عنصر بترتيب DOM لأن الاتجاه RTL): معلومات المستخدم +
+   نسبة الإنجاز الكلية. عمود 2 (وسط): شعار الموقع. عمود 3 (يسار): زرار
+   القائمة. العمودين الجانبيين بعرض متساوٍ (1fr) عشان عمود الشعار يفضل
+   في المنتصف فعليًا مهما اختلف عرض المحتوى على الجنبين. */
 .top-bar-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -680,7 +680,7 @@ button:disabled {
 .top-bar-controls {
   display: flex;
   align-items: center;
-  justify-self: start;
+  justify-self: end;
 }
 
 /* ===== Hamburger button ===== */
@@ -1177,7 +1177,7 @@ button:disabled {
      للمس على الموبايل)، والمحتوى جواها بيفضل محاذي لليمين بره لأن
      flex-start الافتراضي بيعني "يمين" في اتجاه RTL. */
   justify-self: stretch;
-  justify-content: flex-end;
+  justify-content: flex-start;
   min-width: 0;
   max-width: 100%;
   background: none;
