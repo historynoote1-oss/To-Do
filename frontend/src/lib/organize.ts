@@ -1,9 +1,8 @@
 // نظام التنظيم الجديد — بديل نظام الفلاتر القديم بالكامل.
 // بدل ما المستخدم يفلتر يدويًا كل مرة، المهام بتترتب وتتجمّع تلقائيًا:
-// 1) قسم "عاجل الآن" في الأعلى: أولوية حرجة/مرتفعة أو مواعيد استحقاق قريبة.
-// 2) بعده تجميع حسب مجال الحياة (بالترتيب اللي رتّبه المستخدم)، وأي مهمة
+// 1) تجميع حسب مجال الحياة (بالترتيب اللي رتّبه المستخدم)، وأي مهمة
 //    من غير مجال بتترصّ في قسم "بدون مجال" في الآخر.
-// 3) جوه كل قسم، المهام مرتبة تلقائيًا: الأولوية الأعلى الأول، وبعدين
+// 2) جوه كل قسم، المهام مرتبة تلقائيًا: الأولوية الأعلى الأول، وبعدين
 //    أقرب موعد استحقاق، عشان الوصول لأي حاجة يبقى في ثواني من غير فلترة.
 
 import { LifeAreaData } from './lifeArea';
@@ -11,7 +10,6 @@ import { priorityWeight, PRIORITIES, PriorityKey } from './priority';
 import { CATEGORIES, CategoryKey } from './category';
 
 export const NO_LIFE_AREA_GROUP = '__none__';
-const URGENT_WINDOW_MS = 24 * 60 * 60 * 1000; // يوم قدام يعتبر "عاجل" لو له موعد استحقاق
 
 export interface MinimalItem {
   isDone: boolean;
@@ -45,16 +43,6 @@ export function isListDone(list: MinimalList): boolean {
 export function isOverdue(list: MinimalList, now: number = Date.now()): boolean {
   const d = earliestDueDate(list);
   return d !== null && d < now;
-}
-
-// مهمة رئيسية بتتحسب "عاجلة" لو أولويتها حرجة/مرتفعة، أو عندها موعد
-// استحقاق متأخر أو خلال 24 ساعة جاية — ومش مكتملة بالكامل أصلًا.
-export function isUrgent(list: MinimalList, now: number = Date.now()): boolean {
-  if (isListDone(list)) return false;
-  if (list.priority === 'CRITICAL' || list.priority === 'HIGH') return true;
-  const d = earliestDueDate(list);
-  if (d === null) return false;
-  return d <= now + URGENT_WINDOW_MS;
 }
 
 function compareLists(a: MinimalList, b: MinimalList, now: number): number {
@@ -130,15 +118,6 @@ export function groupByLifeArea<T extends MinimalList>(lists: T[], lifeAreas: Li
   }
 
   return groups;
-}
-
-// أهم N مهمة محتاجة انتباه فوري، بترتيب الأولوية والاستحقاق — القسم ده
-// بيوفّر "وصول لأي مهمة خلال ثوانٍ" من غير ما يحتاج المستخدم يدوّر.
-export function urgentLists<T extends MinimalList>(lists: T[], limit = 6, now: number = Date.now()): T[] {
-  return sortLists(
-    lists.filter((l) => isUrgent(l, now)),
-    now
-  ).slice(0, limit);
 }
 
 // نفس منطق فرز المهام الرئيسية، بس للمهام الفرعية جوه مهمة واحدة: غير

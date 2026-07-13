@@ -39,7 +39,7 @@ import ConfirmModal from './components/ConfirmModal';
 import AddTaskModal, { NewTaskPayload } from './components/AddTaskModal';
 import { CategoryKey } from './lib/category';
 import { LifeAreaData } from './lib/lifeArea';
-import { groupByLifeArea, groupHierarchical, urgentLists, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
+import { groupByLifeArea, groupHierarchical, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
 import TaskHierarchy from './components/TaskHierarchy';
 import { DynamicIcon } from './lib/icons';
 import TaskDistributionCard from './components/TaskDistributionCard';
@@ -627,9 +627,7 @@ export default function App() {
   // بالكامل، لأنها بتتؤرشف تلقائيًا وتتنقل لصفحة الأرشيف — فمفيش داعي لتبويب
   // "مكتملة" هنا تاني، "نشطة" هي كل حاجة موجودة أصلًا.
   // التنظيم الجديد: بدل فلترة يدوية مستمرة، المهام بتترتب تلقائيًا حسب
-  // الأولوية وتتجمّع حسب مجال الحياة — قسم "عاجل الآن" بيوفّر وصول فوري
-  // لأهم المهام من غير ما يحتاج المستخدم يدوّر أو يفعّل أي فلتر.
-  const urgent = urgentLists(lists as any, 6);
+  // الأولوية وتتجمّع حسب مجال الحياة.
   const groups = groupByLifeArea(lists as any, lifeAreas);
   const hierGroups = groupHierarchical(lists as any, lifeAreas);
 
@@ -961,14 +959,8 @@ export default function App() {
           </p>
         )}
 
-        {!loading && lists.length > 0 && (groups.length > 1 || urgent.length > 0) && (
+        {!loading && lists.length > 0 && groups.length > 1 && (
           <nav className="quick-nav" aria-label="تنقّل سريع بين الأقسام">
-            {urgent.length > 0 && (
-              <button className="quick-nav-chip quick-nav-urgent" onClick={() => scrollToSection('section-urgent')} type="button">
-                <DynamicIcon name="alert" size={13} /> عاجل الآن
-                <span className="quick-nav-count">{urgent.length}</span>
-              </button>
-            )}
             {groups.map((g) => (
               <button
                 key={g.id}
@@ -982,31 +974,6 @@ export default function App() {
               </button>
             ))}
           </nav>
-        )}
-
-        {!loading && urgent.length > 0 && (
-          <section id="section-urgent" className="task-section task-section-urgent">
-            <div className="task-section-header">
-              <h3>
-                <DynamicIcon name="alert" size={16} /> عاجل الآن
-              </h3>
-              <span className="task-section-count">{urgent.length}</span>
-            </div>
-            <p className="task-section-hint">أعلى أولوية أو أقرب موعد استحقاق — دي أول حاجة تستاهل وقتك</p>
-            <div className="lists-grid">
-              {urgent.map((list, i) => (
-                <TodoList
-                  key={`urgent-${list.id}`}
-                  list={list}
-                  onChange={refresh}
-                  onDeleteList={handleDelete}
-                  delay={i * 60}
-                  lifeAreas={lifeAreas}
-                  onManageLifeAreas={() => setView('lifeAreas')}
-                />
-              ))}
-            </div>
-          </section>
         )}
 
         {!loading && (
