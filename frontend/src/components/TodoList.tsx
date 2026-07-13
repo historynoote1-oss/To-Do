@@ -204,13 +204,21 @@ export default function TodoList({
       if (data.subtasks.length > 0) {
         await handleEditSaveNewSubtasks(data.subtasks);
       }
-      for (const r of data.reminders) {
-        await createReminder({
-          listId: id,
-          mode: 'BEFORE_DUE',
-          offsetMinutes: r.offsetMinutes,
-          message: r.message || undefined,
-        });
+      // مهم: المهام الرئيسية معندهاش "موعد استحقاق" (dueDate) زي المهام
+      // الفرعية — عندها بس startTime/endTime، فالسيرفر بيرفض mode
+      // 'BEFORE_DUE' للمهام الرئيسية دايمًا. لازم نحسب remindAt بنفسنا
+      // من وقت بداية المهمة ونبعته كـ 'CUSTOM'، بالظبط زي ما بيحصل في
+      // مسار الإنشاء الأول (createTaskFromPayload في App.tsx).
+      if (data.reminders.length > 0 && data.startTime) {
+        for (const r of data.reminders) {
+          const remindAt = new Date(new Date(data.startTime).getTime() - r.offsetMinutes * 60 * 1000).toISOString();
+          await createReminder({
+            listId: id,
+            mode: 'CUSTOM',
+            remindAt,
+            message: r.message || undefined,
+          });
+        }
       }
       sounds.click();
       toast.success('اتحدّثت المهمة');
