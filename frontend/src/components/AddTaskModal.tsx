@@ -8,6 +8,7 @@ import { CategoryKey, categoryOf } from '../lib/category';
 import { LifeAreaData } from '../lib/lifeArea';
 import { DynamicIcon } from '../lib/icons';
 import { sounds } from '../lib/sounds';
+import Portal from './Portal';
 
 export interface NewTaskReminder {
   offsetMinutes: number;
@@ -26,16 +27,37 @@ export interface NewTaskPayload {
   reminders: NewTaskReminder[];
 }
 
+export interface EditTaskTarget {
+  id: string;
+  title: string;
+  priority: PriorityKey;
+  category: CategoryKey | null;
+  targetYear: number | null;
+  lifeAreaId: string | null;
+  startTime: string | null;
+  endTime: string | null;
+}
+
 interface Props {
   open: boolean;
   lifeAreas: LifeAreaData[];
   onClose: () => void;
   onManageLifeAreas: () => void;
-  onCreate: (data: NewTaskPayload) => Promise<void> | void;
+  onCreate?: (data: NewTaskPayload) => Promise<void> | void;
   // بيتنادى بمجرد ما مجال حياة جديد يتنشئ من جوه الويزارد (شوف مرحلة
   // "مجال الحياة") — عشان الأب (App) يحدّث قائمة المجالات العامة بتاعته
   // برضه، مش بس النسخة المحلية جوه الويزارد.
   onLifeAreaCreated?: (area: LifeAreaData) => void;
+  // لو اتبعتت، النافذة بتفتح في وضع "تعديل مهمة موجودة" بدل "إنشاء مهمة
+  // جديدة" — بتتخطى خطوة المهام الفرعية (مالهاش معنى في التعديل)، بتبدأ
+  // بقيم المهمة الحالية، وبتنادي onSave بدل onCreate عند الحفظ.
+  editTarget?: EditTaskTarget | null;
+  onSave?: (id: string, data: NewTaskPayload) => Promise<void> | void;
+}
+
+function toDatetimeLocalValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function formatOffsetParts(days: number, hours: number, minutes: number): string {
@@ -61,7 +83,7 @@ interface StepDef {
   icon: string;
 }
 
-const STEPS: StepDef[] = [
+const ALL_STEPS: StepDef[] = [
   { id: 'title', label: 'اسم المهمة', icon: 'sparkles' },
   { id: 'subtasks', label: 'المهام الفرعية', icon: 'list-checks' },
   { id: 'priority', label: 'الأولوية', icon: 'flag' },
@@ -78,7 +100,20 @@ const STEPS: StepDef[] = [
 // يفضل مريح ومركّز، وزرار "إنشاء المهمة" مش بيظهر غير بعد آخر مرحلة.
 // ملحوظة: خطوة "الجدول الزمني" قبل "التذكير" عن قصد — التذكير بيتحسب من
 // وقت بداية المهمة، فلازم يكون معروف قبل ما نعرض خطوة التذكير أصلًا.
-export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAreas, onCreate, onLifeAreaCreated }: Props) {
+export default function AddTaskModal({
+  open,
+  lifeAreas,
+  onClose,
+  onManageLifeAreas,
+  onCreate,
+  onLifeAreaCreated,
+  editTarget = null,
+  onSave,
+}: Props) {
+  const isEditing = !!editTarget;
+  // في وضع التعديل، خطوة "المهام الفرعية" مالهاش معنى (المهمة عندها
+  // مهام فرعية حقيقية أصلًا بتتدار من مكان تاني)، فبنشيلها من القايمة.
+  const STEPS = useMemo(() => ALL_STEPS.filter((s) => !(isEditing && s.id === 'subtasks')), [isEditing]);
   const [stepIndex, setStepIndex] = useState(0);
 
   const [title, setTitle] = useState('');
@@ -123,27 +158,38 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   useEffect(() => {
     if (open) {
       setStepIndex(0);
-      setTitle('');
+      if (editTarget) {
+        setTitle(editTarget.title);
+        setPriority(editTarget.priority);
+        setCategory(editTarget.category);
+        setTargetYear(editTarget.targetYear);
+        setLifeAreaId(editTarget.lifeAreaId);
+        setStartDraft(editTarget.startTime ? toDatetimeLocalValue(new Date(editTarget.startTime)) : '');
+        setEndDraft(editTarget.endTime ? toDatetimeLocalValue(new Date(editTarget.endTime)) : '');
+      } else {
+        setTitle('');
+        setPriority('MEDIUM');
+        setCategory(null);
+        setTargetYear(null);
+        setLifeAreaId(null);
+        setStartDraft('');
+        setEndDraft('');
+      }
       setSubtasks([]);
       setSubtaskDraft('');
-      setPriority('MEDIUM');
-      setCategory(null);
-      setTargetYear(null);
-      setLifeAreaId(null);
       setReminderDays('');
       setReminderHours('');
       setReminderMinutes('');
       setReminderMessage('');
       setReminders([]);
-      setStartDraft('');
-      setEndDraft('');
       setSubmitting(false);
       setStepError('');
       setCreatedAreas([]);
       setQuickCreateOpen(false);
       requestAnimationFrame(() => titleRef.current?.focus());
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editTarget?.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -256,7 +302,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
       if (hasReminder !== !!reminderMessage.trim()) {
         return 'كمّل بيانات التذكير (المدة والرسالة) قبل ما تضيفه، أو امسح الخانات';
       }
-      if (reminders.length === 0) {
+      if (!isEditing && reminders.length === 0) {
         return 'لازم تضيف تذكير واحد على الأقل';
       }
     }
@@ -329,7 +375,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
     try {
       const startTime = startDraft ? new Date(startDraft).toISOString() : null;
       const endTime = endDraft ? new Date(endDraft).toISOString() : null;
-      await onCreate({
+      const payload: NewTaskPayload = {
         title: trimmedTitle,
         subtasks: subtasks.map((s) => s.trim()).filter(Boolean),
         priority,
@@ -339,7 +385,12 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
         startTime,
         endTime,
         reminders,
-      });
+      };
+      if (isEditing && editTarget) {
+        await onSave?.(editTarget.id, payload);
+      } else {
+        await onCreate?.(payload);
+      }
       onClose();
     } finally {
       setSubmitting(false);
@@ -356,6 +407,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   if (!open) return null;
 
   return (
+    <Portal>
     <>
     <div className="modal-overlay add-task-overlay" onClick={onClose}>
       <div
@@ -380,7 +432,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
           </button>
         </div>
 
-        <div className="wizard-steps" role="tablist" aria-label="مراحل إنشاء المهمة">
+        <div className="wizard-steps" role="tablist" aria-label={isEditing ? 'مراحل تعديل المهمة' : 'مراحل إنشاء المهمة'}>
           {STEPS.map((s, i) => (
             <button
               key={s.id}
@@ -659,18 +711,20 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 <span className="wizard-review-label"><DynamicIcon name="sparkles" size={14} /> الاسم</span>
                 <span className="wizard-review-value">{trimmedTitle}</span>
               </div>
-              <div className="wizard-review-row wizard-review-row-subtasks">
-                <span className="wizard-review-label"><DynamicIcon name="list-checks" size={14} /> فرعية</span>
-                {subtasks.length > 0 ? (
-                  <ol className="wizard-review-subtask-list">
-                    {subtasks.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ol>
-                ) : (
-                  <span className="wizard-review-value">مفيش</span>
-                )}
-              </div>
+              {!isEditing && (
+                <div className="wizard-review-row wizard-review-row-subtasks">
+                  <span className="wizard-review-label"><DynamicIcon name="list-checks" size={14} /> فرعية</span>
+                  {subtasks.length > 0 ? (
+                    <ol className="wizard-review-subtask-list">
+                      {subtasks.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <span className="wizard-review-value">مفيش</span>
+                  )}
+                </div>
+              )}
               <div className="wizard-review-row">
                 <span className="wizard-review-label"><DynamicIcon name="flag" size={14} /> الأولوية</span>
                 <span className="wizard-review-value">{reviewPriority.label}</span>
@@ -684,7 +738,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 <span className="wizard-review-value">{reviewLifeArea ? reviewLifeArea.name : 'مفيش'}</span>
               </div>
               <div className="wizard-review-row wizard-review-row-subtasks">
-                <span className="wizard-review-label"><DynamicIcon name="bell" size={14} /> التذكيرات</span>
+                <span className="wizard-review-label"><DynamicIcon name="bell" size={14} /> {isEditing ? 'تذكيرات جديدة' : 'التذكيرات'}</span>
                 {reminders.length > 0 ? (
                   <ul className="wizard-review-subtask-list">
                     {reminders.map((r, i) => (
@@ -720,7 +774,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
           </button>
           {isLast ? (
             <button className="add-task-submit" type="button" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'جاري الإنشاء…' : 'إنشاء المهمة'}
+              {submitting ? (isEditing ? 'جاري الحفظ…' : 'جاري الإنشاء…') : isEditing ? 'حفظ التعديلات' : 'إنشاء المهمة'}
             </button>
           ) : (
             <button className="add-task-submit" type="button" onClick={goNext}>
@@ -741,5 +795,6 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
       }}
     />
     </>
+    </Portal>
   );
 }

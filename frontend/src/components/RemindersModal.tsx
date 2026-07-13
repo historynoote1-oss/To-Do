@@ -3,6 +3,7 @@ import { Reminder, getReminders, createReminder, deleteReminder, updateItemDueDa
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import { DynamicIcon } from '../lib/icons';
+import Portal from './Portal';
 
 type Target =
   | { kind: 'list'; id: string; title: string }
@@ -159,6 +160,7 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
   }
 
   return (
+    <Portal>
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box reminders-modal" onClick={(e) => e.stopPropagation()}>
         <h2><DynamicIcon name="bell" size={18} /> تذكيرات «{target.title}»</h2>
@@ -299,5 +301,6 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

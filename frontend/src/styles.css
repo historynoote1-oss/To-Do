@@ -1715,6 +1715,7 @@ button:disabled {
 
 /* ===== List cards ===== */
 .list-card {
+  position: relative;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -1723,7 +1724,11 @@ button:disabled {
   padding: 20px;
   margin-bottom: 16px;
   box-shadow: var(--shadow-glow);
-  overflow: hidden;
+  /* ملحوظة مهمة: مينفعش نحط overflow:hidden هنا. كان بيقطع/يخفي أيقونتي
+     القلم والسلة لما صف العنوان يطول ويدفعهم برا حدود الكارت. بدل الاعتماد
+     على القص، بنخلي كل عنصر جوه الصف يتقلّص صح (شوف .list-header-title)
+     وبنرسم الشريط اللوني فوق بحواف دائرية خاصة بيه بدل ما يعتمد على قص الأب. */
+  overflow: visible;
   transition: transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out),
     box-shadow var(--dur) var(--ease-out), border-radius var(--dur-slow) var(--ease-spring);
   animation: pop-in var(--dur-slow) var(--ease-out) both;
@@ -1734,6 +1739,7 @@ button:disabled {
   position: absolute;
   inset: 0 0 auto 0;
   height: 4px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--card-accent, var(--border));
   opacity: 0.9;
 }
@@ -1745,6 +1751,10 @@ button:disabled {
   border-radius: 26px 26px 26px 10px;
 }
 
+.list-card:hover::before {
+  border-radius: 26px 26px 0 0;
+}
+
 .list-card.list-complete {
   border-color: color-mix(in srgb, var(--success) 45%, var(--glass-border));
   box-shadow: 0 0 40px var(--success-dim), var(--shadow-sm);
@@ -1754,6 +1764,9 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* مسافة فوق تعادل تقريبًا مسافة البادينج تحت، عشان الكارت ميبقاش
+     ملتصق بالشريط اللوني اللي فوقه مباشرة. */
+  margin-top: 6px;
   margin-bottom: 14px;
   gap: 10px;
 }
@@ -1762,12 +1775,17 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
+  /* flex:1 + min-width:0 يخلوا العنوان ياخد المساحة المتاحة بس، ويتقلّص
+     صح لما يطول، بدل ما يدفع صف الأزرار (.row-actions) برا حدود الكارت
+     ويخليهم يختفوا. */
+  flex: 1 1 auto;
   min-width: 0;
   flex-wrap: wrap;
 }
 
 .list-header h2 {
   margin: 0;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 
@@ -7003,18 +7021,35 @@ body.modal-lock-scroll {
 .list-meta-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  /* لازم كل حاجة (الأولوية/التصنيف/مجال الحياة + التذكير + الجدول الزمني)
+     تفضل في سطر واحد دايمًا، من غير ما تنزل سطر تاني. */
+  flex-wrap: nowrap;
+  gap: 8px;
   margin-bottom: 6px;
 }
 
 .list-meta-badges {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
-  flex: 1 1 55%;
-  min-width: 120px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.list-meta-badges > * {
+  flex-shrink: 0;
+}
+
+/* نص السطر الباقي كله (بعد الشارات الثلاثة) بيتخصص لعدّاد التذكير وعدّاد
+   الجدول الزمني، وبيتلزقوا آخر السطر تلقائيًا. */
+.list-meta-timers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-inline-start: auto;
 }
 
 .list-meta-row .priority-badge,
@@ -7029,10 +7064,7 @@ body.modal-lock-scroll {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1 1 40%;
-  max-width: 50%;
-  min-width: 96px;
-  margin-inline-start: auto;
+  flex: 0 0 auto;
   background: var(--surface-2);
   border: 1px solid var(--border-soft);
   border-radius: 6px;
@@ -7040,6 +7072,19 @@ body.modal-lock-scroll {
   cursor: pointer;
   color: var(--text-muted);
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+/* لما يكون فيه جدول زمني متحدد فعلاً، المربع بيبقى مجرد عرض بصري بس —
+   مش قابل للنقر لتعديله من هنا (التعديل بقى من نافذة تعديل المهمة عن
+   طريق أيقونة القلم). بيفضل قابل للنقر بس في حالة "مفيش جدول لسه" عشان
+   يبقى فيه طريقة سريعة لإضافته أول مرة. */
+.timeline-compact.timeline-compact-readonly {
+  cursor: default;
+}
+
+.timeline-compact.timeline-compact-readonly:hover {
+  border-color: var(--border-soft);
+  background: var(--surface-2);
 }
 
 .timeline-compact:hover {

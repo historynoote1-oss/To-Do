@@ -1,3 +1,5 @@
+import Portal from './Portal';
+
 interface Props {
   title: string;
   description?: React.ReactNode;
@@ -20,25 +22,27 @@ export default function ConfirmModal({
   onConfirm,
 }: Props) {
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-        <h2>{title}</h2>
-        {description && <div className="modal-text">{description}</div>}
-        <div className="modal-actions">
-          <button className="small" onClick={onCancel} type="button" autoFocus>
-            {cancelLabel}
-          </button>
-          <button
-            className={danger ? 'danger small' : 'small'}
-            onClick={() => {
-              onConfirm();
-            }}
-            type="button"
-          >
-            {confirmLabel}
-          </button>
+    <Portal>
+      <div className="modal-overlay" onClick={onCancel}>
+        <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+          <h2>{title}</h2>
+          {description && <div className="modal-text">{description}</div>}
+          <div className="modal-actions">
+            <button className="small" onClick={onCancel} type="button" autoFocus>
+              {cancelLabel}
+            </button>
+            <button
+              className={danger ? 'danger small' : 'small'}
+              onClick={() => {
+                onConfirm();
+              }}
+              type="button"
+            >
+              {confirmLabel}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }

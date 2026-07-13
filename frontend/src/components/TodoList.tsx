@@ -1,5 +1,4 @@
-import { useMemo, useState } from 'react';
-import ReactDOM from 'react-dom';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import {
   addItem,
   toggleItem,
@@ -9,6 +8,7 @@ import {
   updateList,
   confirmListDone,
   unconfirmListDone,
+  createReminder,
 } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
@@ -17,7 +17,8 @@ import TodoItemRow from './TodoItem';
 import ConfirmModal from './ConfirmModal';
 import RemindersModal from './RemindersModal';
 import TaskTimeline from './TaskTimeline';
-import TaskEditWizard from './TaskEditWizard';
+import AddTaskModal, { NewTaskPayload } from './AddTaskModal';
+import Portal from './Portal';
 import { PriorityBadge, PriorityPicker } from './Priority';
 import { CategoryBadge } from './Category';
 import { LifeAreaBadge } from './LifeArea';
@@ -46,7 +47,12 @@ export default function TodoList({
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [burstKey, setBurstKey] = useState(0);
   const [confettiOn, setConfettiOn] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(list.title);
   const [confirmDeleteList, setConfirmDeleteList] = useState(false);
+  // بتفتح نافذة تعديل المهمة (نفس مراحل الإنشاء بالظبط بس في وضع تعديل) —
+  // بتتفتح لما يدوس المستخدم على أيقونة القلم في رأس الكارت.
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<any>(null);
   // بتتحكم في إظهار/إخفاء المهام الفرعية — مقفولة افتراضيًا عشان الكارت
@@ -56,9 +62,15 @@ export default function TodoList({
   const [remindersTarget, setRemindersTarget] = useState<
     { kind: 'list'; id: string; title: string } | { kind: 'item'; id: string; title: string; dueDate: string | null } | null
   >(null);
-  // معالج التعديل الكامل — بيتفتح بدل التعديل الإنلاين لما المستخدم يضغط قلم
-  const [editWizardOpen, setEditWizardOpen] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const { pushCommand } = useUndoRedo();
+
+  useEffect(() => {
+    if (editingTitle) {
+      setTitleDraft(list.title);
+      requestAnimationFrame(() => titleInputRef.current?.select());
+    }
+  }, [editingTitle]);
 
   const total = list.items.length;
   const sortedItems = useMemo(() => sortItems(list.items), [list.items]);
@@ -84,49 +96,6 @@ export default function TodoList({
       })),
     [burstKey]
   );
-
-  // حفظ التعديلات من معالج التعديل الكامل (جميع الخطوات دفعة واحدة)
-  async function handleEditWizardSave(updates: {
-    title: string;
-    priority: PriorityKey;
-    category: CategoryKey | null;
-    targetYear?: number | null;
-    lifeAreaId: string | null;
-  }) {
-    const previousTitle = list.title;
-    try {
-      await updateList(list.id, {
-        title: updates.title,
-        priority: updates.priority,
-        category: updates.category,
-        targetYear: updates.category === 'YEARLY' ? updates.targetYear : null,
-        lifeAreaId: updates.lifeAreaId,
-      });
-      sounds.editItem();
-      pushCommand({
-        label: `تعديل المهمة "${previousTitle}"`,
-        undo: async () => {
-          await updateList(list.id, {
-            title: previousTitle,
-            priority: list.priority,
-            category: list.category,
-            targetYear: list.targetYear,
-            lifeAreaId: list.lifeArea?.id ?? null,
-          });
-          onChange();
-        },
-        redo: async () => {
-          await updateList(list.id, updates);
-          onChange();
-        },
-      });
-      onChange();
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر حفظ التعديلات');
-      throw err;
-    }
-  }
 
   async function handleAdd() {
     if (!newItem.trim()) return;
@@ -206,10 +175,76 @@ export default function TodoList({
     onDeleteList(list.id);
   }
 
+  async function commitTitle() {
+    const trimmed = titleDraft.trim();
+    const previousTitle = list.title;
+    setEditingTitle(false);
+    if (!trimmed || trimmed === previousTitle) {
+      setTitleDraft(previousTitle);
+      return;
+    }
+    try {
+      await updateList(list.id, { title: trimmed });
+      sounds.editItem();
+      pushCommand({
+        label: `تعديل اسم "${previousTitle}"`,
+        undo: async () => {
+          await updateList(list.id, { title: previousTitle });
+          onChange();
+        },
+        redo: async () => {
+          await updateList(list.id, { title: trimmed });
+          onChange();
+        },
+      });
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تعديل اسم المهمة الرئيسية');
+      setTitleDraft(previousTitle);
+    }
+  }
+
+  function cancelTitleEdit() {
+    setTitleDraft(list.title);
+    setEditingTitle(false);
+  }
+
   function startTitleEdit(e: React.MouseEvent) {
     e.stopPropagation();
-    // بنفتح معالج التعديل الكامل بدل التعديل الإنلاين
-    setEditWizardOpen(true);
+    setEditingTitle(true);
+  }
+
+  // بيتنادى من نافذة تعديل المهمة (نفس ويزارد الإنشاء، بس في وضع تعديل).
+  // بيحدّث بيانات المهمة الرئيسية، وبعدين لو المستخدم ضاف تذكيرات جديدة
+  // من خطوة "التذكير" بيتم إنشاؤها فعليًا (التذكيرات القديمة متتلمسش).
+  async function handleEditSave(id: string, data: NewTaskPayload) {
+    try {
+      await updateList(id, {
+        title: data.title,
+        priority: data.priority,
+        category: data.category,
+        targetYear: data.targetYear,
+        lifeAreaId: data.lifeAreaId,
+        startTime: data.startTime,
+        endTime: data.endTime,
+      });
+      for (const r of data.reminders) {
+        await createReminder({
+          listId: id,
+          mode: 'BEFORE_DUE',
+          offsetMinutes: r.offsetMinutes,
+          message: r.message || undefined,
+        });
+      }
+      sounds.click();
+      toast.success('اتحدّثت المهمة');
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر حفظ التعديلات');
+      throw err;
+    }
   }
 
   async function handleItemEdit(item: any, content: string) {
@@ -395,9 +430,7 @@ export default function TodoList({
         </div>
       )}
 
-      {/* السطر الأول: مربع التأكيد + اسم المهمة + أزرار التحكم
-          padding-top مساوي للـ padding-bottom عشان الكارت يبدو متوازن */}
-      <div className="list-header" style={{ paddingTop: 'var(--card-pad, 14px)' }}>
+      <div className="list-header">
         <span
           className={`checkbox list-checkbox ${isComplete ? 'checked' : ''} ${total === 0 || (!allSubtasksDone && !list.confirmedDone) ? 'disabled' : ''}`}
           onClick={handleToggleWholeList}
@@ -412,21 +445,35 @@ export default function TodoList({
         </span>
 
         <div className="list-header-title">
-          {/* اسم المهمة — نقرة واحدة تفتح المهام الفرعية (كـ overlay كامل)
-              التعديل الإنلاين أُلغي — المعالج الكامل بيتفتح من زرار القلم */}
-          <button
-            type="button"
-            className="list-title-toggle"
-            onClick={() => setSubtasksOpen(true)}
-            title="عرض المهام الفرعية"
-          >
-            <h2>{list.title}</h2>
-            {total > 0 && (
-              <span className="list-title-subcount">
-                {done}/{total}
-              </span>
-            )}
-          </button>
+          {editingTitle ? (
+            <input
+              ref={titleInputRef}
+              className="list-title-input"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitTitle();
+                if (e.key === 'Escape') cancelTitleEdit();
+              }}
+              onBlur={commitTitle}
+              autoFocus
+            />
+          ) : (
+            <button
+              type="button"
+              className="list-title-toggle"
+              onClick={() => setSubtasksOpen(true)}
+              onDoubleClick={startTitleEdit}
+              title="عرض المهام الفرعية"
+            >
+              <h2>{list.title}</h2>
+              {total > 0 && (
+                <span className="list-title-subcount">
+                  {done}/{total}
+                </span>
+              )}
+            </button>
+          )}
           {list.recurringTaskId && (
             <span className="recurring-origin-badge" title="اتولّدت تلقائيًا من مهمة متكررة">
               <DynamicIcon name="repeat" size={12} />
@@ -439,38 +486,24 @@ export default function TodoList({
           )}
         </div>
 
-        {/* الأيقونات دايمًا ظاهرة — opacity:1 و visibility:visible صريحة
-            عشان نضمن إنها مش بتتخفى بأي CSS hover-only */}
-        <div className="row-actions" style={{ opacity: 1, visibility: 'visible', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <button
-            className="icon-btn small"
-            onClick={startTitleEdit}
-            aria-label="تعديل المهمة الرئيسية"
-            type="button"
-            title="تعديل"
-            style={{ opacity: 1, visibility: 'visible' }}
-          >
-            <DynamicIcon name="pencil" size={14} />
-          </button>
-          <button
-            className="icon-btn small danger"
-            onClick={handleDeleteList}
-            aria-label="حذف المهمة الرئيسية"
-            type="button"
-            title="حذف"
-            style={{ opacity: 1, visibility: 'visible' }}
-          >
-            <DynamicIcon name="trash-2" size={14} />
+        <div className="row-actions">
+          {!editingTitle && (
+            <button className="icon-btn small" onClick={() => setEditModalOpen(true)} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
+              <DynamicIcon name="pencil" size={14} />
+            </button>
+          )}
+          <button className="icon-btn small danger" onClick={handleDeleteList} aria-label="حذف المهمة الرئيسية" type="button" title="حذف">
+            <DynamicIcon name="x" size={14} />
           </button>
         </div>
       </div>
 
-      {/* السطر الثاني: الأولوية + التصنيف + مجال الحياة (صغيرة ومضغوطة على اليمين)
-          والمساحة الباقية للعدادين (التذكير + الـ deadline) على اليسار
-          كل حاجة هنا display-only لا تقبل تعديل */}
-      <div className="list-meta-row" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', minWidth: 0 }}>
-        {/* الشارات — مضغوطة على جانب واحد */}
-        <div className="list-meta-badges" style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      {/* شريط بيانات معروضة فقط — أولوية / تصنيف / مجال حياة (يمين السطر)،
+          وباقي السطر كله لعدّاد التذكير وعدّاد الجدول الزمني للمهمة. مفيش
+          أي حاجة هنا قابلة للنقر للتعديل المباشر — التعديل بقى عن طريق
+          أيقونة القلم فوق. */}
+      <div className="list-meta-row">
+        <div className="list-meta-badges">
           <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="sm" disabled />
           <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={handleListCategoryChange} size="sm" disabled />
           <LifeAreaBadge
@@ -482,8 +515,17 @@ export default function TodoList({
             disabled
           />
         </div>
-        {/* العدادات — تأخذ المساحة الباقية */}
-        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+        <div className="list-meta-timers">
+          <button
+            className={`icon-btn small reminder-bell ${list._count?.reminders ? 'has-reminders' : ''}`}
+            onClick={() => setRemindersTarget({ kind: 'list', id: list.id, title: list.title })}
+            aria-label="تذكيرات المهمة"
+            type="button"
+            title="التذكيرات"
+          >
+            <DynamicIcon name="bell" size={13} />
+            {list._count?.reminders > 0 && <span className="reminder-count-badge">{list._count.reminders}</span>}
+          </button>
           <TaskTimeline list={list} onChange={onChange} />
         </div>
       </div>
@@ -499,9 +541,8 @@ export default function TodoList({
         </div>
       )}
 
-      {/* مودال المهام الفرعية — يتعرض عبر portal مباشرة على document.body
-          عشان يكون فوق الصفحة كلها ومش محصور جوه الكارت */}
-      {subtasksOpen && ReactDOM.createPortal(
+      {subtasksOpen && (
+        <Portal>
         <div className="modal-overlay" onClick={() => setSubtasksOpen(false)}>
           <div className="modal-box subtasks-modal" onClick={(e) => e.stopPropagation()}>
             <div className="subtasks-modal-header">
@@ -565,8 +606,8 @@ export default function TodoList({
               </button>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
+        </Portal>
       )}
 
       {pendingRestore && (
@@ -619,14 +660,26 @@ export default function TodoList({
         />
       )}
 
-      {/* معالج التعديل الكامل — portal فوق الصفحة كلها بنفس مراحل الإنشاء */}
-      {editWizardOpen && (
-        <TaskEditWizard
-          list={list}
+      {editModalOpen && (
+        <AddTaskModal
+          open={editModalOpen}
           lifeAreas={lifeAreas}
-          onManageLifeAreas={onManageLifeAreas}
-          onSave={handleEditWizardSave}
-          onClose={() => setEditWizardOpen(false)}
+          onClose={() => setEditModalOpen(false)}
+          onManageLifeAreas={() => {
+            setEditModalOpen(false);
+            onManageLifeAreas?.();
+          }}
+          editTarget={{
+            id: list.id,
+            title: list.title,
+            priority: list.priority || 'MEDIUM',
+            category: list.category ?? null,
+            targetYear: list.targetYear ?? null,
+            lifeAreaId: list.lifeArea?.id ?? list.lifeAreaId ?? null,
+            startTime: list.startTime ?? null,
+            endTime: list.endTime ?? null,
+          }}
+          onSave={handleEditSave}
         />
       )}
     </div>
