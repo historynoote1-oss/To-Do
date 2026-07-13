@@ -473,10 +473,11 @@ export default function TodoList({
         </div>
       </div>
 
-      {/* شريط بيانات معروضة فقط — أولوية / تصنيف / مجال حياة (يمين السطر)،
-          وباقي السطر كله لعدّاد التذكير وعدّاد الجدول الزمني للمهمة. مفيش
-          أي حاجة هنا قابلة للنقر للتعديل المباشر — التعديل بقى عن طريق
-          أيقونة القلم فوق. */}
+      {/* شريط بيانات معروضة فقط — أولوية / تصنيف / مجال حياة مصغّرين (يمين
+          السطر)، وباقي السطر كله (أكتر من نصه) لعنصر واحد بس: إما عدّاد
+          أقرب تذكير قادم أو عدّاد + بار وقت المهمة النشطة. مفيش أي حاجة
+          هنا قابلة للنقر للتعديل المباشر — التعديل بقى عن طريق أيقونة
+          القلم فوق. */}
       <div className="list-meta-row">
         <div className="list-meta-badges">
           <PriorityBadge value={list.priority || 'NONE'} onChange={handleListPriorityChange} size="sm" disabled />
@@ -491,17 +492,7 @@ export default function TodoList({
           />
         </div>
         <div className="list-meta-timers">
-          <button
-            className={`icon-btn small reminder-bell ${list._count?.reminders ? 'has-reminders' : ''}`}
-            onClick={() => setRemindersTarget({ kind: 'list', id: list.id, title: list.title })}
-            aria-label="تذكيرات المهمة"
-            type="button"
-            title="التذكيرات"
-          >
-            <DynamicIcon name="bell" size={13} />
-            {list._count?.reminders > 0 && <span className="reminder-count-badge">{list._count.reminders}</span>}
-          </button>
-          <TaskTimeline list={list} onChange={onChange} />
+          <TaskTimeline list={list} />
         </div>
       </div>
 

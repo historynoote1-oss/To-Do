@@ -6980,6 +6980,16 @@ body.modal-lock-scroll {
   transform: scale(0.9);
 }
 
+/* أيقونة السلة تحديدًا: عايزينها "عارية" فعلًا من غير أي خلفية حمراء
+   ثابتة (فيه قاعدة عامة button.danger بتحط خلفية حمراء دايمة، فبنلغيها
+   هنا بأسبقية أعلى). اللون الأحمر بيبان في نفسه بس (مش في خلفية) عشان
+   يفضل واضح وشكله حلو في الوضعين الفاتح والغامق، والخلفية الخفيفة
+   بتظهر بس وقت hover/focus كتلميح إنها قابلة للنقر. */
+.card-icon-action.danger {
+  background: transparent;
+  color: color-mix(in srgb, var(--danger) 75%, var(--text-muted));
+}
+
 .card-icon-action.danger:hover,
 .card-icon-action.danger:focus-visible {
   color: var(--danger);
@@ -7075,13 +7085,16 @@ body.modal-lock-scroll {
   flex-shrink: 0;
 }
 
-/* نص السطر الباقي كله (بعد الشارات الثلاثة) بيتخصص لعدّاد التذكير وعدّاد
-   الجدول الزمني، وبيتلزقوا آخر السطر تلقائيًا. */
+/* نص السطر الباقي كله (بعد الشارات الثلاثة المصغّرة) بياخده عنصر واحد بس:
+   إما عدّاد أقرب تذكير قادم (لو المهمة لسه ما بدأتش)، أو عدّاد + بار وقت
+   المهمة النشطة (لو دخل وقتها) — الاتنين مش بيظهروا مع بعض أبدًا. */
 .list-meta-timers {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   margin-inline-start: auto;
 }
 
@@ -7089,6 +7102,36 @@ body.modal-lock-scroll {
 .list-meta-row .category-badge,
 .list-meta-row .life-area-badge {
   opacity: 0.92;
+}
+
+/* الشارات الثلاثة (أولوية/تصنيف/مجال حياة) أصغر من حجم sm العادي —
+   عشان ياخدوا أقل من نص السطر ويسيبوا مساحة أوسع لعدّاد التذكير/الجدول
+   على الطرف التاني. */
+.list-meta-badges .priority-badge {
+  padding: 2px 6px;
+  gap: 3px;
+  font-size: 9.5px;
+}
+
+.list-meta-badges .priority-badge svg {
+  width: 9px;
+  height: 9px;
+}
+
+.list-meta-badges .life-area-glyph-chip,
+.list-meta-badges .life-area-glyph-chip-empty {
+  width: 15px !important;
+  height: 15px !important;
+}
+
+.list-meta-badges .life-area-glyph-img {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.list-meta-badges .life-area-glyph-chip-icon {
+  width: 8px !important;
+  height: 8px !important;
 }
 
 /* ===== صندوق الجدول الزمني المضغوط — أيقونة + بار + رقم بس، من غير
@@ -7113,6 +7156,15 @@ body.modal-lock-scroll {
    يبقى فيه طريقة سريعة لإضافته أول مرة. */
 .timeline-compact.timeline-compact-readonly {
   cursor: default;
+}
+
+/* لما يكون فيه بار (المهمة شغالة/خلصت)، بناخد أقصى مساحة متاحة من نص
+   السطر المخصص للعدّاد، عشان البار يبان بعرض معقول بدل ما ينضغط. عدّاد
+   التذكير (من غير بار) بيفضل مضغوط بحجم محتواه بس. */
+.timeline-compact.timeline-compact-has-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .timeline-compact.timeline-compact-readonly:hover {

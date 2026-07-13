@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { updateList } from '../lib/api';
+import { getReminders, Reminder } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import { DynamicIcon } from '../lib/icons';
-import Portal from './Portal';
 
 // نسبة الوقت المتبقي اللي عندها بنعتبر المهمة "قريبة من النهاية" (بنطلق
 // تنبيه صوتي وبصري مرة واحدة)، وبنفس القيمة تقريبًا بيدخل الشريط في وضع
@@ -18,16 +17,11 @@ interface ListLike {
   title: string;
   startTime?: string | null;
   endTime?: string | null;
+  _count?: { reminders?: number };
 }
 
 interface Props {
   list: ListLike;
-  onChange: () => void;
-}
-
-function toDatetimeLocalValue(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function formatClock(totalSeconds: number): string {
@@ -46,16 +40,29 @@ function computePhase(now: number, start: number | null, end: number | null): Ph
   return 'ended';
 }
 
-export default function TaskTimeline({ list, onChange }: Props) {
-  const start = list.startTime ? new Date(list.startTime) : null;
-  const end = list.endTime ? new Date(list.endTime) : null;
-  const scheduled = !!(start && end);
+// عنصر واحد بس بياخد باقي سطر البيانات الثابتة (بعد الأولوية/التصنيف/
+// مجال الحياة)، وبيعرض واحدة من حاجتين مفيش بينهم تداخل خالص:
+//
+//  ١) لسه المهمة ما بدأتش (أو مفيش جدول زمني للمهمة أصلًا) وفيه تذكيرات
+//     متحددة لها: بيعرض أيقونة جرس + عدّاد تنازلي لأقرب تذكير قادم. لما
+//     العدّاد يوصل صفر، التذكير ده يبقى "فات" فبيتنقل تلقائيًا لأقرب
+//     تذكير تاني لسه معلّق، لحد ما تخلص كل التذكيرات (الإرسال الفعلي/
+//     الإشعار بيتكفّل بيه الاستقصاء العام في App.tsx بغض النظر عن المكوّن ده).
+//
+//  ٢) دخل وقت بداية المهمة: بيتحول لعدّاد تنازلي لوقت نهاية المهمة مع
+//     شريط بار بينقص كل ثانية، ولما الوقت يخلص يبقى العدّاد والبار
+//     بلون أحمر بس.
+//
+// العنصر ده عرض فقط — مفيش أي تعديل مباشر منه، التعديل كله بقى من نافذة
+// تعديل المهمة (أيقونة القلم).
+export default function TaskTimeline({ list }: Props) {
+  const start = list.startTime ? new Date(list.startTime).getTime() : null;
+  const end = list.endTime ? new Date(list.endTime).getTime() : null;
+  const scheduled = start !== null && end !== null;
+  const reminderCount = list._count?.reminders ?? 0;
 
   const [now, setNow] = useState(() => Date.now());
-  const [editing, setEditing] = useState(false);
-  const [startDraft, setStartDraft] = useState('');
-  const [endDraft, setEndDraft] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
 
   const prevPhaseRef = useRef<Phase>('unset');
   const firedStartRef = useRef(false);
@@ -63,34 +70,60 @@ export default function TaskTimeline({ list, onChange }: Props) {
   const firedEndRef = useRef(false);
   const initializedRef = useRef(false);
 
-  // بنشتغل بس لو فيه جدول زمني فعلاً — عشان مش نفتح تيك كل ثانية لمهام
-  // مفيهاش مؤقت أصلًا.
+  // بنجيب تذكيرات المهمة بس لو فيه عدد تذكيرات فعلاً، وبنعيد الجلب لما
+  // العدد ده يتغيّر (إضافة/حذف من نافذة التعديل).
   useEffect(() => {
-    if (!scheduled) return;
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(interval);
-  }, [scheduled]);
+    if (reminderCount === 0) {
+      setReminders([]);
+      return;
+    }
+    let cancelled = false;
+    getReminders({ listId: list.id })
+      .then((data) => {
+        if (!cancelled) setReminders(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [list.id, reminderCount]);
 
   // لحظة ما الجدول الزمني نفسه يتغيّر (تحديد جديد / تعديل / مسح)، بنصفّر
   // كل علامات "الصوت اتشغّل قبل كده" ونعيد تهيئة المرحلة الأولية من غير ما
   // نطلق صوت لمجرد إننا لسه فاتحين الصفحة أو عدّلنا الجدول.
   useEffect(() => {
-    const s = start ? start.getTime() : null;
-    const e = end ? end.getTime() : null;
-    const phase = computePhase(Date.now(), s, e);
+    const phase = computePhase(Date.now(), start, end);
     prevPhaseRef.current = phase;
     firedStartRef.current = phase !== 'upcoming';
     firedEndRef.current = phase === 'ended';
-    const fraction = phase === 'active' && s !== null && e !== null ? (e - Date.now()) / (e - s) : 1;
+    const fraction = phase === 'active' && start !== null && end !== null ? (end - Date.now()) / (end - start) : 1;
     firedWarnRef.current = phase === 'ended' || (phase === 'active' && fraction <= WARN_FRACTION);
     initializedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list.startTime, list.endTime]);
 
-  const s = start ? start.getTime() : null;
-  const e = end ? end.getTime() : null;
-  const phase = computePhase(now, s, e);
-  const fraction = phase === 'active' && s !== null && e !== null ? Math.min(1, Math.max(0, (e - now) / (e - s))) : 1;
+  const phase = computePhase(now, start, end);
+  const showTaskTimer = phase === 'active' || phase === 'ended';
+
+  // أقرب تذكير لسه معلّق (وقته لسه ما جاش) — بيتحسب من جديد كل تيك، فلما
+  // تذكير يفوت وقته بيختفي من الفلتر ده تلقائيًا ويطلع اللي بعده.
+  const nextReminder =
+    reminders
+      .filter((r) => new Date(r.remindAt).getTime() > now)
+      .sort((a, b) => new Date(a.remindAt).getTime() - new Date(b.remindAt).getTime())[0] || null;
+
+  const shouldTick = showTaskTimer ? phase === 'active' : !!nextReminder;
+
+  // بنشتغل بس لو فيه حاجة فعلاً بتتحسب (جدول شغال، أو تذكير قادم لسه ما
+  // جاش وقته) — عشان مش نفتح تيك كل ثانية من غير داعي.
+  useEffect(() => {
+    if (!shouldTick) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [shouldTick]);
+
+  const fraction =
+    phase === 'active' && start !== null && end !== null ? Math.min(1, Math.max(0, (end - now) / (end - start))) : 1;
 
   useEffect(() => {
     if (!initializedRef.current || !scheduled) return;
@@ -118,139 +151,56 @@ export default function TaskTimeline({ list, onChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, fraction]);
 
-  function openEditor() {
-    setStartDraft(start ? toDatetimeLocalValue(start) : toDatetimeLocalValue(new Date(Date.now() + 5 * 60 * 1000)));
-    setEndDraft(end ? toDatetimeLocalValue(end) : toDatetimeLocalValue(new Date(Date.now() + 65 * 60 * 1000)));
-    setEditing(true);
-  }
-
-  async function handleSave() {
-    if (!startDraft || !endDraft) {
-      toast.error('حدد وقت البداية والنهاية');
-      return;
-    }
-    const startVal = new Date(startDraft);
-    const endVal = new Date(endDraft);
-    if (endVal.getTime() <= startVal.getTime()) {
-      toast.error('وقت البداية لازم يكون قبل وقت النهاية');
-      return;
-    }
-    setSaving(true);
-    try {
-      await updateList(list.id, { startTime: startVal.toISOString(), endTime: endVal.toISOString() });
-      sounds.click();
-      toast.success('اتحدد الجدول الزمني للمهمة');
-      setEditing(false);
-      onChange();
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر حفظ الجدول الزمني');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleClear() {
-    setSaving(true);
-    try {
-      await updateList(list.id, { startTime: null, endTime: null });
-      sounds.click();
-      setEditing(false);
-      onChange();
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر مسح الجدول الزمني');
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const barColor =
     fraction > 0.5 ? 'var(--success)' : fraction > CRITICAL_FRACTION ? 'var(--timeline-warn)' : 'var(--danger)';
   const critical = phase === 'active' && fraction <= CRITICAL_FRACTION;
   const ended = phase === 'ended';
 
-  // مربع مضغوط بس (نص السطر تقريبًا) — من غير أي كلام/نص وصفي، بس أيقونة
-  // للعرض + بار (لو في وقت شغال) + الرقم التنازلي نفسه. لما المهمة لسه ما
-  // بدأتش بيبقى وقت تذكير تنازلي، ولما تبدأ بيتحول لعدّاد+بار، ولما ينتهي
-  // الوقت الكل بيبقى أحمر.
-  // لما يكون فيه جدول زمني متحدد بالفعل، المربع ده بيبقى مجرد عرض —
-  // مش قابل للنقر لتعديله (التعديل بقى من نافذة تعديل المهمة عن طريق
-  // أيقونة القلم). بيفضل قابل للنقر بس لو لسه مفيش جدول أصلًا، عشان
-  // يبقى فيه طريقة سريعة لإضافته أول مرة.
-  const Wrapper: any = scheduled ? 'div' : 'button';
-  const wrapperProps = scheduled
-    ? { role: 'img' as const }
-    : { type: 'button' as const, onClick: openEditor };
-
-  return (
-    <>
-      <Wrapper
-        className={`timeline-compact timeline-compact-${phase} ${critical || ended ? 'timeline-compact-critical' : ''} ${
-          scheduled ? 'timeline-compact-readonly' : ''
+  if (showTaskTimer) {
+    return (
+      <div
+        className={`timeline-compact timeline-compact-readonly timeline-compact-has-bar timeline-compact-${phase} ${
+          critical || ended ? 'timeline-compact-critical' : ''
         }`}
-        aria-label="الجدول الزمني للمهمة"
-        title="الجدول الزمني للمهمة"
-        {...wrapperProps}
+        role="img"
+        aria-label="الوقت المتبقي للمهمة"
+        title="الوقت المتبقي للمهمة"
       >
         <span className="timeline-compact-icon" aria-hidden="true">
-          <DynamicIcon name={!scheduled ? 'timer' : phase === 'upcoming' ? 'bell' : ended ? 'hourglass' : 'timer'} size={13} />
+          <DynamicIcon name={ended ? 'hourglass' : 'timer'} size={13} />
         </span>
 
-        {scheduled && (phase === 'active' || ended) && (
-          <span className="timeline-compact-bar">
-            <span
-              className="timeline-compact-bar-fill"
-              style={{ width: `${(ended ? 1 : fraction) * 100}%`, background: ended ? 'var(--danger)' : barColor }}
-            />
-          </span>
-        )}
+        <span className="timeline-compact-bar">
+          <span
+            className="timeline-compact-bar-fill"
+            style={{ width: `${(ended ? 1 : fraction) * 100}%`, background: ended ? 'var(--danger)' : barColor }}
+          />
+        </span>
 
-        {!scheduled && <span className="timeline-compact-add">جدول</span>}
+        <span className="timeline-compact-time" dir="ltr">
+          {ended ? '00:00' : formatClock((end! - now) / 1000)}
+        </span>
+      </div>
+    );
+  }
 
-        {scheduled && phase === 'upcoming' && (
-          <span className="timeline-compact-time" dir="ltr">{formatClock((s! - now) / 1000)}</span>
-        )}
+  if (nextReminder) {
+    return (
+      <div
+        className="timeline-compact timeline-compact-readonly timeline-compact-upcoming"
+        role="img"
+        aria-label="الوقت المتبقي لأقرب تذكير"
+        title="الوقت المتبقي لأقرب تذكير"
+      >
+        <span className="timeline-compact-icon" aria-hidden="true">
+          <DynamicIcon name="bell" size={13} />
+        </span>
+        <span className="timeline-compact-time" dir="ltr">
+          {formatClock((new Date(nextReminder.remindAt).getTime() - now) / 1000)}
+        </span>
+      </div>
+    );
+  }
 
-        {scheduled && phase === 'active' && (
-          <span className="timeline-compact-time" dir="ltr">{formatClock((e! - now) / 1000)}</span>
-        )}
-
-        {scheduled && ended && (
-          <span className="timeline-compact-time" dir="ltr">00:00</span>
-        )}
-      </Wrapper>
-
-      {editing && (
-        <Portal>
-        <div className="modal-overlay" onClick={() => setEditing(false)}>
-          <div className="modal-box timeline-modal" onClick={(e) => e.stopPropagation()}>
-            <h2><DynamicIcon name="timer" size={18} /> الجدول الزمني لـ «{list.title}»</h2>
-            <div className="timeline-form-row">
-              <label>وقت البداية</label>
-              <input type="datetime-local" value={startDraft} onChange={(e) => setStartDraft(e.target.value)} />
-            </div>
-            <div className="timeline-form-row">
-              <label>وقت النهاية</label>
-              <input type="datetime-local" value={endDraft} onChange={(e) => setEndDraft(e.target.value)} />
-            </div>
-            <div className="modal-actions">
-              {scheduled && (
-                <button type="button" className="danger small" onClick={handleClear} disabled={saving}>
-                  مسح الجدول
-                </button>
-              )}
-              <button type="button" className="small" onClick={() => setEditing(false)} disabled={saving}>
-                إلغاء
-              </button>
-              <button type="button" onClick={handleSave} disabled={saving}>
-                {saving ? '...' : 'حفظ'}
-              </button>
-            </div>
-          </div>
-        </div>
-        </Portal>
-      )}
-    </>
-  );
+  return null;
 }
