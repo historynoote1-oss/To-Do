@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { PriorityPicker } from './Priority';
 import { CategoryPicker } from './Category';
 import { LifeAreaPicker } from './LifeArea';
+import QuickCreateLifeArea from './QuickCreateLifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
 import { CategoryKey, categoryOf } from '../lib/category';
 import { LifeAreaData } from '../lib/lifeArea';
@@ -31,11 +32,10 @@ interface Props {
   onClose: () => void;
   onManageLifeAreas: () => void;
   onCreate: (data: NewTaskPayload) => Promise<void> | void;
-}
-
-function toDatetimeLocalValue(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // بيتنادى بمجرد ما مجال حياة جديد يتنشئ من جوه الويزارد (شوف مرحلة
+  // "مجال الحياة") — عشان الأب (App) يحدّث قائمة المجالات العامة بتاعته
+  // برضه، مش بس النسخة المحلية جوه الويزارد.
+  onLifeAreaCreated?: (area: LifeAreaData) => void;
 }
 
 function formatOffsetParts(days: number, hours: number, minutes: number): string {
@@ -71,7 +71,7 @@ const STEPS: StepDef[] = [
 // يفضل مريح ومركّز، وزرار "إنشاء المهمة" مش بيظهر غير بعد آخر مرحلة.
 // ملحوظة: خطوة "الجدول الزمني" قبل "التذكير" عن قصد — التذكير بيتحسب من
 // وقت بداية المهمة، فلازم يكون معروف قبل ما نعرض خطوة التذكير أصلًا.
-export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAreas, onCreate }: Props) {
+export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAreas, onCreate, onLifeAreaCreated }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
 
   const [title, setTitle] = useState('');
@@ -81,6 +81,18 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   const [category, setCategory] = useState<CategoryKey | null>(null);
   const [targetYear, setTargetYear] = useState<number | null>(null);
   const [lifeAreaId, setLifeAreaId] = useState<string | null>(null);
+  // مجالات اتنشأت من جوه الويزارد نفسه (شوف QuickCreateLifeArea) — بتتحط
+  // فوق قائمة `lifeAreas` الجاية من الأب عشان تبان وتتحدد فورًا، من غير
+  // ما نستنى دورة تحديث كاملة من الأب الأول. بمجرد ما الأب يحدّث قائمته
+  // (عبر onLifeAreaCreated) هي بتختفي من هنا تلقائيًا (اتفلترت كتكرار).
+  const [createdAreas, setCreatedAreas] = useState<LifeAreaData[]>([]);
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+
+  const displayLifeAreas = useMemo(() => {
+    const knownIds = new Set(lifeAreas.map((a) => a.id));
+    const extra = createdAreas.filter((a) => !knownIds.has(a.id));
+    return extra.length > 0 ? [...lifeAreas, ...extra] : lifeAreas;
+  }, [lifeAreas, createdAreas]);
 
   // التذكير الجديد: ثلاث خانات مستقلة (أيام / ساعات / دقايق) — الرقم
   // المُدخل بيدل على المدة قبل موعد بداية المهمة (الجدول الزمني بتاعها).
@@ -115,6 +127,8 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
       setEndDraft('');
       setSubmitting(false);
       setStepError('');
+      setCreatedAreas([]);
+      setQuickCreateOpen(false);
       requestAnimationFrame(() => titleRef.current?.focus());
     }
   }, [open]);
@@ -122,6 +136,10 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   useEffect(() => {
     if (!open) return;
     function onEsc(e: KeyboardEvent) {
+      // لو نافذة إنشاء مجال الحياة السريعة مفتوحة فوق الويزارد، سيبها هي
+      // اللي تتصرف مع Escape (بتقفل هي بس) — من غير كده هروب واحد كان
+      // هيقفل الاتنين مع بعض ويضيع تقدّم المستخدم في إنشاء المهمة.
+      if (quickCreateOpen) return;
       if (e.key === 'Escape') onClose();
     }
     document.addEventListener('keydown', onEsc);
@@ -130,7 +148,7 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
       document.removeEventListener('keydown', onEsc);
       document.body.classList.remove('modal-lock-scroll');
     };
-  }, [open, onClose]);
+  }, [open, onClose, quickCreateOpen]);
 
   const step = STEPS[stepIndex];
   const isFirst = stepIndex === 0;
@@ -156,15 +174,40 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
     setSubtasks((prev) => prev.filter((_, i) => i !== index));
   }
 
-  // فحص كل مرحلة قبل السماح بالتقدّم للي بعدها — رسالة خطأ واضحة مكان
-  // زرار "التالي" بدل ما نمنعه بصمت.
-  function validateStep(): string | null {
-    if (step.id === 'title' && !trimmedTitle) return 'اكتب اسم المهمة الأول';
-    if (step.id === 'timeline' && startDraft && endDraft && new Date(endDraft).getTime() <= new Date(startDraft).getTime()) {
-      return 'وقت النهاية لازم يكون بعد وقت البداية';
+  // فحص صارم لكل مرحلة بالاسم (مش بس المرحلة الحالية) — بيتنادى مرتين:
+  // مرة على المرحلة الحالية بس (goNext)، ومرة تانية بتلف على كل المراحل
+  // قبل الإنشاء النهائي كخط دفاع تاني، عشان محدش يقدر يوصل لمرحلة
+  // المراجعة وبيانات ناقصة أو غير متسقة من غير ما يتوقف عندها.
+  function validateStepById(id: StepId): string | null {
+    if (id === 'title' && !trimmedTitle) return 'اكتب اسم المهمة الأول';
+    if (id === 'subtasks' && subtaskDraft.trim() && subtasks.every((s) => s !== subtaskDraft.trim())) {
+      return 'كتبت مهمة فرعية ولسه مضفتهاش — دوس "إضافة" أو امسح الخانة عشان تكمل';
     }
-    if (step.id === 'reminder' && hasReminder && !hasTimelineStart) {
+    if (id === 'timeline') {
+      if ((startDraft && !endDraft) || (!startDraft && endDraft)) {
+        return 'حدد وقت البداية والنهاية مع بعض، أو سيب الاتنين فاضيين';
+      }
+      if (startDraft && endDraft && new Date(endDraft).getTime() <= new Date(startDraft).getTime()) {
+        return 'وقت النهاية لازم يكون بعد وقت البداية';
+      }
+    }
+    if (id === 'reminder' && hasReminder && !hasTimelineStart) {
       return 'التذكير محسوب من وقت بداية المهمة — ارجع لخطوة "الجدول الزمني" وحدده الأول';
+    }
+    return null;
+  }
+
+  function validateStep(): string | null {
+    return validateStepById(step.id);
+  }
+
+  // خط الدفاع الأخير قبل حفظ أي حاجة في قاعدة البيانات — بيلف على كل
+  // مراحل الويزارد (مش بس اللي المستخدم واقف عندها دلوقتي) ويرجّع أول
+  // خطأ يلاقيه، مع رقم المرحلة عشان نقدر نرجّع المستخدم لها مباشرة.
+  function validateAllSteps(): { stepIndex: number; message: string } | null {
+    for (let i = 0; i < STEPS.length; i++) {
+      const err = validateStepById(STEPS[i].id);
+      if (err) return { stepIndex: i, message: err };
     }
     return null;
   }
@@ -198,9 +241,20 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   }
 
   async function handleSubmit() {
+    // خط دفاع أول: المرحلة الحالية بس (نفس سلوك goNext).
     const err = validateStep();
     if (err) {
       setStepError(err);
+      sounds.error();
+      return;
+    }
+    // خط دفاع تاني: كل المراحل مع بعض — لو فيه أي حاجة ناقصة أو غير
+    // متسقة اتسابت من مرحلة سابقة، مانوصلش نحفظ حاجة ناقصة في قاعدة
+    // البيانات؛ بنرجّع المستخدم للمرحلة اللي فيها المشكلة مباشرة.
+    const fullCheck = validateAllSteps();
+    if (fullCheck) {
+      setStepIndex(fullCheck.stepIndex);
+      setStepError(fullCheck.message);
       sounds.error();
       return;
     }
@@ -209,12 +263,13 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
     try {
       const startTime = startDraft ? new Date(startDraft).toISOString() : null;
       const endTime = endDraft ? new Date(endDraft).toISOString() : null;
+      const reminderMsg = reminderMessage.trim();
       const reminder: NewTaskReminder | null = hasReminder
-        ? { offsetMinutes: Math.round(totalReminderMinutes), message: reminderMessage.trim() || null }
+        ? { offsetMinutes: Math.round(totalReminderMinutes), message: reminderMsg ? reminderMsg : null }
         : null;
       await onCreate({
         title: trimmedTitle,
-        subtasks,
+        subtasks: subtasks.map((s) => s.trim()).filter(Boolean),
         priority,
         category,
         targetYear,
@@ -230,12 +285,16 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
   }
 
   const reviewCategory = useMemo(() => categoryOf(category), [category]);
-  const reviewLifeArea = useMemo(() => lifeAreas.find((a) => a.id === lifeAreaId) || null, [lifeAreas, lifeAreaId]);
+  const reviewLifeArea = useMemo(
+    () => displayLifeAreas.find((a) => a.id === lifeAreaId) || null,
+    [displayLifeAreas, lifeAreaId]
+  );
   const reviewPriority = useMemo(() => priorityOf(priority), [priority]);
 
   if (!open) return null;
 
   return (
+    <>
     <div className="modal-overlay add-task-overlay" onClick={onClose}>
       <div
         className="modal-box add-task-modal"
@@ -246,7 +305,13 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
       >
         <div className="add-task-header">
           <h2 id="add-task-title">
-            <DynamicIcon name={step.icon} size={18} /> {step.label}
+            <span className="add-task-header-icon" aria-hidden="true">
+              <DynamicIcon name={step.icon} size={20} strokeWidth={2.25} />
+            </span>
+            <span className="add-task-header-text">
+              <span className="add-task-header-step">الخطوة {stepIndex + 1} من {STEPS.length}</span>
+              <span className="add-task-header-title">{step.label}</span>
+            </span>
           </h2>
           <button className="icon-btn" onClick={onClose} type="button" aria-label="إغلاق">
             <DynamicIcon name="x" size={16} />
@@ -356,7 +421,17 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
           {step.id === 'lifeArea' && (
             <div className="add-task-field">
               <span className="add-task-label">مجال الحياة (اختياري)</span>
-              <LifeAreaPicker value={lifeAreaId} areas={lifeAreas} onChange={setLifeAreaId} onManage={onManageLifeAreas} />
+              <LifeAreaPicker
+                value={lifeAreaId}
+                areas={displayLifeAreas}
+                onChange={setLifeAreaId}
+                onManage={() => setQuickCreateOpen(true)}
+              />
+              {displayLifeAreas.length > 0 && (
+                <button type="button" className="life-area-manage-all-link" onClick={onManageLifeAreas}>
+                  إدارة كل المجالات
+                </button>
+              )}
             </div>
           )}
 
@@ -424,16 +499,12 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                   <span>دقيقة</span>
                 </label>
               </div>
-              <div className="reminders-offset-preview">
-                {hasReminder ? (
-                  <>
-                    <DynamicIcon name="bell" size={12} />
-                    قبل بداية المهمة بـ {formatOffsetParts(Number(reminderDays) || 0, Number(reminderHours) || 0, Number(reminderMinutes) || 0)}
-                  </>
-                ) : (
-                  'من غير تذكير — سيب الخانات فاضية لو مش محتاج'
-                )}
-              </div>
+              {hasReminder && (
+                <div className="reminders-offset-preview">
+                  <DynamicIcon name="bell" size={12} />
+                  قبل بداية المهمة بـ {formatOffsetParts(Number(reminderDays) || 0, Number(reminderHours) || 0, Number(reminderMinutes) || 0)}
+                </div>
+              )}
               {hasReminder && (
                 <input
                   className="reminders-message-input"
@@ -466,18 +537,6 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
                 <p className="wizard-empty-hint">
                   <DynamicIcon name="bell" size={12} /> ضبطت تذكير قبل بداية المهمة، فلازم تحدد وقت البداية هنا.
                 </p>
-              )}
-              {!startDraft && (
-                <button
-                  type="button"
-                  className="small"
-                  onClick={() => {
-                    setStartDraft(toDatetimeLocalValue(new Date(Date.now() + 5 * 60 * 1000)));
-                    setEndDraft(toDatetimeLocalValue(new Date(Date.now() + 65 * 60 * 1000)));
-                  }}
-                >
-                  <DynamicIcon name="timer" size={14} /> اقتراح سريع (خلال ساعة)
-                </button>
               )}
             </div>
           )}
@@ -544,5 +603,16 @@ export default function AddTaskModal({ open, lifeAreas, onClose, onManageLifeAre
         </div>
       </div>
     </div>
+
+    <QuickCreateLifeArea
+      open={quickCreateOpen}
+      onClose={() => setQuickCreateOpen(false)}
+      onCreated={(area) => {
+        setCreatedAreas((prev) => [...prev, area]);
+        setLifeAreaId(area.id);
+        onLifeAreaCreated?.(area);
+      }}
+    />
+    </>
   );
 }

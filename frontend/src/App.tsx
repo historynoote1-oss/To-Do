@@ -744,6 +744,7 @@ export default function App() {
           onManageLifeAreas={() => setView('lifeAreas')}
           onOpenMenu={() => setMenuOpen(true)}
           menuOpen={menuOpen}
+          onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
         />
         {sideMenuAndModals}
       </>
@@ -848,6 +849,7 @@ export default function App() {
             setView('lifeAreas');
           }}
           onCreate={handleCreate}
+          onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
         />
 
         <PendingRestoreSection

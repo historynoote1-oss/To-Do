@@ -156,6 +156,7 @@ export default function RecurringTasksManager({
   onManageLifeAreas,
   onOpenMenu,
   menuOpen,
+  onLifeAreaCreated,
 }: {
   lifeAreas: LifeAreaData[];
   onBack: () => void;
@@ -163,6 +164,7 @@ export default function RecurringTasksManager({
   onManageLifeAreas: () => void;
   onOpenMenu: () => void;
   menuOpen: boolean;
+  onLifeAreaCreated?: (area: LifeAreaData) => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<RecurringTaskData[]>([]);
@@ -372,6 +374,7 @@ export default function RecurringTasksManager({
         onClose={() => setAddOpen(false)}
         onManageLifeAreas={onManageLifeAreas}
         onCreate={handleCreate}
+        onLifeAreaCreated={onLifeAreaCreated}
       />
 
       {/* ===== قائمة المهام المتكررة الحالية ===== */}

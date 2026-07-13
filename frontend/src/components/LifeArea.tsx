@@ -224,7 +224,9 @@ interface PickerProps {
 }
 
 // شريط اختيار مضغوط بيُستخدم عند إنشاء مهمة رئيسية جديدة — نفس فلسفة
-// CategoryPicker، بس بيسرد مجالات المستخدم نفسه.
+// CategoryPicker، بس بيسرد مجالات المستخدم نفسه. زرار "إنشاء مجال جديد"
+// ظاهر دايمًا (مش بس لما القائمة فاضية) عشان المستخدم يقدر يضيف مجال
+// جديد من غير ما يسيب اللي هو بيعمله.
 export function LifeAreaPicker({ value, areas, onChange, onManage }: PickerProps) {
   if (areas.length === 0) {
     return (
@@ -232,7 +234,7 @@ export function LifeAreaPicker({ value, areas, onChange, onManage }: PickerProps
         <span>لسه معملتش أي مجال حياة</span>
         {onManage && (
           <button type="button" className="small" onClick={onManage}>
-            + إنشاء أول مجال
+            <DynamicIcon name="plus" size={14} /> إنشاء أول مجال
           </button>
         )}
       </div>
@@ -240,27 +242,34 @@ export function LifeAreaPicker({ value, areas, onChange, onManage }: PickerProps
   }
 
   return (
-    <div className="priority-picker category-picker life-area-picker" role="radiogroup" aria-label="اختيار مجال الحياة">
-      {flattenAreasForMenu(areas).map((a) => (
-        <button
-          key={a.id}
-          type="button"
-          className={`priority-picker-item category-picker-item life-area-picker-item ${a.id === value ? 'selected' : ''} ${a.depth > 0 ? 'is-nested' : ''}`}
-          style={{ ['--pcolor' as any]: a.color, ['--pbg' as any]: hexToSoftBg(a.color) }}
-          onClick={() => {
-            if (a.id !== value) {
-              sounds.hover();
-              onChange(a.id);
-            }
-          }}
-          title={a.name}
-          role="radio"
-          aria-checked={a.id === value}
-        >
-          <AreaGlyph area={a} size="sm" />
-          <span>{a.depth > 0 ? `↳ ${a.name}` : a.name}</span>
+    <div className="life-area-picker-group">
+      <div className="priority-picker category-picker life-area-picker" role="radiogroup" aria-label="اختيار مجال الحياة">
+        {flattenAreasForMenu(areas).map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            className={`priority-picker-item category-picker-item life-area-picker-item ${a.id === value ? 'selected' : ''} ${a.depth > 0 ? 'is-nested' : ''}`}
+            style={{ ['--pcolor' as any]: a.color, ['--pbg' as any]: hexToSoftBg(a.color) }}
+            onClick={() => {
+              if (a.id !== value) {
+                sounds.hover();
+                onChange(a.id);
+              }
+            }}
+            title={a.name}
+            role="radio"
+            aria-checked={a.id === value}
+          >
+            <AreaGlyph area={a} size="sm" />
+            <span>{a.depth > 0 ? `↳ ${a.name}` : a.name}</span>
+          </button>
+        ))}
+      </div>
+      {onManage && (
+        <button type="button" className="life-area-create-new-btn" onClick={onManage}>
+          <DynamicIcon name="plus" size={14} /> إنشاء مجال حياة جديد
         </button>
-      ))}
+      )}
     </div>
   );
 }

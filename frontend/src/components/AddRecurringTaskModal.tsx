@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PriorityPicker } from './Priority';
 import { LifeAreaPicker } from './LifeArea';
+import QuickCreateLifeArea from './QuickCreateLifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
 import { LifeAreaData } from '../lib/lifeArea';
 import { FREQUENCY_OPTIONS, RecurrenceFrequency, intervalDescription } from '../lib/recurrence';
@@ -28,6 +29,10 @@ interface Props {
   onClose: () => void;
   onManageLifeAreas: () => void;
   onCreate: (data: NewRecurringTaskPayload) => Promise<void> | void;
+  // بيتنادى بمجرد ما مجال حياة جديد يتنشئ من جوه الويزارد (شوف مرحلة
+  // "مجال الحياة") — عشان الأب (App) يحدّث قائمة المجالات العامة بتاعته
+  // برضه، مش بس النسخة المحلية جوه الويزارد.
+  onLifeAreaCreated?: (area: LifeAreaData) => void;
 }
 
 function todayIso(): string {
@@ -57,7 +62,7 @@ const STEPS: StepDef[] = [
 // نافذة إنشاء مهمة متكررة جديدة — بنفس نظام نافذة "إضافة مهمة" العادية
 // بالضبط: مراحل مرتبة، شريط تقدّم بالخطوات، مراجعة نهائية قبل التأكيد،
 // بدل النموذج الطويل القديم اللي كل حاجة فيه في شاشة واحدة مزدحمة.
-export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onManageLifeAreas, onCreate }: Props) {
+export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onManageLifeAreas, onCreate, onLifeAreaCreated }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
 
   const [title, setTitle] = useState('');
@@ -68,6 +73,18 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
   const [interval, setIntervalValue] = useState(1);
   const [startDate, setStartDate] = useState(todayIso());
   const [lifeAreaId, setLifeAreaId] = useState<string | null>(null);
+  // مجالات اتنشأت من جوه الويزارد نفسه (شوف QuickCreateLifeArea) — بتتحط
+  // فوق قائمة `lifeAreas` الجاية من الأب عشان تبان وتتحدد فورًا، من غير
+  // ما نستنى دورة تحديث كاملة من الأب الأول. بمجرد ما الأب يحدّث قائمته
+  // (عبر onLifeAreaCreated) هي بتختفي من هنا تلقائيًا (اتفلترت كتكرار).
+  const [createdAreas, setCreatedAreas] = useState<LifeAreaData[]>([]);
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+
+  const displayLifeAreas = useMemo(() => {
+    const knownIds = new Set(lifeAreas.map((a) => a.id));
+    const extra = createdAreas.filter((a) => !knownIds.has(a.id));
+    return extra.length > 0 ? [...lifeAreas, ...extra] : lifeAreas;
+  }, [lifeAreas, createdAreas]);
 
   const [submitting, setSubmitting] = useState(false);
   const [stepError, setStepError] = useState('');
@@ -87,6 +104,8 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
       setLifeAreaId(null);
       setSubmitting(false);
       setStepError('');
+      setCreatedAreas([]);
+      setQuickCreateOpen(false);
       requestAnimationFrame(() => titleRef.current?.focus());
     }
   }, [open]);
@@ -94,6 +113,10 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
   useEffect(() => {
     if (!open) return;
     function onEsc(e: KeyboardEvent) {
+      // لو نافذة إنشاء مجال الحياة السريعة مفتوحة فوق الويزارد، سيبها هي
+      // اللي تتصرف مع Escape (بتقفل هي بس) — من غير كده هروب واحد كان
+      // هيقفل الاتنين مع بعض ويضيع تقدّم المستخدم في إنشاء المهمة المتكررة.
+      if (quickCreateOpen) return;
       if (e.key === 'Escape') onClose();
     }
     document.addEventListener('keydown', onEsc);
@@ -102,7 +125,7 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
       document.removeEventListener('keydown', onEsc);
       document.body.classList.remove('modal-lock-scroll');
     };
-  }, [open, onClose]);
+  }, [open, onClose, quickCreateOpen]);
 
   const step = STEPS[stepIndex];
   const isFirst = stepIndex === 0;
@@ -172,12 +195,13 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
     }
   }
 
-  const reviewLifeArea = useMemo(() => lifeAreas.find((a) => a.id === lifeAreaId) || null, [lifeAreas, lifeAreaId]);
+  const reviewLifeArea = useMemo(() => displayLifeAreas.find((a) => a.id === lifeAreaId) || null, [displayLifeAreas, lifeAreaId]);
   const reviewPriority = useMemo(() => priorityOf(priority), [priority]);
 
   if (!open) return null;
 
   return (
+    <>
     <div className="modal-overlay add-task-overlay" onClick={onClose}>
       <div
         className="modal-box add-task-modal"
@@ -337,7 +361,17 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
           {step.id === 'lifeArea' && (
             <div className="add-task-field">
               <span className="add-task-label">مجال الحياة (اختياري)</span>
-              <LifeAreaPicker value={lifeAreaId} areas={lifeAreas} onChange={setLifeAreaId} onManage={onManageLifeAreas} />
+              <LifeAreaPicker
+                value={lifeAreaId}
+                areas={displayLifeAreas}
+                onChange={setLifeAreaId}
+                onManage={() => setQuickCreateOpen(true)}
+              />
+              {displayLifeAreas.length > 0 && (
+                <button type="button" className="life-area-manage-all-link" onClick={onManageLifeAreas}>
+                  إدارة كل المجالات
+                </button>
+              )}
             </div>
           )}
 
@@ -393,5 +427,16 @@ export default function AddRecurringTaskModal({ open, lifeAreas, onClose, onMana
         </div>
       </div>
     </div>
+
+    <QuickCreateLifeArea
+      open={quickCreateOpen}
+      onClose={() => setQuickCreateOpen(false)}
+      onCreated={(area) => {
+        setCreatedAreas((prev) => [...prev, area]);
+        setLifeAreaId(area.id);
+        onLifeAreaCreated?.(area);
+      }}
+    />
+    </>
   );
 }

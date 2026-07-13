@@ -78,7 +78,7 @@ function AreaAvatar({
 // معرّفة برا الكومبوننت الرئيسي عشان تحتفظ بهويتها بين كل render (لو
 // اتعرّفت جوه، ريأكت كان هيعمل remount كامل ليها كل مرة وده كان هيكسر
 // التفاعل مع input[type=color]). =====
-function ColorGroups({ value, onSelect }: { value: string; onSelect: (color: string) => void }) {
+export function ColorGroups({ value, onSelect }: { value: string; onSelect: (color: string) => void }) {
   return (
     <div className="life-area-color-groups">
       {LIFE_AREA_COLOR_GROUPS.map((group) => (
@@ -113,7 +113,7 @@ function ColorGroups({ value, onSelect }: { value: string; onSelect: (color: str
 // ===== شبكة الأيقونات — بقت مقسّمة لأقسام (زي شبكة الألوان بالظبط) عشان
 // تتعرض كـ"اقتراحات" مبوّبة حسب جانب الحياة بدل قائمة طويلة عشوائية.
 // معرّفة برا الكومبوننت الرئيسي لنفس سبب ColorGroups. =====
-function IconGroups({ value, onSelect }: { value: string; onSelect: (icon: string) => void }) {
+export function IconGroups({ value, onSelect }: { value: string; onSelect: (icon: string) => void }) {
   return (
     <div className="life-area-icon-groups">
       {LIFE_AREA_ICON_GROUPS.map((group) => (
