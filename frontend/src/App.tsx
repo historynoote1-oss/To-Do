@@ -765,28 +765,6 @@ export default function App() {
         )}
         <div className="top-bar">
           <div className="top-bar-grid">
-            <div className="top-bar-controls">
-              <button
-                className="icon-btn hamburger-btn"
-                onClick={() => setMenuOpen(true)}
-                type="button"
-                title="القائمة"
-                aria-label="فتح القائمة"
-                aria-haspopup="true"
-                aria-expanded={menuOpen}
-              >
-                <span className="hamburger-icon" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </button>
-            </div>
-
-            <div className="brand">
-              <h1 className="brand-title">المهام الرئيسية</h1>
-            </div>
-
             <button
               className="header-user"
               onClick={() => setView('profile')}
@@ -813,6 +791,28 @@ export default function App() {
                 )}
               </span>
             </button>
+
+            <div className="brand">
+              <h1 className="brand-title">المهام الرئيسية</h1>
+            </div>
+
+            <div className="top-bar-controls">
+              <button
+                className="icon-btn hamburger-btn"
+                onClick={() => setMenuOpen(true)}
+                type="button"
+                title="القائمة"
+                aria-label="فتح القائمة"
+                aria-haspopup="true"
+                aria-expanded={menuOpen}
+              >
+                <span className="hamburger-icon" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </button>
+            </div>
           </div>
         </div>
 
