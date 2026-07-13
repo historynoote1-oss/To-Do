@@ -1188,6 +1188,12 @@ button:disabled {
   font-family: var(--font-body);
 }
 
+.header-user-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
 .header-user-avatar {
   width: 46px;
   height: 46px;
@@ -1257,31 +1263,37 @@ button:disabled {
   font-weight: 700;
 }
 
-/* عنصر الاستريك (Placeholder فقط، بدون منطق) — شارة صغيرة مضغوطة تحت
-   التحية مباشرة: أيقونة نار + رقم بارز، بتصميم "Badge" هادي متسق مع باقي
-   شارات الموقع، جاهزة لاحقًا لاستقبال بيانات الاستريك الحقيقية من غير ما
-   تحتاج تغيير بصري. */
+/* عنصر الاستريك (Placeholder فقط، بدون منطق) — شارة صغيرة معلّقة على
+   حافة الصورة الشخصية نفسها (تحت الصورة، على أقصى الحافة اليمين، زي
+   شارات الحالة على الأفاتار)، بدل ما تكون سطر منفصل تحت التحية. أيقونة
+   نار + رقم بارز، بتصميم "Badge" هادي متسق مع باقي شارات الموقع، جاهزة
+   لاحقًا لاستقبال بيانات الاستريك الحقيقية من غير ما تحتاج تغيير بصري. */
 .header-streak {
+  position: absolute;
+  bottom: -4px;
+  right: -6px;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   width: fit-content;
-  padding: 1px 7px 1px 6px;
+  padding: 2px 7px 2px 6px;
   border-radius: var(--radius-pill);
   background: var(--gradient-brand-soft);
-  border: 1px solid var(--border-soft);
+  border: 2px solid var(--surface);
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.35);
 }
 
 .header-streak-icon {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1;
   filter: saturate(1.15);
 }
 
 .header-streak-count {
   font-family: var(--font-num);
-  font-size: 11.5px;
-  font-weight: 400;
+  font-size: 10.5px;
+  font-weight: 700;
   color: var(--text);
   line-height: 1;
 }
@@ -1558,6 +1570,11 @@ button:disabled {
     width: 38px;
     height: 38px;
     font-size: 15px;
+  }
+  .header-streak {
+    bottom: -3px;
+    right: -4px;
+    padding: 1px 5px 1px 4px;
   }
   .header-user-greeting {
     max-width: 78px;
