@@ -486,14 +486,14 @@ export default function TodoList({
           )}
         </div>
 
-        <div className="row-actions">
+        <div className="row-actions card-actions">
           {!editingTitle && (
-            <button className="icon-btn small" onClick={() => setEditModalOpen(true)} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
-              <DynamicIcon name="pencil" size={14} />
+            <button className="card-icon-action" onClick={() => setEditModalOpen(true)} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
+              <DynamicIcon name="pencil" size={17} />
             </button>
           )}
-          <button className="icon-btn small danger" onClick={handleDeleteList} aria-label="حذف المهمة الرئيسية" type="button" title="حذف">
-            <DynamicIcon name="x" size={14} />
+          <button className="card-icon-action danger" onClick={handleDeleteList} aria-label="حذف المهمة الرئيسية" type="button" title="حذف">
+            <DynamicIcon name="trash" size={17} />
           </button>
         </div>
       </div>

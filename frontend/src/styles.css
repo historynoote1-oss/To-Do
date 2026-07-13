@@ -6946,24 +6946,48 @@ body.modal-lock-scroll {
   margin-inline-end: 4px;
 }
 
-/* أيقونتي القلم والسلة هما الأيقونتين التفاعليتين الوحيدتين على الكارت،
-   فلازم يكونوا واضحين ومتباينين مع الخلفية دايمًا (مش معتمدين على hover
-   أو ألوان باهتة). */
-.list-card-compact .list-header .row-actions .icon-btn {
-  color: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent-soft) 35%, var(--border));
-  background: var(--surface-2);
+/* أيقونتي القلم والسلة هما الأيقونتين التفاعليتين الوحيدتين على الكارت.
+   بقوا أيقونات "عارية" حقيقية (زي باقي أيقونات الموقع) من غير خلفية أو
+   إطار ظاهر بشكل دائم — الشكل الصندوقي بيظهر بس وقت hover/focus كتلميح
+   بصري إن العنصر قابل للنقر. الألوان مبنية على متغيّرات الثيم، فبتتلوّن
+   صح تلقائيًا في الوضعين الفاتح والغامق. */
+.card-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
   opacity: 1;
+  transition: color var(--dur-fast) ease, background-color var(--dur-fast) ease,
+    transform var(--dur-fast) ease;
 }
 
-.list-card-compact .list-header .row-actions .icon-btn.danger {
+.card-icon-action:hover,
+.card-icon-action:focus-visible {
+  color: var(--accent-soft);
+  background: var(--surface-2);
+}
+
+.card-icon-action:active {
+  transform: scale(0.9);
+}
+
+.card-icon-action.danger:hover,
+.card-icon-action.danger:focus-visible {
   color: var(--danger);
-  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
   background: var(--danger-dim);
 }
 
-.list-card-compact .list-header .row-actions .icon-btn:hover {
-  filter: brightness(1.1);
+.card-icon-action:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
 }
 
 .list-checkbox.disabled {
