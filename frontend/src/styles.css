@@ -968,16 +968,16 @@ button:disabled {
 }
 
 /* عنصر القائمة اللي ليه سهم توسيع (زي "الأرشيف") — سطر رئيسي قابل للضغط
-   يودّي للصفحة الافتراضية، وسهم منفصل جنبه يفتح/يقفل صفحاته الفرعية جوّه
-   القائمة نفسها من غير ما تتقفل. */
+   يودّي للصفحة الافتراضية، وسهم دائري منفصل جنبه يفتح/يقفل صفحاته الفرعية
+   جوّه القائمة نفسها من غير ما تتقفل، بانيميشن انزلاق ناعم. */
 .side-menu-group {
   display: flex;
   flex-direction: column;
 }
 
 .side-menu-item-parent {
-  padding: 0;
-  overflow: hidden;
+  padding: 4px;
+  gap: 2px;
 }
 
 .side-menu-item-main {
@@ -986,7 +986,8 @@ button:disabled {
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 12px 12px;
+  padding: 8px 8px;
+  border-radius: calc(var(--radius-sm) - 3px);
   background: transparent;
   border: none;
   color: inherit;
@@ -995,6 +996,11 @@ button:disabled {
   font-weight: 600;
   text-align: start;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.side-menu-item-main:hover {
+  background: var(--surface-2);
 }
 
 .side-menu-item-expand {
@@ -1002,46 +1008,76 @@ button:disabled {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 38px;
-  padding: 12px 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   background: transparent;
   border: none;
   color: var(--text-faint);
   cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .side-menu-item-expand:hover {
+  background: var(--surface-2);
   color: var(--text);
 }
 
+.side-menu-item-expand:active {
+  transform: scale(0.92);
+}
+
+.side-menu-item-arrow {
+  transition: transform var(--dur-med, 0.25s) var(--ease-out);
+}
+
 .side-menu-item-arrow.expanded {
-  transform: rotate(-90deg);
+  transform: rotate(180deg);
 }
 
-.side-menu-item-expand:hover .side-menu-item-arrow {
-  transform: translateX(-2px);
+/* حيلة CSS Grid لعمل انزلاق ارتفاع ناعم للقائمة الفرعية من غير ما نعرف
+   ارتفاعها بالبكسل مقدّمًا — بيفضل العنصر موجود في الـ DOM دايمًا (زرارين
+   قابلين للوصول بلوحة المفاتيح) وبس بيتقفل بصريًا بارتفاع صفري. */
+.side-menu-submenu-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms var(--ease-out);
 }
 
-.side-menu-item-expand:hover .side-menu-item-arrow.expanded {
-  transform: rotate(-90deg);
+.side-menu-submenu-wrap.open {
+  grid-template-rows: 1fr;
+}
+
+.side-menu-submenu-inner {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .side-menu-submenu {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 2px 4px 6px;
+  gap: 3px;
+  margin-inline-start: 21px;
+  padding: 6px 4px 6px 12px;
+  padding-inline-start: 12px;
+  border-inline-start: 2px solid var(--border-soft);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 180ms var(--ease-out), transform 220ms var(--ease-out);
+}
+
+.side-menu-submenu-wrap.open .side-menu-submenu {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 80ms;
 }
 
 .side-menu-subitem {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px 10px 34px;
-  padding-inline-start: 34px;
-  padding-inline-end: 12px;
-  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  border-radius: calc(var(--radius-sm) - 2px);
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);

@@ -31,6 +31,21 @@ export class MaintenanceError extends Error {
   }
 }
 
+// بيرجّع تاريخ اليوم الحالي بتوقيت الجهاز نفسه (مش UTC) كنص "YYYY-MM-DD".
+// السيرفر (لوحده) مش عارف يحدد "دلوقتي إيه اليوم" بالنسبة للمستخدم لأنه
+// بيشتغل بتوقيت UTC، فأي مستخدم بتوقيت متقدّم عن UTC (زي توقيت القاهرة)
+// وبيخلّص مهامه بعد نص الليل المحلي بس قبل نص الليل UTC كان بيتسجّل إنجازه
+// على يوم غلط ويكسر السلسلة (الاستريك). بنبعت التاريخ المحلي ده صراحةً مع
+// كل طلب بيأثر على الاستريك (تأكيد إنجاز، وجلب السلسلة) عشان السيرفر يعتمد
+// على يوم المستخدم الفعلي مش يومه هو.
+function localDateKey(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // خطأ مخصوص لانتهاء/بطلان الجلسة (توكن منتهي، حساب اتعمله force-logout،
 // كلمة السر اتغيّرت من جهاز تاني...) عشان الواجهة تقدر تفرّق بينه وبين أي
 // خطأ عادي وترجّع المستخدم لصفحة تسجيل الدخول فورًا بدل ما تسيبه واقف
@@ -216,6 +231,7 @@ export async function confirmListDone(id: string) {
   const res = await fetch(`${API_URL}/api/lists/${id}/confirm-done`, {
     method: 'POST',
     headers: authHeaders(),
+    body: JSON.stringify({ localDate: localDateKey() }),
   });
   return handle(res);
 }
@@ -507,7 +523,7 @@ export async function unsubscribePush(endpoint: string) {
 // ===== الاستريك (أيام الإنجاز المتتالية) =====
 
 export async function getStreak(): Promise<{ current: number }> {
-  const res = await fetch(`${API_URL}/api/streak`, { headers: authHeaders() });
+  const res = await fetch(`${API_URL}/api/streak?date=${localDateKey()}`, { headers: authHeaders() });
   return handle(res);
 }
 

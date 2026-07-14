@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import { syncListArchiveState } from '../lib/archive';
+import { resolveActivityDay } from '../lib/localDate';
 
 const router = Router();
 
@@ -109,17 +110,17 @@ router.post('/:id/confirm-done', async (req: AuthRequest, res) => {
 
   await prisma.todoList.update({ where: { id: list.id }, data: { confirmedDone: true } });
 
-  // بيسجّل النهاردة كـ"يوم نشط" لحساب الاستريك (شوف routes/streak.ts) —
-  // upsert عشان لو المستخدم أكّد أكتر من مهمة في نفس اليوم يفضل صف واحد بس.
-  const now = new Date();
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // بيسجّل النهاردة (بتوقيت المستخدم المحلي، مش السيرفر) كـ"يوم نشط" لحساب
+  // الاستريك (شوف routes/streak.ts) — upsert عشان لو المستخدم أكّد أكتر من
+  // مهمة في نفس اليوم يفضل صف واحد بس.
+  const today = resolveActivityDay(req.body?.localDate);
   await prisma.userActivityDay.upsert({
     where: { userId_date: { userId: req.userId!, date: today } },
     update: {},
     create: { userId: req.userId!, date: today },
   });
 
-  const updated = await syncListArchiveState(list.id);
+  const updated = await syncListArchiveState(list.id, today);
   res.json(
     updated ?? (await prisma.todoList.findUnique({
       where: { id: list.id },

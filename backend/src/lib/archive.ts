@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { utcDayFrom } from './localDate';
 
 // بيفحص حالة اكتمال مهمة رئيسية وبيزامن حالة الأرشفة بتاعتها تلقائيًا معاها.
 //
@@ -16,7 +17,11 @@ import { prisma } from './prisma';
 // بيتنادى بعد أي عملية ممكن تغيّر عدد/حالة المهام الفرعية (إضافة، حذف،
 // تبديل الإنجاز) أو حالة التأكيد نفسها. بيرجع المهمة الرئيسية بعد التحديث
 // لو حصل تغيير، أو null لو محصلش أي تغيير.
-export async function syncListArchiveState(listId: string) {
+//
+// localDay (اختياري): اليوم المحلي بتاع المستخدم (من routes/lists.ts، مبعوت
+// من الفرونت) — لو موجود بيتسجّل عليه يوم الإنجاز في UserActivityDay بدل ما
+// يتحسب من وقت السيرفر UTC، عشان الاستريك يفضل مضبوط لأي توقيت.
+export async function syncListArchiveState(listId: string, localDay?: Date) {
   const list = await prisma.todoList.findUnique({
     where: { id: listId },
     include: { items: { select: { isDone: true } } },
@@ -64,7 +69,7 @@ export async function syncListArchiveState(listId: string) {
   // المستخدم خلّص أكتر من مهمة رئيسية في نفس اليوم) ميعملش تعارض.
   if (data.archivedAt) {
     const completedAt = data.archivedAt;
-    const day = new Date(Date.UTC(completedAt.getUTCFullYear(), completedAt.getUTCMonth(), completedAt.getUTCDate()));
+    const day = localDay ?? utcDayFrom(completedAt);
     await prisma.userActivityDay
       .upsert({
         where: { userId_date: { userId: list.userId, date: day } },

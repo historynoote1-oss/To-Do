@@ -181,10 +181,11 @@ export default function SideMenu({
                 type="button"
                 onClick={() => setArchiveExpanded((v) => !v)}
                 aria-expanded={archiveExpanded}
+                aria-controls="side-menu-archive-submenu"
                 aria-label={archiveExpanded ? 'إخفاء صفحات الأرشيف' : 'عرض صفحات الأرشيف'}
               >
                 <DynamicIcon
-                  name="chevron-left"
+                  name="chevron-down"
                   size={16}
                   className={`side-menu-item-arrow ${archiveExpanded ? 'expanded' : ''}`}
                   aria-hidden
@@ -192,28 +193,38 @@ export default function SideMenu({
               </button>
             </div>
 
-            {archiveExpanded && (
-              <div className="side-menu-submenu" role="group" aria-label="صفحات الأرشيف">
-                <button
-                  className={`side-menu-subitem ${currentView === 'archive' && archiveTab === 'completed' ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => go(() => onOpenArchiveTab('completed'))}
-                  aria-current={currentView === 'archive' && archiveTab === 'completed' ? 'page' : undefined}
+            <div className={`side-menu-submenu-wrap ${archiveExpanded ? 'open' : ''}`}>
+              <div className="side-menu-submenu-inner">
+                <div
+                  id="side-menu-archive-submenu"
+                  className="side-menu-submenu"
+                  role="group"
+                  aria-label="صفحات الأرشيف"
+                  aria-hidden={!archiveExpanded}
                 >
-                  <DynamicIcon name="check-circle" size={15} className="side-menu-subitem-icon" />
-                  <span className="side-menu-item-label">المهام المنجزة</span>
-                </button>
-                <button
-                  className={`side-menu-subitem ${currentView === 'archive' && archiveTab === 'overdue' ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => go(() => onOpenArchiveTab('overdue'))}
-                  aria-current={currentView === 'archive' && archiveTab === 'overdue' ? 'page' : undefined}
-                >
-                  <DynamicIcon name="alert" size={15} className="side-menu-subitem-icon" />
-                  <span className="side-menu-item-label">المهام المتأخرة</span>
-                </button>
+                  <button
+                    className={`side-menu-subitem ${currentView === 'archive' && archiveTab === 'completed' ? 'active' : ''}`}
+                    type="button"
+                    tabIndex={archiveExpanded ? 0 : -1}
+                    onClick={() => go(() => onOpenArchiveTab('completed'))}
+                    aria-current={currentView === 'archive' && archiveTab === 'completed' ? 'page' : undefined}
+                  >
+                    <DynamicIcon name="check-circle" size={15} className="side-menu-subitem-icon" />
+                    <span className="side-menu-item-label">المهام المنجزة</span>
+                  </button>
+                  <button
+                    className={`side-menu-subitem ${currentView === 'archive' && archiveTab === 'overdue' ? 'active' : ''}`}
+                    type="button"
+                    tabIndex={archiveExpanded ? 0 : -1}
+                    onClick={() => go(() => onOpenArchiveTab('overdue'))}
+                    aria-current={currentView === 'archive' && archiveTab === 'overdue' ? 'page' : undefined}
+                  >
+                    <DynamicIcon name="alert" size={15} className="side-menu-subitem-icon" />
+                    <span className="side-menu-item-label">المهام المتأخرة</span>
+                  </button>
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
           <button

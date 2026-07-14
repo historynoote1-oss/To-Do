@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
+import { resolveActivityDay } from '../lib/localDate';
 
 const router = Router();
 
@@ -22,8 +23,11 @@ router.get('/', async (req: AuthRequest, res) => {
   });
   const activeDays = new Set(days.map((d) => dayKey(d.date)));
 
-  const now = new Date();
-  const cursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // "النهاردة" بالنسبة للاستريك لازم تكون يوم المستخدم المحلي، مش يوم
+  // السيرفر UTC — وإلا مستخدم بتوقيت متقدّم عن UTC (زي القاهرة) هيلاقي
+  // استريكه بيتصفّر أو بيقفز غلط حوالين نص الليل بتوقيته هو. الفرونت بيبعت
+  // تاريخه المحلي في ?date=YYYY-MM-DD مع كل طلب.
+  const cursor = resolveActivityDay(req.query.date);
 
   // لو النهاردة لسه معملش فيه إنجاز، الاستريك ممكن يكون لسه "حي" (اليوم لسه
   // ما خلصش) — بنبدأ العد من إمبارح بدل ما نصفّره فورًا قبل نص الليل.
