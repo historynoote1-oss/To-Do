@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { getReminders, Reminder } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import { DynamicIcon } from '../lib/icons';
@@ -17,7 +16,7 @@ interface ListLike {
   title: string;
   startTime?: string | null;
   endTime?: string | null;
-  _count?: { reminders?: number };
+  createdAt?: string | null;
 }
 
 interface Props {
@@ -41,52 +40,31 @@ function computePhase(now: number, start: number | null, end: number | null): Ph
 }
 
 // عنصر واحد بس بياخد باقي سطر البيانات الثابتة (بعد الأولوية/التصنيف/
-// مجال الحياة)، وبيعرض واحدة من حاجتين مفيش بينهم تداخل خالص:
+// مجال الحياة المصغّرين)، وبيعرض واحدة من حاجتين مفيش بينهم تداخل خالص:
 //
-//  ١) لسه المهمة ما بدأتش (أو مفيش جدول زمني للمهمة أصلًا) وفيه تذكيرات
-//     متحددة لها: بيعرض أيقونة جرس + عدّاد تنازلي لأقرب تذكير قادم. لما
-//     العدّاد يوصل صفر، التذكير ده يبقى "فات" فبيتنقل تلقائيًا لأقرب
-//     تذكير تاني لسه معلّق، لحد ما تخلص كل التذكيرات (الإرسال الفعلي/
-//     الإشعار بيتكفّل بيه الاستقصاء العام في App.tsx بغض النظر عن المكوّن ده).
+//  ١) لسه المهمة ما بدأتش: عدّاد تنازلي "ستبدأ المهمة بعد" + أيقونة موعد
+//     قادم + بار بينقص لحد ما يوصل صفر (يمثّل قرب موعد البداية)، وبمجرد
+//     ما وقت البداية يجي الجزء ده كله بيختفي فورًا (المرحلة بتتحول لنشطة).
 //
-//  ٢) دخل وقت بداية المهمة: بيتحول لعدّاد تنازلي لوقت نهاية المهمة مع
-//     شريط بار بينقص كل ثانية، ولما الوقت يخلص يبقى العدّاد والبار
-//     بلون أحمر بس.
+//  ٢) دخل وقت بداية المهمة: عدّاد تنازلي لوقت نهاية المهمة + بار وقت
+//     التنفيذ نفسه، ولما الوقت يخلص يبقى العدّاد والبار بلون أحمر بس.
 //
 // العنصر ده عرض فقط — مفيش أي تعديل مباشر منه، التعديل كله بقى من نافذة
-// تعديل المهمة (أيقونة القلم).
+// تعديل المهمة (أيقونة القلم). التذكيرات بقت إشعارات جهاز حقيقية (Web Push)
+// + إشعار داخل الموقع، مفيش عدّاد أو أيقونة خاصة بيها هنا خالص.
 export default function TaskTimeline({ list }: Props) {
   const start = list.startTime ? new Date(list.startTime).getTime() : null;
   const end = list.endTime ? new Date(list.endTime).getTime() : null;
+  const created = list.createdAt ? new Date(list.createdAt).getTime() : null;
   const scheduled = start !== null && end !== null;
-  const reminderCount = list._count?.reminders ?? 0;
 
   const [now, setNow] = useState(() => Date.now());
-  const [reminders, setReminders] = useState<Reminder[]>([]);
 
   const prevPhaseRef = useRef<Phase>('unset');
   const firedStartRef = useRef(false);
   const firedWarnRef = useRef(false);
   const firedEndRef = useRef(false);
   const initializedRef = useRef(false);
-
-  // بنجيب تذكيرات المهمة بس لو فيه عدد تذكيرات فعلاً، وبنعيد الجلب لما
-  // العدد ده يتغيّر (إضافة/حذف من نافذة التعديل).
-  useEffect(() => {
-    if (reminderCount === 0) {
-      setReminders([]);
-      return;
-    }
-    let cancelled = false;
-    getReminders({ listId: list.id })
-      .then((data) => {
-        if (!cancelled) setReminders(data);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [list.id, reminderCount]);
 
   // لحظة ما الجدول الزمني نفسه يتغيّر (تحديد جديد / تعديل / مسح)، بنصفّر
   // كل علامات "الصوت اتشغّل قبل كده" ونعيد تهيئة المرحلة الأولية من غير ما
@@ -104,18 +82,12 @@ export default function TaskTimeline({ list }: Props) {
 
   const phase = computePhase(now, start, end);
   const showTaskTimer = phase === 'active' || phase === 'ended';
+  const showUpcomingTimer = phase === 'upcoming';
 
-  // أقرب تذكير لسه معلّق (وقته لسه ما جاش) — بيتحسب من جديد كل تيك، فلما
-  // تذكير يفوت وقته بيختفي من الفلتر ده تلقائيًا ويطلع اللي بعده.
-  const nextReminder =
-    reminders
-      .filter((r) => new Date(r.remindAt).getTime() > now)
-      .sort((a, b) => new Date(a.remindAt).getTime() - new Date(b.remindAt).getTime())[0] || null;
+  // بنشتغل بس لو فيه حاجة فعلاً بتتحسب كل ثانية (جدول شغال، أو لسه مستني
+  // وقت البداية) — عشان مش نفتح تيك من غير داعي للمهام اللي مفيهاش جدول.
+  const shouldTick = showTaskTimer ? phase === 'active' : showUpcomingTimer;
 
-  const shouldTick = showTaskTimer ? phase === 'active' : !!nextReminder;
-
-  // بنشتغل بس لو فيه حاجة فعلاً بتتحسب (جدول شغال، أو تذكير قادم لسه ما
-  // جاش وقته) — عشان مش نفتح تيك كل ثانية من غير داعي.
   useEffect(() => {
     if (!shouldTick) return;
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -167,7 +139,7 @@ export default function TaskTimeline({ list }: Props) {
         title="الوقت المتبقي للمهمة"
       >
         <span className="timeline-compact-icon" aria-hidden="true">
-          <DynamicIcon name={ended ? 'hourglass' : 'timer'} size={13} />
+          <DynamicIcon name={ended ? 'hourglass' : 'timer'} size={14} />
         </span>
 
         <span className="timeline-compact-bar">
@@ -184,19 +156,33 @@ export default function TaskTimeline({ list }: Props) {
     );
   }
 
-  if (nextReminder) {
+  if (showUpcomingTimer) {
+    // نافدة العدّاد بتاعة "قرب الموعد": من وقت إنشاء المهمة (أو من وقت
+    // البداية نفسه لو مفيش createdAt لأي سبب) لحد وقت البداية. البار بيمثّل
+    // نسبة الوقت المتبقي، فبيبدأ ممتلئ وبينقص تدريجيًا لحد ما يوصل صفر
+    // بالظبط لحظة ما المهمة تبدأ.
+    const windowStart = created !== null && created < start! ? created : start! - 60 * 60 * 1000;
+    const upcomingFraction = Math.min(1, Math.max(0, (start! - now) / (start! - windowStart)));
+
     return (
       <div
-        className="timeline-compact timeline-compact-readonly timeline-compact-upcoming"
+        className="timeline-compact timeline-compact-readonly timeline-compact-has-bar timeline-compact-upcoming"
         role="img"
-        aria-label="الوقت المتبقي لأقرب تذكير"
-        title="الوقت المتبقي لأقرب تذكير"
+        aria-label="الوقت المتبقي لبداية المهمة"
+        title="الوقت المتبقي لبداية المهمة"
       >
         <span className="timeline-compact-icon" aria-hidden="true">
-          <DynamicIcon name="bell" size={13} />
+          <DynamicIcon name="bell" size={14} />
+        </span>
+        <span className="timeline-compact-label">ستبدأ المهمة بعد</span>
+        <span className="timeline-compact-bar">
+          <span
+            className="timeline-compact-bar-fill timeline-compact-bar-fill-upcoming"
+            style={{ width: `${upcomingFraction * 100}%` }}
+          />
         </span>
         <span className="timeline-compact-time" dir="ltr">
-          {formatClock((new Date(nextReminder.remindAt).getTime() - now) / 1000)}
+          {formatClock((start! - now) / 1000)}
         </span>
       </div>
     );

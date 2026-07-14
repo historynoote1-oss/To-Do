@@ -7044,7 +7044,10 @@ body.modal-lock-scroll {
   white-space: normal;
   overflow-wrap: anywhere;
   min-width: 0;
-  line-height: 1.35;
+  /* بنخلي ارتفاع السطر يساوي بالظبط ارتفاع مربع الـ checkbox (23px) —
+     كده مركز النص بيقع بالظبط على مركز المربع، من غير ما يبان النص
+     شايل شوية لفوق أو لتحت بسبب فراغات الخط الطبيعية حوالين الحروف. */
+  line-height: 23px;
 }
 
 .list-title-subcount {
@@ -7104,18 +7107,26 @@ body.modal-lock-scroll {
   opacity: 0.92;
 }
 
-/* الشارات الثلاثة (أولوية/تصنيف/مجال حياة) أصغر من حجم sm العادي —
-   عشان ياخدوا أقل من نص السطر ويسيبوا مساحة أوسع لعدّاد التذكير/الجدول
-   على الطرف التاني. */
+/* الشارات الثلاثة (أولوية/تصنيف/مجال حياة) — بقت أيقونة بس من غير نص
+   (اللابل بتاعها مخفي هنا) عشان تاخد أقل مساحة ممكنة على السطر، وتسيب
+   المساحة الأكبر لمربع العدّاد على الطرف التاني. */
+.list-meta-badges {
+  gap: 4px;
+}
+
 .list-meta-badges .priority-badge {
-  padding: 2px 6px;
-  gap: 3px;
-  font-size: 9.5px;
+  padding: 4px;
+  gap: 0;
+  border-radius: var(--radius-pill);
+}
+
+.list-meta-badges .priority-badge > span:last-child {
+  display: none;
 }
 
 .list-meta-badges .priority-badge svg {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
 }
 
 .list-meta-badges .life-area-glyph-chip,
@@ -7125,8 +7136,8 @@ body.modal-lock-scroll {
 }
 
 .list-meta-badges .life-area-glyph-img {
-  width: 14px !important;
-  height: 14px !important;
+  width: 15px !important;
+  height: 15px !important;
 }
 
 .list-meta-badges .life-area-glyph-chip-icon {
@@ -7134,33 +7145,30 @@ body.modal-lock-scroll {
   height: 8px !important;
 }
 
-/* ===== صندوق الجدول الزمني المضغوط — أيقونة + بار + رقم بس، من غير
-   أي نص وصفي، وبياخد تقريبًا نص عرض سطر البيانات الثابتة. ===== */
+/* ===== صندوق العدّاد المضغوط — أيقونة + (لابل اختياري) + بار + رقم،
+   وبياخد أكتر من نص عرض سطر البيانات الثابتة دلوقتي بعد ما الشارات
+   بقت أيقونات بس. ===== */
 .timeline-compact {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   flex: 0 0 auto;
   background: var(--surface-2);
   border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  padding: 5px 8px;
-  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: default;
   color: var(--text-muted);
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 
-/* لما يكون فيه جدول زمني متحدد فعلاً، المربع بيبقى مجرد عرض بصري بس —
-   مش قابل للنقر لتعديله من هنا (التعديل بقى من نافذة تعديل المهمة عن
-   طريق أيقونة القلم). بيفضل قابل للنقر بس في حالة "مفيش جدول لسه" عشان
-   يبقى فيه طريقة سريعة لإضافته أول مرة. */
 .timeline-compact.timeline-compact-readonly {
   cursor: default;
 }
 
-/* لما يكون فيه بار (المهمة شغالة/خلصت)، بناخد أقصى مساحة متاحة من نص
-   السطر المخصص للعدّاد، عشان البار يبان بعرض معقول بدل ما ينضغط. عدّاد
-   التذكير (من غير بار) بيفضل مضغوط بحجم محتواه بس. */
+/* لما يكون فيه بار (المهمة شغالة/خلصت/لسه مستنية تبدأ)، بناخد أقصى
+   مساحة متاحة من نص السطر المخصص للعدّاد، عشان البار يبان بعرض معقول
+   بدل ما ينضغط. */
 .timeline-compact.timeline-compact-has-bar {
   flex: 1 1 auto;
   min-width: 0;
@@ -7172,28 +7180,25 @@ body.modal-lock-scroll {
   background: var(--surface-2);
 }
 
-.timeline-compact:hover {
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
-  background: var(--gradient-brand-soft);
-}
-
 .timeline-compact-icon {
   display: inline-flex;
   flex-shrink: 0;
   color: var(--accent-soft);
 }
 
-.timeline-compact-add {
+.timeline-compact-label {
   font-size: 11.5px;
   font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .timeline-compact-bar {
   flex: 1;
-  height: 4px;
+  height: 5px;
   min-width: 20px;
   border-radius: var(--radius-pill);
   background: var(--surface);
@@ -7207,9 +7212,13 @@ body.modal-lock-scroll {
   transition: width var(--dur) var(--ease-out);
 }
 
+.timeline-compact-bar-fill-upcoming {
+  background: var(--accent-soft);
+}
+
 .timeline-compact-time {
   font-family: var(--font-num);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
   color: var(--text);
