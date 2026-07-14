@@ -31,6 +31,7 @@ export default function NotificationsBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const prevUnread = useRef(0);
 
   async function load() {
@@ -55,7 +56,10 @@ export default function NotificationsBell() {
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      const insideTrigger = wrapRef.current?.contains(target);
+      const insidePanel = panelRef.current?.contains(target);
+      if (!insideTrigger && !insidePanel) setOpen(false);
     }
     if (open) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -103,7 +107,7 @@ export default function NotificationsBell() {
   return (
     <div className="notifications-bell-wrap" ref={wrapRef}>
       <button
-        className="icon-btn hamburger-btn notifications-bell-btn"
+        className={`icon-btn hamburger-btn notifications-bell-btn ${unreadCount > 0 ? 'has-unread' : ''}`}
         onClick={() => setOpen((o) => !o)}
         type="button"
         title="الإشعارات"
@@ -112,15 +116,18 @@ export default function NotificationsBell() {
         aria-expanded={open}
       >
         <DynamicIcon name="bell" size={18} />
-        {unreadCount > 0 && (
-          <span className="notifications-bell-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
-        )}
       </button>
+      {unreadCount > 0 && (
+        <span className="notifications-bell-badge" aria-hidden="true">
+          {unreadCount > 9 ? '9+' : unreadCount}
+        </span>
+      )}
 
       {open && (
         <Portal>
           <div className="notifications-panel-overlay" onClick={() => setOpen(false)}>
             <div
+              ref={panelRef}
               className="notifications-panel"
               style={{
                 position: 'fixed',

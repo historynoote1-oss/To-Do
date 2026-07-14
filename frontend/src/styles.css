@@ -7880,23 +7880,32 @@ details[open] > summary .hier-caret {
   position: relative;
 }
 
+.notifications-bell-btn.has-unread {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-soft));
+}
+
 .notifications-bell-badge {
   position: absolute;
-  top: -4px;
-  left: -4px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
+  top: -3px;
+  left: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   border-radius: var(--radius-pill);
   background: var(--danger);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
+  font-family: var(--font-num);
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  box-shadow: 0 0 0 2px var(--surface);
+  box-shadow: 0 0 0 2px var(--surface), 0 2px 6px -1px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 1;
+  animation: pop-in var(--dur-fast) var(--ease-spring) both;
 }
 
 .notifications-panel-overlay {

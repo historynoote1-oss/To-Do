@@ -96,9 +96,12 @@ export default function TodoList({
   );
 
   async function handleEditSaveNewSubtasks(newSubtasks: string[]) {
+    const createdIds: string[] = [];
     for (const content of newSubtasks) {
-      await addItem(list.id, content);
+      const created = await addItem(list.id, content);
+      createdIds.push(created.id);
     }
+    return createdIds;
   }
 
   function handleDeleteList() {
@@ -123,6 +126,17 @@ export default function TodoList({
     try {
       if (list.confirmedDone) {
         await unconfirmListDone(list.id);
+        pushCommand({
+          label: `إلغاء تأكيد إنهاء "${list.title}"`,
+          undo: async () => {
+            await confirmListDone(list.id);
+            onChange();
+          },
+          redo: async () => {
+            await unconfirmListDone(list.id);
+            onChange();
+          },
+        });
         onChange();
       } else {
         await confirmListDone(list.id);
@@ -131,6 +145,17 @@ export default function TodoList({
         sounds.celebrate();
         window.setTimeout(() => setConfettiOn(false), 900);
         toast.success(`أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف`);
+        pushCommand({
+          label: `تأكيد إنهاء "${list.title}"`,
+          undo: async () => {
+            await unconfirmListDone(list.id);
+            onChange();
+          },
+          redo: async () => {
+            await confirmListDone(list.id);
+            onChange();
+          },
+        });
         onChange();
       }
     } catch (err) {
@@ -191,18 +216,29 @@ export default function TodoList({
   // بيحدّث بيانات المهمة الرئيسية، وبعدين لو المستخدم ضاف تذكيرات جديدة
   // من خطوة "التذكير" بيتم إنشاؤها فعليًا (التذكيرات القديمة متتلمسش).
   async function handleEditSave(id: string, data: NewTaskPayload) {
+    const previousFields = {
+      title: list.title,
+      priority: (list.priority || 'MEDIUM') as PriorityKey,
+      category: (list.category ?? null) as CategoryKey | null,
+      targetYear: list.targetYear ?? null,
+      lifeAreaId: list.lifeArea?.id ?? list.lifeAreaId ?? null,
+      startTime: list.startTime ?? null,
+      endTime: list.endTime ?? null,
+    };
+    const nextFields = {
+      title: data.title,
+      priority: data.priority,
+      category: data.category,
+      targetYear: data.targetYear,
+      lifeAreaId: data.lifeAreaId,
+      startTime: data.startTime,
+      endTime: data.endTime,
+    };
     try {
-      await updateList(id, {
-        title: data.title,
-        priority: data.priority,
-        category: data.category,
-        targetYear: data.targetYear,
-        lifeAreaId: data.lifeAreaId,
-        startTime: data.startTime,
-        endTime: data.endTime,
-      });
+      await updateList(id, nextFields);
+      let createdItemIds: string[] = [];
       if (data.subtasks.length > 0) {
-        await handleEditSaveNewSubtasks(data.subtasks);
+        createdItemIds = await handleEditSaveNewSubtasks(data.subtasks);
       }
       // مهم: المهام الرئيسية معندهاش "موعد استحقاق" (dueDate) زي المهام
       // الفرعية — عندها بس startTime/endTime، فالسيرفر بيرفض mode
@@ -222,6 +258,28 @@ export default function TodoList({
       }
       sounds.click();
       toast.success('اتحدّثت المهمة');
+      // ref بتتبع الـ ids الحالية للمهام الفرعية اللي اتضافت من نافذة
+      // التعديل — بتتغيّر بعد أي Undo/Redo لاحق لأنها بتاخد id جديد من
+      // السيرفر كل مرة تتعمل فيها.
+      const itemIdsRef = { ids: createdItemIds };
+      pushCommand({
+        label: `تعديل "${data.title}"`,
+        undo: async () => {
+          await updateList(id, previousFields);
+          for (const itemId of itemIdsRef.ids) {
+            await deleteItem(itemId);
+          }
+          itemIdsRef.ids = [];
+          onChange();
+        },
+        redo: async () => {
+          await updateList(id, nextFields);
+          if (data.subtasks.length > 0) {
+            itemIdsRef.ids = await handleEditSaveNewSubtasks(data.subtasks);
+          }
+          onChange();
+        },
+      });
       onChange();
     } catch (err) {
       sounds.error();
@@ -255,8 +313,21 @@ export default function TodoList({
   }
 
   async function handleListPriorityChange(priority: PriorityKey) {
+    const previousPriority = list.priority || 'NONE';
+    if (priority === previousPriority) return;
     try {
       await updateList(list.id, { priority });
+      pushCommand({
+        label: `تغيير أولوية "${list.title}"`,
+        undo: async () => {
+          await updateList(list.id, { priority: previousPriority });
+          onChange();
+        },
+        redo: async () => {
+          await updateList(list.id, { priority });
+          onChange();
+        },
+      });
       onChange();
     } catch (err) {
       sounds.error();
@@ -265,9 +336,23 @@ export default function TodoList({
   }
 
   async function handleListCategoryChange(category: CategoryKey | null, targetYear?: number | null) {
+    const previousCategory = list.category ?? null;
+    const previousTargetYear = list.targetYear ?? null;
+    const nextTargetYear = category === 'YEARLY' ? targetYear ?? null : null;
     try {
-      await updateList(list.id, { category, targetYear: category === 'YEARLY' ? targetYear : null });
+      await updateList(list.id, { category, targetYear: nextTargetYear });
       sounds.click();
+      pushCommand({
+        label: `تغيير تصنيف "${list.title}"`,
+        undo: async () => {
+          await updateList(list.id, { category: previousCategory, targetYear: previousTargetYear });
+          onChange();
+        },
+        redo: async () => {
+          await updateList(list.id, { category, targetYear: nextTargetYear });
+          onChange();
+        },
+      });
       onChange();
     } catch (err) {
       sounds.error();
@@ -276,9 +361,22 @@ export default function TodoList({
   }
 
   async function handleListLifeAreaChange(lifeAreaId: string | null) {
+    const previousLifeAreaId = list.lifeArea?.id ?? list.lifeAreaId ?? null;
+    if (lifeAreaId === previousLifeAreaId) return;
     try {
       await updateList(list.id, { lifeAreaId });
       sounds.click();
+      pushCommand({
+        label: `نقل "${list.title}" لمجال حياة تاني`,
+        undo: async () => {
+          await updateList(list.id, { lifeAreaId: previousLifeAreaId });
+          onChange();
+        },
+        redo: async () => {
+          await updateList(list.id, { lifeAreaId });
+          onChange();
+        },
+      });
       onChange();
     } catch (err) {
       sounds.error();
@@ -287,8 +385,21 @@ export default function TodoList({
   }
 
   async function handleItemPriorityChange(item: any, priority: PriorityKey) {
+    const previousPriority = item.priority || 'NONE';
+    if (priority === previousPriority) return;
     try {
       await updateItemPriority(item.id, priority);
+      pushCommand({
+        label: `تغيير أولوية "${item.content}"`,
+        undo: async () => {
+          await updateItemPriority(item.id, previousPriority);
+          onChange();
+        },
+        redo: async () => {
+          await updateItemPriority(item.id, priority);
+          onChange();
+        },
+      });
       onChange();
     } catch (err) {
       sounds.error();

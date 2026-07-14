@@ -10,7 +10,7 @@ import {
   ProfileData,
   ProfileStats,
 } from '../lib/api';
-import { PRIORITIES, PriorityKey } from '../lib/priority';
+import { PRIORITY_MAP, PriorityKey } from '../lib/priority';
 import { toast } from '../lib/toast';
 import { sounds } from '../lib/sounds';
 import { DynamicIcon } from '../lib/icons';
@@ -332,7 +332,7 @@ export default function Profile({
             {PRIORITY_ORDER.map((p) => {
               const count = stats.priority[p];
               const pct = totalPriority > 0 ? Math.round((count / totalPriority) * 100) : 0;
-              const def = PRIORITIES.find((x) => x.key === p)!;
+              const def = PRIORITY_MAP[p];
               return (
                 <div className="priority-row" key={p}>
                   <span className="priority-row-label">{def.label}</span>
