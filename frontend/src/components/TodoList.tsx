@@ -472,7 +472,6 @@ export default function TodoList({
           {!editingTitle && (
             <button className="card-icon-action" onClick={() => setSubtasksOpen(true)} aria-label="عرض المهام الفرعية" type="button" title="المهام الفرعية">
               <DynamicIcon name="list-checks" size={17} />
-              {total > 0 && <span className="subtask-count-badge">{total}</span>}
             </button>
           )}
           <button className="card-icon-action danger" onClick={handleDeleteList} aria-label="حذف المهمة الرئيسية" type="button" title="حذف">
@@ -535,12 +534,7 @@ export default function TodoList({
                     delay={i * 40}
                     leaving={leavingIds.has(item.id)}
                     onToggle={() => handleToggle(item)}
-                    onDelete={() => handleDeleteItem(item)}
-                    onPriorityChange={(p: PriorityKey) => handleItemPriorityChange(item, p)}
-                    onEdit={(content: string) => handleItemEdit(item, content)}
-                    onOpenReminders={(it: any) =>
-                      setRemindersTarget({ kind: 'item', id: it.id, title: it.content, dueDate: it.dueDate || null })
-                    }
+                    simple
                   />
                 ))}
               </ul>

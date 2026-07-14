@@ -11,6 +11,7 @@ export default function TodoItemRow({
   onOpenReminders,
   delay = 0,
   leaving = false,
+  simple = false,
 }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.content);
@@ -41,6 +42,33 @@ export default function TodoItemRow({
   function cancel() {
     setDraft(item.content);
     setEditing(false);
+  }
+
+  // وضع "عرض بس" — بيُستخدم في نافذة "المهام الفرعية" اللي بتتفتح من
+  // أيقونة العرض في الكارت الرئيسي: Check + اسم المهمة الفرعية بس، من
+  // غير شارة أولوية أو موعد استحقاق أو أي زرار تعديل/حذف/تذكيرات.
+  if (simple) {
+    return (
+      <li
+        className={`${item.isDone ? 'done' : ''} ${leaving ? 'leaving' : ''}`}
+        style={{ ['--delay' as any]: `${delay}ms` }}
+      >
+        <label>
+          <span
+            className={`checkbox ${item.isDone ? 'checked' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              onToggle();
+            }}
+          >
+            <svg viewBox="0 0 16 16">
+              <polyline points="3,9 6.5,12.5 13,4" />
+            </svg>
+          </span>
+          <span>{item.content}</span>
+        </label>
+      </li>
+    );
   }
 
   return (

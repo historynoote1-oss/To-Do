@@ -7070,8 +7070,9 @@ body.modal-lock-scroll {
 }
 
 /* شريط البيانات الثابتة (أولوية / تصنيف / مجال حياة) — معروضة بس، مفيش
-   تعديل هنا خالص. السطر مقسوم بنسبة ثابتة: 70% للشارات التلاتة (بالأيقونة
-   والنص مع بعض ظاهرين بوضوح)، و30% الباقيين لصندوق الجدول الزمني المضغوط. */
+   تعديل هنا خالص. السطر مقسوم بنسبة ثابتة: 40% للشارات التلاتة (بالأيقونة
+   والنص مع بعض)، و60% الباقيين لصندوق الجدول الزمني المضغوط. (نسبة كروت
+   الأرشيف مختلفة عمدًا — شوف override تحت .archive-task-card). */
 .list-meta-row {
   display: flex;
   align-items: center;
@@ -7087,13 +7088,13 @@ body.modal-lock-scroll {
   align-items: center;
   flex-wrap: nowrap;
   gap: 5px;
-  flex: 0 0 70%;
-  max-width: 70%;
+  flex: 0 0 40%;
+  max-width: 40%;
   min-width: 0;
   overflow: hidden;
 }
 
-/* كل شارة بتاخد نفس النصيب من الـ 70% وبتقدر تنقص (min-width: 0) عشان
+/* كل شارة بتاخد نفس النصيب من الـ 40% وبتقدر تنقص (min-width: 0) عشان
    النص جواها يقدر يتقصّ بـ ellipsis بدل ما يكسر السطر أو يطفح برّه. */
 .list-meta-badges > * {
   flex: 1 1 0;
@@ -7108,8 +7109,8 @@ body.modal-lock-scroll {
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  flex: 0 0 30%;
-  max-width: 30%;
+  flex: 0 0 60%;
+  max-width: 60%;
   min-width: 0;
 }
 
@@ -7837,4 +7838,17 @@ details[open] > summary .hier-caret {
    الرئيسي (row-actions card-actions) بدل فوتر منفصل. ---- */
 .archive-task-card .card-actions {
   gap: 4px;
+}
+
+/* كروت الأرشيف تحديدًا بتاخد نسبة مختلفة عن الصفحة الرئيسية لشريط
+   البيانات الثابتة: 70% للشارات (أولوية/تصنيف/مجال حياة) عشان تبان
+   بالأيقونة والنص بوضوح، و30% بس لصندوق وقت الأرشفة. */
+.archive-task-card .list-meta-badges {
+  flex: 0 0 70%;
+  max-width: 70%;
+}
+
+.archive-task-card .list-meta-timers {
+  flex: 0 0 30%;
+  max-width: 30%;
 }
