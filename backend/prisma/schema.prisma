@@ -245,6 +245,20 @@ model TodoList {
   // (syncListArchiveState) عن أي تغيير في حالة المهمة دي — شوف lib/archive.ts.
   pendingRestoreAt DateTime?
 
+  // ===== سبب الأرشفة (Archive Reason) =====
+  // بيفرّق بين نوعين مختلفين تمامًا من الأرشفة، وبيتحدد بس وقت ما archivedAt
+  // بتتحط فعليًا (يفضل من غير معنى طول ما archivedAt = null):
+  // - COMPLETED: المستخدم خلّص المهمة فعلاً وأكّدها (أو أرشفها يدويًا) —
+  //   دي بتظهر في تبويب "المهام المنجزة" وتقدر تتسترجع/تتحذف عادي.
+  // - OVERDUE: المهمة ليها وقت نهاية محدد (endTime) وعدّى موعدها بـ 10
+  //   دقايق كامل من غير ما المستخدم يخلّصها — بتتأرشف تلقائيًا (شوف
+  //   lib/overdueScheduler.ts) وبتظهر في تبويب "المهام المتأخرة" بشكل
+  //   دائم وغير قابلة للحذف أو الاسترجاع، عشان تفضل سجل ثابت وصادق لأي
+  //   مهمة فات معادها. أي محاولة استرجاع/حذف/تعديل مهام فرعية لمهمة
+  //   بالحالة دي لازم تترفض في السيرفر (شوف routes/lists.ts وroutes/items.ts
+  //   ولib/archive.ts).
+  archiveReason ArchiveReason @default(COMPLETED)
+
   // ===== المهام المتكررة (Recurring Tasks) =====
   // لو المهمة الرئيسية دي "نسخة" اتولّدت تلقائيًا من قالب مهمة متكررة،
   // بيبقى ده الرابط بينها وبين القالب الأصلي (RecurringTask). لو القالب اتحذف،
@@ -262,6 +276,7 @@ model TodoList {
   @@index([userId, archivedAt])
   @@index([userId, pendingRestoreAt])
   @@index([recurringTaskId])
+  @@index([archivedAt, endTime])
 }
 
 // TodoItem بتمثّل "المهمة الفرعية" جوه المهمة الرئيسية.
@@ -287,6 +302,12 @@ enum Priority {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+// شوف تعليق الحقل archiveReason فوق في TodoList لتفاصيل الفرق بين الحالتين.
+enum ArchiveReason {
+  COMPLETED
+  OVERDUE
 }
 
 // تصنيف المهمة الرئيسية — بيحدد تحت أي قسم بتظهر المهمة (يومية/أسبوعية/

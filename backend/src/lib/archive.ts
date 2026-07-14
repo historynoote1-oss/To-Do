@@ -29,12 +29,18 @@ export async function syncListArchiveState(listId: string) {
   // المستخدم يقدر يراجعها ويأكّد استرجاعها. شوف routes/lists.ts.
   if (list.pendingRestoreAt) return null;
 
+  // مهمة اتؤرشفت تلقائيًا لأنها "فاتت معادها" (تبويب "المهام المتأخرة") لازم
+  // تفضل مجمّدة نهائيًا — أي تعديل لاحق في مهامها الفرعية (حتى لو رجعت كلها
+  // منجزة) ميرجعهاش للقائمة النشطة ولا يغيّر حالتها؛ الاسترجاع والحذف
+  // بالنسبة لها ممنوعين تمامًا (شوف routes/lists.ts وroutes/items.ts).
+  if (list.archiveReason === 'OVERDUE') return null;
+
   const total = list.items.length;
   const done = list.items.filter((i) => i.isDone).length;
   const allSubtasksDone = total > 0 && done === total;
   const isComplete = allSubtasksDone && list.confirmedDone;
 
-  const data: { archivedAt?: Date | null; confirmedDone?: boolean } = {};
+  const data: { archivedAt?: Date | null; confirmedDone?: boolean; archiveReason?: 'COMPLETED' } = {};
 
   // التأكيد النهائي مالوش معنى غير لو كل المهام الفرعية منجزة فعلاً. أي
   // رجوع لمهمة فرعية غير منجزة (أو إضافة واحدة جديدة) بيصفّر التأكيد
@@ -45,6 +51,7 @@ export async function syncListArchiveState(listId: string) {
 
   if (isComplete && !list.archivedAt) {
     data.archivedAt = new Date();
+    data.archiveReason = 'COMPLETED';
   } else if (!isComplete && list.archivedAt) {
     data.archivedAt = null;
   }

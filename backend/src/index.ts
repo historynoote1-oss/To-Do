@@ -27,6 +27,7 @@ import { maintenanceGate } from './middleware/maintenanceGate';
 import { rehabilitationGate } from './middleware/rehabilitationGate';
 import { startReminderScheduler } from './lib/reminderScheduler';
 import { startRecurringTaskScheduler } from './lib/recurringTaskScheduler';
+import { startOverdueScheduler } from './lib/overdueScheduler';
 
 const app = express();
 
@@ -153,3 +154,4 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // شغالة طول عمر البروسيس، مش محتاجة مسار API منفصل.
 startReminderScheduler();
 startRecurringTaskScheduler();
+startOverdueScheduler();

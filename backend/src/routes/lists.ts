@@ -60,6 +60,11 @@ router.post('/:id/archive', async (req: AuthRequest, res) => {
 router.post('/:id/restore', async (req: AuthRequest, res) => {
   const list = await prisma.todoList.findFirst({ where: { id: req.params.id, userId: req.userId! } });
   if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
+  // مهمة اتؤرشفت تلقائيًا لأنها فاتت معادها (تبويب "المهام المتأخرة") مينفعش
+  // تتسترجع نهائيًا — شوف تعليق archiveReason في schema.prisma.
+  if (list.archiveReason === 'OVERDUE') {
+    return res.status(400).json({ error: 'المهمة دي اتنقلت لـ"المهام المتأخرة" تلقائيًا لأنها فاتت معادها، ومينفعش تتسترجع' });
+  }
   const updated = await prisma.todoList.update({
     where: { id: list.id },
     data: { archivedAt: null, pendingRestoreAt: new Date() },
@@ -103,6 +108,17 @@ router.post('/:id/confirm-done', async (req: AuthRequest, res) => {
   }
 
   await prisma.todoList.update({ where: { id: list.id }, data: { confirmedDone: true } });
+
+  // بيسجّل النهاردة كـ"يوم نشط" لحساب الاستريك (شوف routes/streak.ts) —
+  // upsert عشان لو المستخدم أكّد أكتر من مهمة في نفس اليوم يفضل صف واحد بس.
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  await prisma.userActivityDay.upsert({
+    where: { userId_date: { userId: req.userId!, date: today } },
+    update: {},
+    create: { userId: req.userId!, date: today },
+  });
+
   const updated = await syncListArchiveState(list.id);
   res.json(
     updated ?? (await prisma.todoList.findUnique({
@@ -294,6 +310,11 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     where: { id: req.params.id, userId: req.userId! },
   });
   if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
+  // مهمة "متأخرة" مؤرشفة تلقائيًا لازم تفضل موجودة كسجل دائم — مينفعش تتحذف
+  // نهائيًا، بنفس فلسفة عدم إمكانية استرجاعها.
+  if (list.archiveReason === 'OVERDUE') {
+    return res.status(400).json({ error: 'مينفعش تحذف مهمة متأخرة اتؤرشفت تلقائيًا' });
+  }
 
   await prisma.todoList.delete({ where: { id: list.id } });
   res.json({ success: true });

@@ -113,10 +113,10 @@ export default function TaskDistributionCard({ lists, onSelectCategory }: Props)
                 <DynamicIcon name={s.icon} size={15} />
               </span>
               <span className="task-distribution-row-label">{s.label}</span>
-              <span className="task-distribution-row-track">
+              <span className="task-distribution-row-track" style={{ background: s.bg }}>
                 <span
                   className="task-distribution-row-fill"
-                  style={{ width: `${s.pct}%`, background: s.color, boxShadow: `0 0 5px -1px ${s.color}` }}
+                  style={{ width: `${s.pct}%`, background: s.color, boxShadow: `0 0 8px -1px ${s.color}` }}
                 />
               </span>
               <span className="task-distribution-row-count">{s.count}</span>

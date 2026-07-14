@@ -957,6 +957,11 @@ export async function getProfile(): Promise<ProfileResponse> {
   return handle(res);
 }
 
+export async function getStreak(): Promise<{ current: number }> {
+  const res = await fetch(`${API_URL}/api/streak`, { headers: authHeaders() });
+  return handle(res);
+}
+
 export async function updateProfile(data: {
   displayName?: string | null;
   bio?: string | null;

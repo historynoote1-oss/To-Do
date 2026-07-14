@@ -19,6 +19,10 @@ const MONTHS_AR = [
 
 const WEEKDAYS_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
+type ArchiveReason = 'COMPLETED' | 'OVERDUE';
+
+type ArchiveTab = 'completed' | 'overdue';
+
 interface ArchivedItem {
   id: string;
   content: string;
@@ -36,6 +40,8 @@ interface ArchivedList {
   archivedAt: string;
   createdAt: string;
   recurringTaskId?: string | null;
+  archiveReason?: ArchiveReason;
+  endTime?: string | null;
   items: ArchivedItem[];
   lifeArea?: { id: string; name: string; color: string; icon: string | null; imageUrl: string | null } | null;
 }
@@ -43,6 +49,34 @@ interface ArchivedList {
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
 }
+
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+const TAB_CONFIG: Record<
+  ArchiveTab,
+  { label: string; icon: string; title: string; description: string; emptyIcon: string; emptyText: string }
+> = {
+  completed: {
+    label: 'المهام المنجزة',
+    icon: 'check-circle',
+    title: 'أرشيف المهام المنجزة',
+    description:
+      'كل مهمة رئيسية بتكتمل بتتنقل هنا تلقائيًا، منظّمة حسب سنة وشهر ويوم الإكمال، مع إمكانية البحث والفلترة واسترجاع أي مهمة لقائمتك النشطة في أي وقت.',
+    emptyIcon: 'archive',
+    emptyText: 'لسه مفيش مهام منجزة — أول ما تكمّل مهمة رئيسية بالكامل هتلاقيها هنا',
+  },
+  overdue: {
+    label: 'المهام المتأخرة',
+    icon: 'alert',
+    title: 'المهام المتأخرة',
+    description:
+      'أي مهمة ليها موعد نهاية محدد وعدّى عليه 10 دقايق من غير ما تخلّصها، بتتنقل هنا تلقائيًا. المهام دي سجل دائم — مينفعش تتحذف ولا تتسترجع.',
+    emptyIcon: 'timer',
+    emptyText: 'مفيش مهام متأخرة — كل مهامك اللي ليها موعد نهاية خلصتها في وقتها 👏',
+  },
+};
 
 export default function ArchivePage({
   onBack,
@@ -59,7 +93,8 @@ export default function ArchivePage({
   lifeAreas?: LifeAreaData[];
   onManageLifeAreas?: () => void;
 }) {
-  const [lists, setLists] = useState<ArchivedList[]>([]);
+  const [allLists, setAllLists] = useState<ArchivedList[]>([]);
+  const [activeTab, setActiveTab] = useState<ArchiveTab>('completed');
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | CategoryKey>('ALL');
@@ -76,7 +111,7 @@ export default function ArchivePage({
     setLoading(true);
     try {
       const data = await getArchive();
-      setLists(data);
+      setAllLists(data);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر تحميل الأرشيف');
     } finally {
@@ -90,7 +125,7 @@ export default function ArchivePage({
       await restoreList(list.id);
       sounds.success();
       toast.success(`"${list.title}" اتنقلت لقسم "بانتظار المراجعة" في الصفحة الرئيسية — راجعها وأضفها لقائمتك`);
-      setLists((prev) => prev.filter((l) => l.id !== list.id));
+      setAllLists((prev) => prev.filter((l) => l.id !== list.id));
       onChange();
     } catch (err) {
       sounds.error();
@@ -98,16 +133,37 @@ export default function ArchivePage({
     }
   }
 
+  function handleSwitchTab(tab: ArchiveTab) {
+    if (tab === activeTab) return;
+    sounds.click();
+    setActiveTab(tab);
+    // فتح/قفل الشجرة بيتصفّر عند تبديل التبويب عشان كل تبويب يبدأ مفتوح
+    setCollapsedYears(new Set());
+    setCollapsedMonths(new Set());
+    setCollapsedDays(new Set());
+  }
+
+  const completedLists = useMemo(
+    () => allLists.filter((l) => l.archiveReason !== 'OVERDUE'),
+    [allLists]
+  );
+  const overdueLists = useMemo(
+    () => allLists.filter((l) => l.archiveReason === 'OVERDUE'),
+    [allLists]
+  );
+  const sourceLists = activeTab === 'overdue' ? overdueLists : completedLists;
+  const tabInfo = TAB_CONFIG[activeTab];
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return lists.filter((l) => {
+    return sourceLists.filter((l) => {
       if (categoryFilter !== 'ALL' && l.category !== categoryFilter) return false;
       if (!q) return true;
       if (l.title.toLowerCase().includes(q)) return true;
       if (l.lifeArea?.name.toLowerCase().includes(q)) return true;
       return l.items.some((i) => i.content.toLowerCase().includes(q));
     });
-  }, [lists, query, categoryFilter]);
+  }, [sourceLists, query, categoryFilter]);
 
   // تجميع هرمي: سنة → شهر → يوم — اعتمادًا على تاريخ الأرشفة (archivedAt).
   const tree = useMemo(() => {
@@ -163,13 +219,6 @@ export default function ArchivePage({
   // التنقل يبقى سهل لما يكون الأرشيف فيه سنين وشهور كتير.
   function expandAll() {
     sounds.click();
-    setCollapsedYears(new Set());
-    setCollapsedMonths(new Set());
-    setCollapsedDays(new Set());
-  }
-
-  function collapseAll() {
-    sounds.click();
     const allYears = new Set<number>();
     const allMonths = new Set<string>();
     const allDays = new Set<string>();
@@ -187,16 +236,22 @@ export default function ArchivePage({
     setCollapsedDays(allDays);
   }
 
+  function collapseAll() {
+    sounds.click();
+    setCollapsedYears(new Set());
+    setCollapsedMonths(new Set());
+    setCollapsedDays(new Set());
+  }
+
   // إحصائية فعليًا مفيدة وخاصة بالأرشيف (مش متكررة من صفحة البروفايل):
-  // نشاط الأرشفة الحديث. (إحصائية "متوسط أيام الإنجاز" اتشالت لأنها
-  // بتوصف سرعة إنجاز المهام بشكل عام، ومالهاش علاقة مباشرة بقسم الأرشيف نفسه.)
+  // نشاط الأرشفة الحديث، محسوبة على التبويب الحالي بس.
   const archivedThisMonth = useMemo(() => {
     const now = new Date();
-    return lists.filter((l) => {
+    return sourceLists.filter((l) => {
       const d = new Date(l.archivedAt);
       return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     }).length;
-  }, [lists]);
+  }, [sourceLists]);
 
   return (
     <div className="container view-fade archive-page">
@@ -222,24 +277,48 @@ export default function ArchivePage({
         </div>
       </div>
 
-      <div className="life-area-intro archive-intro">
-        <DynamicIcon name="archive" size={28} className="life-area-intro-icon" />
+      <div className={`archive-main-tabs ${activeTab === 'overdue' ? 'archive-main-tabs-danger' : ''}`} role="tablist" aria-label="تبويبات الأرشيف">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'completed'}
+          className={activeTab === 'completed' ? 'active' : ''}
+          onClick={() => handleSwitchTab('completed')}
+        >
+          <DynamicIcon name="check-circle" size={15} />
+          <span>{TAB_CONFIG.completed.label}</span>
+          <span className="archive-main-tabs-count">{completedLists.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'overdue'}
+          className={activeTab === 'overdue' ? 'active' : ''}
+          onClick={() => handleSwitchTab('overdue')}
+        >
+          <DynamicIcon name="alert" size={15} />
+          <span>{TAB_CONFIG.overdue.label}</span>
+          <span className="archive-main-tabs-count">{overdueLists.length}</span>
+        </button>
+      </div>
+
+      <div className={`life-area-intro archive-intro ${activeTab === 'overdue' ? 'archive-intro-danger' : ''}`}>
+        <DynamicIcon name={tabInfo.icon} size={28} className="life-area-intro-icon" />
         <div>
-          <h1>أرشيف المهام المكتملة</h1>
-          <p>
-            كل مهمة رئيسية بتكتمل بتتنقل هنا تلقائيًا، منظّمة حسب سنة وشهر ويوم الإكمال، مع إمكانية البحث والفلترة
-            واسترجاع أي مهمة لقائمتك النشطة في أي وقت.
-          </p>
+          <h1>{tabInfo.title}</h1>
+          <p>{tabInfo.description}</p>
         </div>
       </div>
 
       <div className="stats-row archive-stats-row">
         <div className="stat-card">
-          <span className="stat-card-value">{lists.length}</span>
-          <span className="stat-card-label">مهام مؤرشفة</span>
+          <span className="stat-card-value">{sourceLists.length}</span>
+          <span className="stat-card-label">{activeTab === 'overdue' ? 'مهام متأخرة' : 'مهام مؤرشفة'}</span>
         </div>
         <div className="stat-card">
-          <span className="stat-card-value stat-card-success">{archivedThisMonth}</span>
+          <span className={`stat-card-value ${activeTab === 'overdue' ? 'stat-card-danger' : 'stat-card-success'}`}>
+            {archivedThisMonth}
+          </span>
           <span className="stat-card-label">مؤرشفة الشهر ده</span>
         </div>
       </div>
@@ -250,7 +329,11 @@ export default function ArchivePage({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="ابحث في المهام المؤرشفة (اسم المهمة، مهمة فرعية، مجال حياة)"
+            placeholder={
+              activeTab === 'overdue'
+                ? 'ابحث في المهام المتأخرة (اسم المهمة، مهمة فرعية، مجال حياة)'
+                : 'ابحث في المهام المؤرشفة (اسم المهمة، مهمة فرعية، مجال حياة)'
+            }
           />
           {query && (
             <button type="button" className="archive-search-clear" onClick={() => setQuery('')} aria-label="مسح البحث">
@@ -259,7 +342,7 @@ export default function ArchivePage({
           )}
         </div>
 
-        {lists.length > 0 && (
+        {sourceLists.length > 0 && (
           <div className="filter-tabs category-filter-tabs" role="tablist" aria-label="فلترة الأرشيف حسب التصنيف">
             <button
               className={categoryFilter === 'ALL' ? 'active' : ''}
@@ -304,14 +387,14 @@ export default function ArchivePage({
         </div>
       )}
 
-      {!loading && lists.length === 0 && (
+      {!loading && sourceLists.length === 0 && (
         <p className="empty">
-          <DynamicIcon name="archive" size={32} className="empty-icon" />
-          لسه مفيش مهام مؤرشفة — أول ما تكمّل مهمة رئيسية بالكامل هتلاقيها هنا
+          <DynamicIcon name={tabInfo.emptyIcon} size={32} className="empty-icon" />
+          {tabInfo.emptyText}
         </p>
       )}
 
-      {!loading && lists.length > 0 && filtered.length === 0 && (
+      {!loading && sourceLists.length > 0 && filtered.length === 0 && (
         <p className="empty">
           <DynamicIcon name="search" size={32} className="empty-icon" />
           مفيش نتائج مطابقة للبحث أو الفلتر ده
@@ -382,16 +465,18 @@ export default function ArchivePage({
                                   <div className="archive-day-body">
                                   <div className="lists-grid hier-lists-grid">
                                     {dayLists.map((list) => {
+                                      const isOverdueCard = list.archiveReason === 'OVERDUE';
                                       const total = list.items.length;
                                       const doneCount = list.items.filter((i) => i.isDone).length;
                                       const progress = total === 0 ? 0 : Math.round((doneCount / total) * 100);
                                       const isComplete = total > 0 && doneCount === total;
                                       const priorityColor = priorityOf(list.priority).color;
+                                      const accent = isOverdueCard ? 'var(--danger)' : isComplete ? 'var(--success)' : priorityColor;
                                       return (
                                         <div
-                                          className={`list-card list-card-compact archive-task-card ${isComplete ? 'list-complete' : ''}`}
+                                          className={`list-card list-card-compact archive-task-card ${isComplete ? 'list-complete' : ''} ${isOverdueCard ? 'archive-task-card-overdue' : ''}`}
                                           key={list.id}
-                                          style={{ position: 'relative', ['--card-accent' as any]: isComplete ? 'var(--success)' : priorityColor }}
+                                          style={{ position: 'relative', ['--card-accent' as any]: accent }}
                                         >
                                           <div className="list-header">
                                             <span
@@ -421,15 +506,24 @@ export default function ArchivePage({
                                             </div>
 
                                             <div className="row-actions card-actions">
-                                              <button
-                                                className="card-icon-action"
-                                                onClick={() => setConfirmRestore(list)}
-                                                aria-label="استرجاع المهمة من الأرشيف"
-                                                type="button"
-                                                title="استرجاع"
-                                              >
-                                                <DynamicIcon name="undo" size={17} />
-                                              </button>
+                                              {isOverdueCard ? (
+                                                <span
+                                                  className="overdue-lock-badge"
+                                                  title="مهمة متأخرة اتؤرشفت تلقائيًا — مينفعش تتحذف أو تتسترجع"
+                                                >
+                                                  <DynamicIcon name="lock" size={13} />
+                                                </span>
+                                              ) : (
+                                                <button
+                                                  className="card-icon-action"
+                                                  onClick={() => setConfirmRestore(list)}
+                                                  aria-label="استرجاع المهمة من الأرشيف"
+                                                  type="button"
+                                                  title="استرجاع"
+                                                >
+                                                  <DynamicIcon name="undo" size={17} />
+                                                </button>
+                                              )}
                                             </div>
                                           </div>
 
@@ -438,9 +532,20 @@ export default function ArchivePage({
                                               <PriorityBadge value={list.priority || 'NONE'} onChange={() => {}} size="sm" disabled />
                                               <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={() => {}} size="sm" disabled />
                                               <LifeAreaBadge value={list.lifeArea || null} areas={lifeAreas} onChange={() => {}} size="sm" disabled />
+                                              {isOverdueCard && <span className="overdue-badge-chip">متأخرة</span>}
                                             </div>
                                             <div className="list-meta-timers">
-                                              <span className="timeline-compact timeline-compact-readonly" title="وقت الأرشفة">
+                                              {isOverdueCard && list.endTime && (
+                                                <span className="timeline-compact timeline-compact-readonly timeline-compact-critical" title="الموعد النهائي الأصلي للمهمة">
+                                                  <span className="timeline-compact-icon" aria-hidden="true">
+                                                    <DynamicIcon name="alert" size={14} />
+                                                  </span>
+                                                  <span className="timeline-compact-time">
+                                                    {formatDateTime(list.endTime)}
+                                                  </span>
+                                                </span>
+                                              )}
+                                              <span className="timeline-compact timeline-compact-readonly" title={isOverdueCard ? 'وقت النقل للأرشيف' : 'وقت الأرشفة'}>
                                                 <span className="timeline-compact-icon" aria-hidden="true">
                                                   <DynamicIcon name="archive" size={14} />
                                                 </span>

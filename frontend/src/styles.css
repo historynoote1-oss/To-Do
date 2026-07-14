@@ -1388,6 +1388,10 @@ button:disabled {
   color: var(--danger);
 }
 
+.streak-block-value {
+  color: #e08a1f;
+}
+
 .stat-block-label {
   font-size: 11.5px;
   color: var(--text-muted);
@@ -1491,9 +1495,9 @@ button:disabled {
 .task-distribution-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 8px 6px;
+  padding: 9px 8px;
   border: none;
   background: transparent;
   border-radius: var(--radius-sm);
@@ -1501,6 +1505,7 @@ button:disabled {
   font-family: var(--font-body);
   cursor: pointer;
   margin-bottom: 2px;
+  transition: background var(--dur-fast) var(--ease-out);
 }
 
 .task-distribution-row:hover:not(:disabled) {
@@ -1523,39 +1528,50 @@ button:disabled {
 
 .task-distribution-row-label {
   font-size: 13px;
+  font-weight: 600;
   color: var(--text);
   flex-shrink: 0;
-  min-width: 62px;
+  white-space: nowrap;
 }
 
 .task-distribution-row-track {
+  position: relative;
   flex: 1;
-  height: 6px;
+  height: 9px;
   border-radius: var(--radius-pill);
   background: var(--surface-2);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.09);
   overflow: hidden;
 }
 
 .task-distribution-row-fill {
+  position: relative;
   display: block;
   height: 100%;
-  min-width: 3px;
+  min-width: 10px;
   border-radius: var(--radius-pill);
-  transition: width var(--dur) var(--ease-out);
+  transition: width var(--dur-slow) var(--ease-spring);
+}
+
+.task-distribution-row-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 55%);
 }
 
 .task-distribution-row-count {
   font-family: var(--font-num);
-  font-size: 13px;
+  font-size: 12.5px;
+  font-weight: 700;
   color: var(--text-muted);
-  min-width: 20px;
+  min-width: 22px;
   text-align: left;
 }
 
 @media (max-width: 360px) {
   .task-distribution-row-label {
-    min-width: 48px;
     font-size: 11.5px;
   }
 }
@@ -2822,6 +2838,13 @@ li input[type='checkbox'] {
   -webkit-background-clip: unset;
   background-clip: unset;
   color: var(--success);
+}
+
+.stat-card-danger {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  color: var(--danger);
 }
 
 .stat-card-label {
@@ -5843,6 +5866,111 @@ li input[type='checkbox'] {
 
 .archive-intro .life-area-intro-icon {
   filter: none;
+}
+
+/* ---- تبويبات "المهام المنجزة" / "المهام المتأخرة" (تبويب رئيسي أعلى صفحة الأرشيف) ---- */
+.archive-main-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+}
+
+.archive-main-tabs button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: var(--radius-pill);
+  box-shadow: none;
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+.archive-main-tabs button:hover {
+  filter: none;
+  color: var(--text);
+  box-shadow: none;
+}
+
+.archive-main-tabs button.active {
+  background: var(--surface);
+  color: var(--accent-soft);
+  box-shadow: var(--shadow-sm);
+}
+
+.archive-main-tabs-danger button.active {
+  color: var(--danger);
+}
+
+.archive-main-tabs-count {
+  font-family: var(--font-num);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+  flex-shrink: 0;
+}
+
+.archive-main-tabs button.active .archive-main-tabs-count {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
+  color: var(--accent-soft);
+}
+
+.archive-main-tabs-danger button.active .archive-main-tabs-count {
+  background: color-mix(in srgb, var(--danger) 16%, var(--surface-2));
+  color: var(--danger);
+}
+
+/* ---- انترو الصفحة بلون تحذيري لما تبويب "المهام المتأخرة" يكون مفعّل ---- */
+.archive-intro-danger .life-area-intro-icon {
+  color: var(--danger);
+}
+
+.archive-intro-danger h1 {
+  color: var(--danger);
+}
+
+/* ---- كارت مهمة متأخرة داخل الأرشيف: خلفية بلمسة حمراء خفيفة جدًا ---- */
+.archive-task-card-overdue {
+  background: color-mix(in srgb, var(--danger) 4%, var(--surface));
+}
+
+/* ---- شارة القفل بدل زرار الاسترجاع في كروت "المهام المتأخرة" ---- */
+.overdue-lock-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+  flex-shrink: 0;
+  cursor: default;
+}
+
+/* ---- شارة نصية صغيرة "متأخرة" جنب باقي شارات المهمة (أولوية/تصنيف/مجال) ---- */
+.overdue-badge-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  padding: 5px 11px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
 }
 
 .archive-stats-row {

@@ -6,6 +6,11 @@ import { syncListArchiveState } from '../lib/archive';
 const router = Router();
 const VALID_PRIORITIES = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
+// رسالة موحّدة لأي محاولة تعديل مهمة فرعية تابعة لمهمة رئيسية "متأخرة"
+// اتؤرشفت تلقائيًا — مجمّدة نهائيًا زي أي جزء تاني منها (شوف تعليق
+// archiveReason في schema.prisma وlib/archive.ts).
+const OVERDUE_LOCK_ERROR = 'المهمة دي ضمن مهمة متأخرة اتؤرشفت تلقائيًا، ومحتواها مجمّد ومينفعش يتعدّل';
+
 router.post('/items', async (req: AuthRequest, res) => {
   const { listId, content, priority, dueDate } = req.body;
   if (!content?.trim()) return res.status(400).json({ error: 'محتوى المهمة الفرعية مطلوب' });
@@ -17,6 +22,7 @@ router.post('/items', async (req: AuthRequest, res) => {
     where: { id: listId, userId: req.userId! },
   });
   if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
+  if (list.archiveReason === 'OVERDUE') return res.status(400).json({ error: OVERDUE_LOCK_ERROR });
 
   const count = await prisma.todoItem.count({ where: { listId: list.id } });
 
@@ -40,8 +46,10 @@ router.post('/items', async (req: AuthRequest, res) => {
 router.patch('/items/:id', async (req: AuthRequest, res) => {
   const item = await prisma.todoItem.findFirst({
     where: { id: req.params.id, list: { userId: req.userId! } },
+    include: { list: { select: { archiveReason: true } } },
   });
   if (!item) return res.status(404).json({ error: 'المهمة الفرعية غير موجودة' });
+  if (item.list.archiveReason === 'OVERDUE') return res.status(400).json({ error: OVERDUE_LOCK_ERROR });
   if (req.body.priority !== undefined && !VALID_PRIORITIES.includes(req.body.priority)) {
     return res.status(400).json({ error: 'أولوية غير صحيحة' });
   }
@@ -98,8 +106,10 @@ router.patch('/items/:id', async (req: AuthRequest, res) => {
 router.delete('/items/:id', async (req: AuthRequest, res) => {
   const item = await prisma.todoItem.findFirst({
     where: { id: req.params.id, list: { userId: req.userId! } },
+    include: { list: { select: { archiveReason: true } } },
   });
   if (!item) return res.status(404).json({ error: 'المهمة الفرعية غير موجودة' });
+  if (item.list.archiveReason === 'OVERDUE') return res.status(400).json({ error: OVERDUE_LOCK_ERROR });
 
   await prisma.todoItem.delete({ where: { id: item.id } });
 

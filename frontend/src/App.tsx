@@ -40,12 +40,16 @@ import ThemeToggleButton from './components/ThemeToggleButton';
 import ConfirmModal from './components/ConfirmModal';
 import AddTaskModal, { NewTaskPayload } from './components/AddTaskModal';
 import { CategoryKey } from './lib/category';
+import { PriorityKey } from './lib/priority';
 import { LifeAreaData } from './lib/lifeArea';
-import { groupByLifeArea, groupHierarchical, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
+import { groupByLifeArea, groupHierarchical, isListDone, isOverdue, NO_LIFE_AREA_GROUP } from './lib/organize';
 import TaskHierarchy from './components/TaskHierarchy';
 import { DynamicIcon } from './lib/icons';
 import TaskDistributionCard from './components/TaskDistributionCard';
 import CompletionRateCard from './components/CompletionRateCard';
+import PriorityFocusCard from './components/PriorityFocusCard';
+import StreakCard from './components/StreakCard';
+import OverdueTasksCard from './components/OverdueTasksCard';
 import PendingRestoreSection from './components/PendingRestoreSection';
 
 type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring';
@@ -291,7 +295,12 @@ export default function App() {
       setArchiveCount(data.length);
       let done = 0;
       let total = 0;
-      for (const l of data as { items: { isDone: boolean }[] }[]) {
+      // إحصائية "منجز/إجمالي" دي المفروض تعكس المهام اللي فعلاً اتخلّصت، فبنستثني
+      // منها المهام اللي اتؤرشفت لأنها "متأخرة" (archiveReason === 'OVERDUE') —
+      // دي مؤرشفة لسبب معاكس تمامًا (فاتت معادها من غير ما تخلص)، وضمّها هنا
+      // كان هيوهم بنسبة إنجاز أقل من الحقيقي.
+      for (const l of data as { items: { isDone: boolean }[]; archiveReason?: string }[]) {
+        if (l.archiveReason === 'OVERDUE') continue;
         for (const it of l.items) {
           total += 1;
           if (it.isDone) done += 1;
@@ -640,6 +649,34 @@ export default function App() {
     highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
   }
 
+  function jumpToPriority(key: PriorityKey) {
+    const target = lists.find((l) => (l.priority || 'LOW') === key && !isListDone(l as any));
+    if (!target) {
+      sounds.error();
+      toast.info('مفيش مهمة رئيسية غير مكتملة بالأولوية دي حاليًا');
+      return;
+    }
+    sounds.click();
+    setHighlightedListId(target.id);
+    document.getElementById(`list-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
+  }
+
+  function jumpToOverdue() {
+    const target = lists.find((l) => !isListDone(l as any) && isOverdue(l as any));
+    if (!target) {
+      sounds.error();
+      toast.info('مفيش مهام متأخرة حاليًا');
+      return;
+    }
+    sounds.click();
+    setHighlightedListId(target.id);
+    document.getElementById(`list-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
+  }
+
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
 
   // ملاحظة: القائمة النشطة (lists) بترجع من السيرفر من غير أي مهمة اكتملت
@@ -921,6 +958,9 @@ export default function App() {
         <div className="stats-col">
           <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
           <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
+          <PriorityFocusCard lists={lists} onSelectPriority={jumpToPriority} />
+          <OverdueTasksCard lists={lists} onJumpToOverdue={jumpToOverdue} />
+          <StreakCard />
         </div>
 
         <div className="quick-add-row quick-add-row-compact">
