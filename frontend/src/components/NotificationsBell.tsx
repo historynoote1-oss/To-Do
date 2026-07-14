@@ -103,7 +103,7 @@ export default function NotificationsBell() {
   return (
     <div className="notifications-bell-wrap" ref={wrapRef}>
       <button
-        className="icon-btn notifications-bell-btn"
+        className="icon-btn hamburger-btn notifications-bell-btn"
         onClick={() => setOpen((o) => !o)}
         type="button"
         title="الإشعارات"
