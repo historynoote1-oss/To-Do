@@ -85,6 +85,8 @@ export default function ArchivePage({
   menuOpen,
   lifeAreas = [],
   onManageLifeAreas,
+  activeTab,
+  onTabChange,
 }: {
   onBack: () => void;
   onChange: () => void;
@@ -92,9 +94,13 @@ export default function ArchivePage({
   menuOpen: boolean;
   lifeAreas?: LifeAreaData[];
   onManageLifeAreas?: () => void;
+  // صفحة الأرشيف الفرعية الحالية (منجزة/متأخرة) بقت متحكَّم فيها من الأب
+  // (App) عشان تتزامن مع رابط الصفحة وقائمة التنقل الجانبية، بدل ما تكون
+  // state داخلية بتضيع مع أي تنقّل من برّه الصفحة.
+  activeTab: ArchiveTab;
+  onTabChange: (tab: ArchiveTab) => void;
 }) {
   const [allLists, setAllLists] = useState<ArchivedList[]>([]);
-  const [activeTab, setActiveTab] = useState<ArchiveTab>('completed');
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | CategoryKey>('ALL');
@@ -136,12 +142,16 @@ export default function ArchivePage({
   function handleSwitchTab(tab: ArchiveTab) {
     if (tab === activeTab) return;
     sounds.click();
-    setActiveTab(tab);
-    // فتح/قفل الشجرة بيتصفّر عند تبديل التبويب عشان كل تبويب يبدأ مفتوح
+    onTabChange(tab);
+  }
+
+  // فتح/قفل الشجرة بيتصفّر عند تبديل الصفحة (سواء من التبويب هنا أو من رابط
+  // مباشر أو من القائمة الجانبية) عشان كل صفحة تبدأ مفتوحة.
+  useEffect(() => {
     setCollapsedYears(new Set());
     setCollapsedMonths(new Set());
     setCollapsedDays(new Set());
-  }
+  }, [activeTab]);
 
   const completedLists = useMemo(
     () => allLists.filter((l) => l.archiveReason !== 'OVERDUE'),

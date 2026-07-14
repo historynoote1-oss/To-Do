@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PushSupportState } from '../lib/push';
 import { DynamicIcon } from '../lib/icons';
 import { useTheme } from '../lib/theme';
+
+type ArchiveTab = 'completed' | 'overdue';
 
 interface Props {
   open: boolean;
@@ -9,6 +11,10 @@ interface Props {
   isAdmin: boolean;
   currentView?: string;
   archiveCount: number;
+  // صفحة الأرشيف الفرعية الحالية (منجزة/متأخرة) — بتتحدد لون العنصر الفرعي
+  // النشط في القائمة، ولتحديد الصفحة اللي هتتفتح لو اتضغط على السطر
+  // الرئيسي "الأرشيف" مباشرة من غير ما يفتح القائمة الفرعية.
+  archiveTab: ArchiveTab;
   muted: boolean;
   pushState: PushSupportState;
   canUndo: boolean;
@@ -20,6 +26,8 @@ interface Props {
   onRedo: () => void;
   onOpenDashboard: () => void;
   onOpenArchive: () => void;
+  // فتح صفحة فرعية محددة من صفحتي الأرشيف مباشرة من القائمة الجانبية.
+  onOpenArchiveTab: (tab: ArchiveTab) => void;
   onOpenLifeAreas: () => void;
   onOpenRecurring: () => void;
   onToggleMute: () => void;
@@ -36,6 +44,7 @@ export default function SideMenu({
   isAdmin,
   currentView,
   archiveCount,
+  archiveTab,
   muted,
   pushState,
   canUndo,
@@ -47,6 +56,7 @@ export default function SideMenu({
   onRedo,
   onOpenDashboard,
   onOpenArchive,
+  onOpenArchiveTab,
   onOpenLifeAreas,
   onOpenRecurring,
   onToggleMute,
@@ -56,6 +66,12 @@ export default function SideMenu({
   const panelRef = useRef<HTMLDivElement>(null);
   const [theme, toggleTheme] = useTheme();
   const isDark = theme === 'dark';
+  // القائمة الفرعية لصفحتي الأرشيف (منجزة/متأخرة) — بتتفتح بضغط السهم، وبتفضل
+  // مفتوحة تلقائيًا وانت في شاشة الأرشيف عشان تشوف مباشرة الصفحة النشطة.
+  const [archiveExpanded, setArchiveExpanded] = useState(currentView === 'archive');
+  useEffect(() => {
+    if (currentView === 'archive') setArchiveExpanded(true);
+  }, [currentView]);
 
   useEffect(() => {
     if (!open) return;
@@ -148,17 +164,57 @@ export default function SideMenu({
             </button>
           )}
 
-          <button
-            className={`side-menu-item ${currentView === 'archive' ? 'active' : ''}`}
-            type="button"
-            onClick={() => go(onOpenArchive)}
-            aria-current={currentView === 'archive' ? 'page' : undefined}
-          >
-            <DynamicIcon name="archive" size={18} className="side-menu-item-icon" />
-            <span className="side-menu-item-label">الأرشيف</span>
-            {archiveCount > 0 && <span className="side-menu-item-badge">{archiveCount}</span>}
-            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
-          </button>
+          <div className="side-menu-group">
+            <div className={`side-menu-item side-menu-item-parent ${currentView === 'archive' ? 'active' : ''}`}>
+              <button
+                className="side-menu-item-main"
+                type="button"
+                onClick={() => go(onOpenArchive)}
+                aria-current={currentView === 'archive' ? 'page' : undefined}
+              >
+                <DynamicIcon name="archive" size={18} className="side-menu-item-icon" />
+                <span className="side-menu-item-label">الأرشيف</span>
+                {archiveCount > 0 && <span className="side-menu-item-badge">{archiveCount}</span>}
+              </button>
+              <button
+                className="side-menu-item-expand"
+                type="button"
+                onClick={() => setArchiveExpanded((v) => !v)}
+                aria-expanded={archiveExpanded}
+                aria-label={archiveExpanded ? 'إخفاء صفحات الأرشيف' : 'عرض صفحات الأرشيف'}
+              >
+                <DynamicIcon
+                  name="chevron-left"
+                  size={16}
+                  className={`side-menu-item-arrow ${archiveExpanded ? 'expanded' : ''}`}
+                  aria-hidden
+                />
+              </button>
+            </div>
+
+            {archiveExpanded && (
+              <div className="side-menu-submenu" role="group" aria-label="صفحات الأرشيف">
+                <button
+                  className={`side-menu-subitem ${currentView === 'archive' && archiveTab === 'completed' ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => go(() => onOpenArchiveTab('completed'))}
+                  aria-current={currentView === 'archive' && archiveTab === 'completed' ? 'page' : undefined}
+                >
+                  <DynamicIcon name="check-circle" size={15} className="side-menu-subitem-icon" />
+                  <span className="side-menu-item-label">المهام المنجزة</span>
+                </button>
+                <button
+                  className={`side-menu-subitem ${currentView === 'archive' && archiveTab === 'overdue' ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => go(() => onOpenArchiveTab('overdue'))}
+                  aria-current={currentView === 'archive' && archiveTab === 'overdue' ? 'page' : undefined}
+                >
+                  <DynamicIcon name="alert" size={15} className="side-menu-subitem-icon" />
+                  <span className="side-menu-item-label">المهام المتأخرة</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             className={`side-menu-item ${currentView === 'lifeAreas' ? 'active' : ''}`}
