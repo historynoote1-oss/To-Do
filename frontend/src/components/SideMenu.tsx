@@ -7,6 +7,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   isAdmin: boolean;
+  currentView?: string;
   archiveCount: number;
   muted: boolean;
   pushState: PushSupportState;
@@ -33,6 +34,7 @@ export default function SideMenu({
   open,
   onClose,
   isAdmin,
+  currentView,
   archiveCount,
   muted,
   pushState,
@@ -134,30 +136,66 @@ export default function SideMenu({
           <div className="side-menu-divider" role="separator" />
 
           {isAdmin && (
-            <button className="side-menu-item" type="button" onClick={() => go(onOpenDashboard)}>
+            <button
+              className={`side-menu-item ${currentView === 'admin' ? 'active' : ''}`}
+              type="button"
+              onClick={() => go(onOpenDashboard)}
+              aria-current={currentView === 'admin' ? 'page' : undefined}
+            >
               <DynamicIcon name="sliders" size={18} className="side-menu-item-icon" />
               <span className="side-menu-item-label">لوحة التحكم</span>
-              <span className="side-menu-item-arrow" aria-hidden="true">‹</span>
+              {currentView === 'admin' ? (
+                <span className="side-menu-item-current">أنت هنا</span>
+              ) : (
+                <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+              )}
             </button>
           )}
 
-          <button className="side-menu-item" type="button" onClick={() => go(onOpenArchive)}>
+          <button
+            className={`side-menu-item ${currentView === 'archive' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenArchive)}
+            aria-current={currentView === 'archive' ? 'page' : undefined}
+          >
             <DynamicIcon name="archive" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">الأرشيف</span>
             {archiveCount > 0 && <span className="side-menu-item-badge">{archiveCount}</span>}
-            <span className="side-menu-item-arrow" aria-hidden="true">‹</span>
+            {currentView === 'archive' ? (
+              <span className="side-menu-item-current">أنت هنا</span>
+            ) : (
+              <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+            )}
           </button>
 
-          <button className="side-menu-item" type="button" onClick={() => go(onOpenLifeAreas)}>
+          <button
+            className={`side-menu-item ${currentView === 'lifeAreas' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenLifeAreas)}
+            aria-current={currentView === 'lifeAreas' ? 'page' : undefined}
+          >
             <DynamicIcon name="compass" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">مجالات الحياة</span>
-            <span className="side-menu-item-arrow" aria-hidden="true">‹</span>
+            {currentView === 'lifeAreas' ? (
+              <span className="side-menu-item-current">أنت هنا</span>
+            ) : (
+              <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+            )}
           </button>
 
-          <button className="side-menu-item" type="button" onClick={() => go(onOpenRecurring)}>
+          <button
+            className={`side-menu-item ${currentView === 'recurring' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenRecurring)}
+            aria-current={currentView === 'recurring' ? 'page' : undefined}
+          >
             <DynamicIcon name="repeat" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">المهام المتكررة</span>
-            <span className="side-menu-item-arrow" aria-hidden="true">‹</span>
+            {currentView === 'recurring' ? (
+              <span className="side-menu-item-current">أنت هنا</span>
+            ) : (
+              <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+            )}
           </button>
 
           <div className="side-menu-divider" role="separator" />

@@ -732,6 +732,7 @@ export default function App() {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         isAdmin={isAdmin}
+        currentView={view}
         archiveCount={archiveCount}
         muted={muted}
         pushState={pushState}

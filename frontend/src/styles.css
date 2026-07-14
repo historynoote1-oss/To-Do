@@ -921,11 +921,25 @@ button:disabled {
   transform: scale(0.98);
 }
 
+.side-menu-item.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.side-menu-item.active .side-menu-item-icon {
+  color: var(--accent-soft);
+}
+
+.side-menu-item.active .side-menu-item-label {
+  color: var(--accent-soft);
+}
+
 .side-menu-item-icon {
   font-size: 17px;
   width: 22px;
   text-align: center;
   flex-shrink: 0;
+  color: var(--text-muted);
 }
 
 .side-menu-item-label {
@@ -935,8 +949,33 @@ button:disabled {
 
 .side-menu-item-arrow {
   color: var(--text-faint);
-  font-size: 16px;
   flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.side-menu-item:hover .side-menu-item-arrow {
+  transform: translateX(-2px);
+}
+
+.side-menu-item-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+}
+
+.side-menu-item-current::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
 }
 
 .side-menu-item-badge {
