@@ -132,7 +132,10 @@ export default function PriorityFocusCard({ lists, onSelectPriority }: Props) {
               </span>
               <span className="task-distribution-row-label">{r.label}</span>
               <span className="task-distribution-row-track">
-                <span className="task-distribution-row-fill" style={{ width: `${r.pct}%`, background: r.color }} />
+                <span
+                  className="task-distribution-row-fill"
+                  style={{ width: `${r.pct}%`, background: r.color, boxShadow: `0 0 5px -1px ${r.color}` }}
+                />
               </span>
               <span className="task-distribution-row-count">{r.count}</span>
             </button>

@@ -168,7 +168,10 @@ export default function CompletionRateCard({ lists, onSelectCategory }: Props) {
               </span>
               <span className="task-distribution-row-label">{r.label}</span>
               <span className="task-distribution-row-track">
-                <span className="task-distribution-row-fill" style={{ width: `${r.rate}%`, background: r.color }} />
+                <span
+                  className="task-distribution-row-fill"
+                  style={{ width: `${r.rate}%`, background: r.color, boxShadow: `0 0 5px -1px ${r.color}` }}
+                />
               </span>
               <span className="task-distribution-row-count" dir="ltr">{r.rate}%</span>
             </button>

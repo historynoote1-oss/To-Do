@@ -114,7 +114,10 @@ export default function TaskDistributionCard({ lists, onSelectCategory }: Props)
               </span>
               <span className="task-distribution-row-label">{s.label}</span>
               <span className="task-distribution-row-track">
-                <span className="task-distribution-row-fill" style={{ width: `${s.pct}%`, background: s.color }} />
+                <span
+                  className="task-distribution-row-fill"
+                  style={{ width: `${s.pct}%`, background: s.color, boxShadow: `0 0 5px -1px ${s.color}` }}
+                />
               </span>
               <span className="task-distribution-row-count">{s.count}</span>
             </button>
