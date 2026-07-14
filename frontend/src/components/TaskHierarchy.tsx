@@ -27,6 +27,7 @@ export default function TaskHierarchy({
 }) {
   const [collapsedAreas, setCollapsedAreas] = useState<Set<string>>(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [collapsedYears, setCollapsedYears] = useState<Set<string>>(new Set());
   const [collapsedPriorities, setCollapsedPriorities] = useState<Set<string>>(new Set());
 
   function toggleArea(id: string) {
@@ -42,6 +43,16 @@ export default function TaskHierarchy({
   function toggleCategory(key: string) {
     sounds.click();
     setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleYear(key: string) {
+    sounds.click();
+    setCollapsedYears((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -65,6 +76,7 @@ export default function TaskHierarchy({
     sounds.click();
     setCollapsedAreas(new Set());
     setCollapsedCategories(new Set());
+    setCollapsedYears(new Set());
     setCollapsedPriorities(new Set());
   }
 
@@ -72,20 +84,79 @@ export default function TaskHierarchy({
     sounds.click();
     const areas = new Set<string>();
     const cats = new Set<string>();
+    const yrs = new Set<string>();
     const prs = new Set<string>();
     for (const area of groups) {
       areas.add(area.id);
       for (const cat of area.categoryGroups) {
         const catKey = `${area.id}-${cat.key}`;
         cats.add(catKey);
-        for (const pr of cat.priorityGroups) {
-          prs.add(`${catKey}-${pr.key}`);
+        if (cat.yearGroups && cat.yearGroups.length > 0) {
+          for (const yr of cat.yearGroups) {
+            const yearKey = `${catKey}-${yr.key}`;
+            yrs.add(yearKey);
+            for (const pr of yr.priorityGroups) {
+              prs.add(`${yearKey}-${pr.key}`);
+            }
+          }
+        } else {
+          for (const pr of cat.priorityGroups) {
+            prs.add(`${catKey}-${pr.key}`);
+          }
         }
       }
     }
     setCollapsedAreas(areas);
     setCollapsedCategories(cats);
+    setCollapsedYears(yrs);
     setCollapsedPriorities(prs);
+  }
+
+  // بيرسم مستوى الأولوية ← المهام، مستخدَم سواء تحت التصنيف مباشرة (باقي
+  // التصنيفات) أو تحت كل سنة (تصنيف "سنوية") — نفس الشكل بالظبط في الحالتين.
+  function renderPriorityGroups(priorityGroups: typeof groups[number]['categoryGroups'][number]['priorityGroups'], parentKey: string) {
+    return priorityGroups.map((pr) => {
+      const prKey = `${parentKey}-${pr.key}`;
+      const prCollapsed = collapsedPriorities.has(prKey);
+      return (
+        <div className="hier-priority-group" key={prKey}>
+          <button
+            type="button"
+            className="hier-priority-header"
+            onClick={() => togglePriority(prKey)}
+            style={{ ['--pr-color' as any]: pr.color }}
+            aria-expanded={!prCollapsed}
+          >
+            <span className={`archive-collapse-caret ${prCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
+              <DynamicIcon name="chevron-down" size={13} />
+            </span>
+            <span className="hier-priority-dot" style={{ background: pr.color }} />
+            <span>{pr.label}</span>
+            <span className="archive-day-count">{pr.lists.length} مهمة</span>
+          </button>
+
+          {!prCollapsed && (
+            <div className="archive-day-body">
+              <div className="lists-grid hier-lists-grid">
+                {pr.lists.map((list: any, i: number) => (
+                  <div id={`list-${list.id}`} key={list.id}>
+                    <TodoList
+                      list={list}
+                      onChange={onChange}
+                      onDeleteList={onDeleteList}
+                      delay={i * 40}
+                      lifeAreas={lifeAreas}
+                      onManageLifeAreas={onManageLifeAreas}
+                      highlighted={highlightedListId === list.id}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    });
   }
 
   if (groups.length === 0) return null;
@@ -147,48 +218,36 @@ export default function TaskHierarchy({
 
                       {!catCollapsed && (
                         <div className="archive-month-body">
-                          {cat.priorityGroups.map((pr) => {
-                            const prKey = `${catKey}-${pr.key}`;
-                            const prCollapsed = collapsedPriorities.has(prKey);
-                            return (
-                              <div className="hier-priority-group" key={prKey}>
-                                <button
-                                  type="button"
-                                  className="hier-priority-header"
-                                  onClick={() => togglePriority(prKey)}
-                                  style={{ ['--pr-color' as any]: pr.color }}
-                                  aria-expanded={!prCollapsed}
-                                >
-                                  <span className={`archive-collapse-caret ${prCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
-                                    <DynamicIcon name="chevron-down" size={13} />
-                                  </span>
-                                  <span className="hier-priority-dot" style={{ background: pr.color }} />
-                                  <span>{pr.label}</span>
-                                  <span className="archive-day-count">{pr.lists.length} مهمة</span>
-                                </button>
+                          {cat.yearGroups && cat.yearGroups.length > 0
+                            ? // تصنيف "سنوية": مستوى إضافي بالسنة المستهدفة قبل الأولوية.
+                              cat.yearGroups.map((yr) => {
+                                const yearKey = `${catKey}-${yr.key}`;
+                                const yearCollapsed = collapsedYears.has(yearKey);
+                                return (
+                                  <div className="archive-day-group hier-year-group" key={yearKey}>
+                                    <button
+                                      type="button"
+                                      className="archive-day-header hier-year-header"
+                                      onClick={() => toggleYear(yearKey)}
+                                      aria-expanded={!yearCollapsed}
+                                    >
+                                      <span className={`archive-collapse-caret ${yearCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
+                                        <DynamicIcon name="chevron-down" size={13} />
+                                      </span>
+                                      <DynamicIcon name="calendar-range" size={14} />
+                                      <span className="hier-year-title" dir="ltr">{yr.label}</span>
+                                      <span className="archive-day-count">
+                                        {yr.priorityGroups.reduce((sum, pr) => sum + pr.lists.length, 0)} مهمة
+                                      </span>
+                                    </button>
 
-                                {!prCollapsed && (
-                                  <div className="archive-day-body">
-                                    <div className="lists-grid hier-lists-grid">
-                                      {pr.lists.map((list: any, i: number) => (
-                                        <div id={`list-${list.id}`} key={list.id}>
-                                          <TodoList
-                                            list={list}
-                                            onChange={onChange}
-                                            onDeleteList={onDeleteList}
-                                            delay={i * 40}
-                                            lifeAreas={lifeAreas}
-                                            onManageLifeAreas={onManageLifeAreas}
-                                            highlighted={highlightedListId === list.id}
-                                          />
-                                        </div>
-                                      ))}
-                                    </div>
+                                    {!yearCollapsed && (
+                                      <div className="hier-year-body">{renderPriorityGroups(yr.priorityGroups, yearKey)}</div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                                );
+                              })
+                            : renderPriorityGroups(cat.priorityGroups, catKey)}
                         </div>
                       )}
                     </div>

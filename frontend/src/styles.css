@@ -5971,12 +5971,6 @@ li input[type='checkbox'] {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pr-color, currentColor) 18%, transparent);
 }
 
-.archive-year-body {
-  padding-inline-start: 14px;
-  border-inline-start: 2px solid var(--border-soft);
-  margin-inline-start: 8px;
-}
-
 .archive-month-group {
   margin-bottom: 14px;
 }
@@ -5991,10 +5985,6 @@ li input[type='checkbox'] {
   background: color-mix(in srgb, var(--glass-bg) 60%, transparent);
   border-color: var(--border-soft);
   box-shadow: none;
-}
-
-.archive-month-body {
-  padding-inline-start: 12px;
 }
 
 .archive-day-group {
@@ -6023,10 +6013,6 @@ li input[type='checkbox'] {
 .archive-day-header:hover {
   background: var(--gradient-brand-soft);
   border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
-}
-
-.archive-day-body {
-  padding-inline-start: 10px;
 }
 
 .archive-day-number {
@@ -6929,12 +6915,22 @@ body.modal-lock-scroll {
   margin-bottom: 6px;
   align-items: center;
   gap: 12px;
+  /* أعلى ارتفاع عنصر في الصف هو زرار الاسترجاع (30px) — بنثبته كحد أدنى
+     لارتفاع الصف عشان كل العناصر (المربع، الاسم، العدّاد، الأيقونة) تتمركز
+     كلها على نفس المحور الرأسي بالظبط، من غير ما حاجة تبان طالعة فوق أو
+     نازلة تحت باقي العناصر. */
+  min-height: 30px;
 }
 
 .list-card-compact .list-header-title {
   gap: 6px;
   flex: 1;
   min-width: 0;
+  align-items: center;
+  /* من غير nowrap هنا، عدّاد المهام الفرعية أو شارة "متكررة" ممكن ينزلوا
+     سطر تاني تحت الاسم لما المساحة تضيق، وده اللي بيكسر المحاذاة الرأسية
+     مع مربع الـ Check. بنخلي الصف سطر واحد ثابت دايمًا. */
+  flex-wrap: nowrap;
 }
 
 .list-card-compact h2 {
@@ -7035,36 +7031,47 @@ body.modal-lock-scroll {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 auto;
+  /* سطر واحد ثابت في الكارت المضغوط، بنفس ارتفاع مربع الـ checkbox، عشان
+     الاسم والعدّاد يفضلوا على نفس المحور الرأسي بالظبط مع المربع. */
+  height: 23px;
+  overflow: hidden;
 }
 
 .list-title-plain h2 {
   margin: 0;
-  overflow: visible;
-  text-overflow: unset;
-  white-space: normal;
-  overflow-wrap: anywhere;
   min-width: 0;
-  /* بنخلي ارتفاع السطر يساوي بالظبط ارتفاع مربع الـ checkbox (23px) —
-     كده مركز النص بيقع بالظبط على مركز المربع، من غير ما يبان النص
-     شايل شوية لفوق أو لتحت بسبب فراغات الخط الطبيعية حوالين الحروف. */
-  line-height: 23px;
+  flex: 1 1 auto;
+  /* بنعتمد على flexbox نفسه عشان يمركز النص رأسيًا جوه ارتفاع 23px بالظبط
+     (بدل الاعتماد على line-height لوحده اللي بيختلف تأثيره حسب مقاييس
+     الخط) — كده النص بيتمركز فعليًا على نفس محور مربع الـ Check من غير ما
+     يبان طالع لفوق أو نازل لتحت. */
+  display: flex;
+  align-items: center;
+  height: 23px;
+  line-height: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .list-title-subcount {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
   font-family: var(--font-num);
   font-size: 11px;
   font-weight: 700;
   color: var(--text-faint);
   background: var(--surface-2);
   border-radius: var(--radius-pill);
-  padding: 2px 7px;
+  padding: 0 7px;
 }
 
 /* شريط البيانات الثابتة (أولوية / تصنيف / مجال حياة) — معروضة بس، مفيش
-   تعديل هنا خالص. السطر مقسوم بنسبة ثابتة: 40% للشارات التلاتة (بالأيقونة
-   والنص مع بعض)، و60% الباقيين لصندوق الجدول الزمني المضغوط. */
+   تعديل هنا خالص. السطر مقسوم بنسبة ثابتة: 70% للشارات التلاتة (بالأيقونة
+   والنص مع بعض ظاهرين بوضوح)، و30% الباقيين لصندوق الجدول الزمني المضغوط. */
 .list-meta-row {
   display: flex;
   align-items: center;
@@ -7080,13 +7087,13 @@ body.modal-lock-scroll {
   align-items: center;
   flex-wrap: nowrap;
   gap: 5px;
-  flex: 0 0 40%;
-  max-width: 40%;
+  flex: 0 0 70%;
+  max-width: 70%;
   min-width: 0;
   overflow: hidden;
 }
 
-/* كل شارة بتاخد نفس النصيب من الـ 40% وبتقدر تنقص (min-width: 0) عشان
+/* كل شارة بتاخد نفس النصيب من الـ 70% وبتقدر تنقص (min-width: 0) عشان
    النص جواها يقدر يتقصّ بـ ellipsis بدل ما يكسر السطر أو يطفح برّه. */
 .list-meta-badges > * {
   flex: 1 1 0;
@@ -7101,8 +7108,8 @@ body.modal-lock-scroll {
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  flex: 0 0 60%;
-  max-width: 60%;
+  flex: 0 0 30%;
+  max-width: 30%;
   min-width: 0;
 }
 
@@ -7501,16 +7508,26 @@ details[open] > summary .hier-caret {
   margin-bottom: 12px;
 }
 
-/* الترتيب الهرمي في الصفحة الرئيسية (مجال الحياة ← التصنيف ← الأولوية ←
-   المهام) بيستخدم نفس كلاسات شجرة الأرشيف (year/month/day body) لكن من
-   غير أي مسافة متراكمة من اليمين — كل مستوى بيتفتح/يتقفل بنفس السلاسة
-   لكن من غير ما ياكل من عرض السطر مرة بعد مرة. */
-.task-hierarchy .archive-year-body,
-.task-hierarchy .archive-month-body,
-.task-hierarchy .archive-day-body {
-  padding-inline-start: 0;
-  margin-inline-start: 0;
-  border-inline-start: none;
+/* ===== مستوى "السنة" — بيظهر بس جوه تصنيف "سنوية"، بين التصنيف والأولوية
+   (تصنيف ← سنة ← أولوية ← مهام). نفس فلسفة هيدر يوم الأرشيف: خلفية وحدود
+   ثابتة عشان يبان كمستوى وسيط واضح بين هيدر التصنيف الشفاف وهيدر
+   الأولوية. ===== */
+.hier-year-group {
+  margin-bottom: 14px;
+}
+
+.hier-year-header {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.hier-year-title {
+  font-family: var(--font-num);
+  color: var(--accent);
+}
+
+.hier-year-body {
+  padding-inline-start: 4px;
 }
 
 /* ===== زرار الرجوع الموحّد (Back Button) ===== */

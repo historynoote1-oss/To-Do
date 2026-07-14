@@ -22,6 +22,7 @@ export interface MinimalList {
   priority?: string | null;
   category?: string | null;
   lifeAreaId?: string | null;
+  targetYear?: number | null;
   items: MinimalItem[];
 }
 
@@ -131,12 +132,24 @@ export interface PriorityGroup<T> {
   lists: T[];
 }
 
+export interface YearGroup<T> {
+  key: string;
+  year: number | null;
+  label: string;
+  priorityGroups: PriorityGroup<T>[];
+}
+
 export interface CategoryGroup<T> {
   key: string;
   label: string;
   icon: string;
   color: string;
   count: number;
+  // موجودة بس لتصنيف "سنوية": بتقسّم مهام التصنيف ده لمستوى إضافي حسب
+  // السنة المستهدفة، وجوه كل سنة بيتقسموا بالأولوية زي أي تصنيف تاني.
+  // للتصنيفات التانية (يومية/أسبوعية/شهرية) الحقل ده بيفضل undefined
+  // وبيتم الاعتماد على priorityGroups مباشرة زي ما كان.
+  yearGroups?: YearGroup<T>[];
   priorityGroups: PriorityGroup<T>[];
 }
 
@@ -171,13 +184,15 @@ function buildCategoryGroups<T extends MinimalList & { category?: string | null 
   for (const cat of CATEGORIES) {
     const items = byCategory.get(cat.key);
     if (items && items.length > 0) {
+      const isYearly = cat.key === 'YEARLY';
       groups.push({
         key: cat.key,
         label: cat.label,
         icon: cat.icon,
         color: cat.color,
         count: items.length,
-        priorityGroups: buildPriorityGroups(items),
+        yearGroups: isYearly ? buildYearGroups(items) : undefined,
+        priorityGroups: isYearly ? [] : buildPriorityGroups(items),
       });
     }
   }
@@ -190,6 +205,45 @@ function buildCategoryGroups<T extends MinimalList & { category?: string | null 
       color: '#5b6478',
       count: noCategory.length,
       priorityGroups: buildPriorityGroups(noCategory),
+    });
+  }
+
+  return groups;
+}
+
+export const NO_YEAR_GROUP = '__no_year__';
+
+// بتقسّم مهام تصنيف "سنوية" بس حسب السنة المستهدفة (targetYear)، وجوه كل
+// سنة بتتقسم المهام بالأولوية زي أي تصنيف تاني. الترتيب: الأقرب زمنيًا
+// أولًا، والمهام اللي من غير سنة محددة (نادر، بس ممكن يحصل) بتتحط آخر حاجة.
+function buildYearGroups<T extends MinimalList>(lists: T[]): YearGroup<T>[] {
+  const byYear = new Map<number, T[]>();
+  const noYear: T[] = [];
+
+  for (const l of lists) {
+    if (l.targetYear) {
+      const arr = byYear.get(l.targetYear) || [];
+      arr.push(l);
+      byYear.set(l.targetYear, arr);
+    } else {
+      noYear.push(l);
+    }
+  }
+
+  const years = Array.from(byYear.keys()).sort((a, b) => a - b);
+  const groups: YearGroup<T>[] = years.map((year) => ({
+    key: String(year),
+    year,
+    label: String(year),
+    priorityGroups: buildPriorityGroups(byYear.get(year)!),
+  }));
+
+  if (noYear.length > 0) {
+    groups.push({
+      key: NO_YEAR_GROUP,
+      year: null,
+      label: 'بدون سنة محددة',
+      priorityGroups: buildPriorityGroups(noYear),
     });
   }
 
