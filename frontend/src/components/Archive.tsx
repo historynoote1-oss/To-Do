@@ -331,7 +331,7 @@ export default function ArchivePage({
             <div className="archive-year-group" key={y}>
               <button type="button" className="archive-year-header" onClick={() => toggleYear(y)}>
                 <span className={`archive-collapse-caret ${yearCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
-                  ▾
+                  <DynamicIcon name="chevron-down" size={14} />
                 </span>
                 <span className="archive-year-title" dir="ltr">{y}</span>
                 <span className="archive-year-count">{yearCount} مهمة</span>
@@ -349,7 +349,7 @@ export default function ArchivePage({
                       <div className="archive-month-group" key={monthKey}>
                         <button type="button" className="archive-month-header" onClick={() => toggleMonth(monthKey)}>
                           <span className={`archive-collapse-caret ${monthCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
-                            ▾
+                            <DynamicIcon name="chevron-down" size={14} />
                           </span>
                           <span>{MONTHS_AR[m]}</span>
                           <span className="archive-month-count">{monthCount}</span>
@@ -371,7 +371,7 @@ export default function ArchivePage({
                                     aria-expanded={!dayCollapsed}
                                   >
                                     <span className={`archive-collapse-caret ${dayCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
-                                      ▾
+                                      <DynamicIcon name="chevron-down" size={14} />
                                     </span>
                                     <span className="archive-day-number">{d}</span>
                                     <span className="archive-day-weekday">{weekday}</span>
@@ -380,7 +380,7 @@ export default function ArchivePage({
 
                                   {!dayCollapsed && (
                                   <div className="archive-day-body">
-                                  <div className="archive-cards">
+                                  <div className="lists-grid hier-lists-grid">
                                     {dayLists.map((list) => {
                                       const total = list.items.length;
                                       const doneCount = list.items.filter((i) => i.isDone).length;
@@ -403,20 +403,52 @@ export default function ArchivePage({
                                                 <polyline points="3,9 6.5,12.5 13,4" />
                                               </svg>
                                             </span>
+
                                             <div className="list-header-title">
-                                              <h2>{list.title}</h2>
+                                              <div className="list-title-plain">
+                                                <h2>{list.title}</h2>
+                                                {total > 0 && (
+                                                  <span className="list-title-subcount">
+                                                    {doneCount}/{total}
+                                                  </span>
+                                                )}
+                                              </div>
                                               {list.recurringTaskId && (
                                                 <span className="recurring-origin-badge" title="اتولّدت تلقائيًا من مهمة متكررة">
                                                   <DynamicIcon name="repeat" size={12} />
                                                 </span>
                                               )}
+                                            </div>
+
+                                            <div className="row-actions card-actions">
+                                              <button
+                                                className="card-icon-action"
+                                                onClick={() => setConfirmRestore(list)}
+                                                aria-label="استرجاع المهمة من الأرشيف"
+                                                type="button"
+                                                title="استرجاع"
+                                              >
+                                                <DynamicIcon name="undo" size={17} />
+                                              </button>
+                                            </div>
+                                          </div>
+
+                                          <div className="list-meta-row">
+                                            <div className="list-meta-badges">
                                               <PriorityBadge value={list.priority || 'NONE'} onChange={() => {}} size="sm" disabled />
                                               <CategoryBadge value={list.category} targetYear={list.targetYear} onChange={() => {}} size="sm" disabled />
                                               <LifeAreaBadge value={list.lifeArea || null} areas={lifeAreas} onChange={() => {}} size="sm" disabled />
                                             </div>
-                                            <span className="archive-card-time" dir="ltr" title="وقت الأرشفة">
-                                              {formatTime(list.archivedAt)}
-                                            </span>
+                                            <div className="list-meta-timers">
+                                              <span className="timeline-compact timeline-compact-readonly" title="وقت الأرشفة">
+                                                <span className="timeline-compact-icon" aria-hidden="true">
+                                                  <DynamicIcon name="archive" size={14} />
+                                                </span>
+                                                <span className="timeline-compact-time" dir="ltr">
+                                                  {formatTime(list.archivedAt)}
+                                                </span>
+                                              </span>
+                                            </div>
                                           </div>
 
                                           {total > 0 && (
@@ -459,16 +491,6 @@ export default function ArchivePage({
                                               ))}
                                             </ul>
                                           )}
-
-                                          <div className="archive-card-footer">
-                                            <button
-                                              className="small archive-restore-btn"
-                                              type="button"
-                                              onClick={() => setConfirmRestore(list)}
-                                            >
-                                              <DynamicIcon name="undo" size={14} /> استرجاع
-                                            </button>
-                                          </div>
                                         </div>
                                       );
                                     })}

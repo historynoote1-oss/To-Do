@@ -5935,7 +5935,9 @@ li input[type='checkbox'] {
 }
 
 .archive-collapse-caret {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform var(--dur) var(--ease-out);
   color: var(--text-faint);
   flex-shrink: 0;
@@ -5943,6 +5945,30 @@ li input[type='checkbox'] {
 
 .archive-collapse-caret.collapsed {
   transform: rotate(-90deg);
+}
+
+/* شارة أيقونة دائرية بخلفية ملوّنة بلون القسم (مجال الحياة / التصنيف) —
+   نفس فلسفة life-area-glyph-chip بالظبط عشان تفضل متسقة مع باقي أيقونات
+   الموقع بدل أيقونة عادية عايمة على السطر. */
+.hier-icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.hier-icon-chip-sm {
+  width: 21px;
+  height: 21px;
+}
+
+.hier-priority-dot {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pr-color, currentColor) 18%, transparent);
 }
 
 .archive-year-body {
@@ -5975,25 +6001,28 @@ li input[type='checkbox'] {
   margin-bottom: 16px;
 }
 
+/* هيدر اليوم (آخر مستوى في شجرة الأرشيف) — نفس فلسفة هيدر الأولوية في
+   عرض المهام الرئيسي بالظبط: خلفية وحدود ثابتة عشان يبان واضح، مش شفاف
+   وبيبان بس عند الـ hover. */
 .archive-day-header {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   margin-bottom: 8px;
-  padding: 6px 10px;
-  background: transparent;
-  border: 1px solid transparent;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: right;
   font-family: var(--font-body);
-  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
 }
 
 .archive-day-header:hover {
   background: var(--gradient-brand-soft);
-  border-color: var(--border-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
 }
 
 .archive-day-body {
@@ -6016,18 +6045,6 @@ li input[type='checkbox'] {
   margin-inline-start: auto;
   font-size: 11px;
   color: var(--text-faint);
-}
-
-.archive-cards {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-@media (min-width: 720px) {
-  .archive-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 /* ---- بطاقة مهمة مؤرشفة ---- */
@@ -6054,13 +6071,6 @@ li input[type='checkbox'] {
   font-size: 15.5px;
   color: var(--text);
   font-weight: 700;
-}
-
-.archive-card-time {
-  font-size: 11px;
-  color: var(--text-faint);
-  flex-shrink: 0;
-  white-space: nowrap;
 }
 
 .archive-card-badges {
@@ -6111,15 +6121,6 @@ li input[type='checkbox'] {
 .archive-item-list .checkbox {
   cursor: default;
   flex-shrink: 0;
-}
-
-.archive-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-soft);
 }
 
 .archive-card-progress {
@@ -7062,8 +7063,8 @@ body.modal-lock-scroll {
 }
 
 /* شريط البيانات الثابتة (أولوية / تصنيف / مجال حياة) — معروضة بس، مفيش
-   تعديل هنا خالص. نفس السطر بيتقسم لنص فيه الشارات ونص فيه صندوق
-   الجدول الزمني المضغوط. */
+   تعديل هنا خالص. السطر مقسوم بنسبة ثابتة: 40% للشارات التلاتة (بالأيقونة
+   والنص مع بعض)، و60% الباقيين لصندوق الجدول الزمني المضغوط. */
 .list-meta-row {
   display: flex;
   align-items: center;
@@ -7078,27 +7079,31 @@ body.modal-lock-scroll {
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 6px;
-  flex: 0 1 auto;
+  gap: 5px;
+  flex: 0 0 40%;
+  max-width: 40%;
   min-width: 0;
   overflow: hidden;
 }
 
+/* كل شارة بتاخد نفس النصيب من الـ 40% وبتقدر تنقص (min-width: 0) عشان
+   النص جواها يقدر يتقصّ بـ ellipsis بدل ما يكسر السطر أو يطفح برّه. */
 .list-meta-badges > * {
-  flex-shrink: 0;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-/* نص السطر الباقي كله (بعد الشارات الثلاثة المصغّرة) بياخده عنصر واحد بس:
-   إما عدّاد أقرب تذكير قادم (لو المهمة لسه ما بدأتش)، أو عدّاد + بار وقت
-   المهمة النشطة (لو دخل وقتها) — الاتنين مش بيظهروا مع بعض أبدًا. */
+/* نص السطر الباقي كله (بعد الشارات الثلاثة) بياخده عنصر واحد بس: إما عدّاد
+   أقرب تذكير قادم (لو المهمة لسه ما بدأتش)، أو عدّاد + بار وقت المهمة
+   النشطة (لو دخل وقتها) — الاتنين مش بيظهروا مع بعض أبدًا. */
 .list-meta-timers {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  flex: 1 1 auto;
+  flex: 0 0 60%;
+  max-width: 60%;
   min-width: 0;
-  margin-inline-start: auto;
 }
 
 .list-meta-row .priority-badge,
@@ -7107,42 +7112,46 @@ body.modal-lock-scroll {
   opacity: 0.92;
 }
 
-/* الشارات الثلاثة (أولوية/تصنيف/مجال حياة) — بقت أيقونة بس من غير نص
-   (اللابل بتاعها مخفي هنا) عشان تاخد أقل مساحة ممكنة على السطر، وتسيب
-   المساحة الأكبر لمربع العدّاد على الطرف التاني. */
-.list-meta-badges {
-  gap: 4px;
-}
-
+/* الشارات الثلاثة (أولوية/تصنيف/مجال حياة) — الأيقونة والنص (اللابل) مع
+   بعض زي أي مكان تاني في الموقع، بس بمقاس مضغوط شوية عشان الثلاثة يتظبطوا
+   في الـ 40% المتاحة. لو المساحة ضاقت أوي، النص بيتقصّ بـ ellipsis بدل ما
+   يكسر تصميم السطر. */
 .list-meta-badges .priority-badge {
-  padding: 4px;
-  gap: 0;
+  width: 100%;
+  padding: 4px 8px;
+  gap: 4px;
   border-radius: var(--radius-pill);
+  overflow: hidden;
 }
 
 .list-meta-badges .priority-badge > span:last-child {
-  display: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-size: 11px;
 }
 
 .list-meta-badges .priority-badge svg {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .list-meta-badges .life-area-glyph-chip,
 .list-meta-badges .life-area-glyph-chip-empty {
-  width: 15px !important;
-  height: 15px !important;
+  width: 17px !important;
+  height: 17px !important;
 }
 
 .list-meta-badges .life-area-glyph-img {
-  width: 15px !important;
-  height: 15px !important;
+  width: 17px !important;
+  height: 17px !important;
 }
 
 .list-meta-badges .life-area-glyph-chip-icon {
-  width: 8px !important;
-  height: 8px !important;
+  width: 9px !important;
+  height: 9px !important;
 }
 
 /* ===== صندوق العدّاد المضغوط — أيقونة + (لابل اختياري) + بار + رقم،
@@ -7805,21 +7814,10 @@ details[open] > summary .hier-caret {
   }
 }
 
-/* ---- بطاقات المهام المؤرشفة: نفس تصميم بطاقات الصفحة الرئيسية بالظبط
-   (list-card / list-card-compact) — التعديلات هنا بسيطة وبتخص فوتر
-   البطاقة بس (زرار الاسترجاع الوحيد المتبقّي). ---- */
-.archive-task-card .archive-card-footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 10px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-soft);
-}
-
-.archive-restore-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* ---- بطاقات المهام المؤرشفة: بقت نفس تصميم بطاقات الصفحة الرئيسية
+   بالظبط (list-card / list-card-compact / list-header / list-meta-row) —
+   حتى زرار الاسترجاع بقى في نفس مكان أزرار التعديل/الحذف في الكارت
+   الرئيسي (row-actions card-actions) بدل فوتر منفصل. ---- */
+.archive-task-card .card-actions {
+  gap: 4px;
 }

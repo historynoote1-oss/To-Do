@@ -113,10 +113,11 @@ export default function TaskHierarchy({
               aria-expanded={!areaCollapsed}
             >
               <span className={`archive-collapse-caret ${areaCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
-                ▾
+                <DynamicIcon name="chevron-down" size={15} />
               </span>
-              {area.id !== NO_LIFE_AREA_GROUP && <span className="task-section-dot" style={{ background: area.color }} />}
-              <DynamicIcon name={(area.icon as any) || 'tag'} size={16} />
+              <span className="hier-icon-chip" style={{ background: area.color || 'var(--surface-3)' }}>
+                <DynamicIcon name={(area.icon as any) || 'tag'} size={14} />
+              </span>
               <span className="archive-year-title hier-area-title">{area.name}</span>
               <span className="archive-year-count">{area.count} مهمة</span>
             </button>
@@ -135,9 +136,11 @@ export default function TaskHierarchy({
                         aria-expanded={!catCollapsed}
                       >
                         <span className={`archive-collapse-caret ${catCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
-                          ▾
+                          <DynamicIcon name="chevron-down" size={14} />
                         </span>
-                        <DynamicIcon name={cat.icon as any} size={14} style={{ color: cat.color }} />
+                        <span className="hier-icon-chip hier-icon-chip-sm" style={{ background: cat.color || 'var(--surface-3)' }}>
+                          <DynamicIcon name={cat.icon as any} size={12} />
+                        </span>
                         <span>{cat.label}</span>
                         <span className="archive-month-count">{cat.count}</span>
                       </button>
@@ -157,7 +160,7 @@ export default function TaskHierarchy({
                                   aria-expanded={!prCollapsed}
                                 >
                                   <span className={`archive-collapse-caret ${prCollapsed ? 'collapsed' : ''}`} aria-hidden="true">
-                                    ▾
+                                    <DynamicIcon name="chevron-down" size={13} />
                                   </span>
                                   <span className="hier-priority-dot" style={{ background: pr.color }} />
                                   <span>{pr.label}</span>

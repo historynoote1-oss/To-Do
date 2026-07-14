@@ -9,6 +9,16 @@ import { DynamicIcon } from '../lib/icons';
 const WARN_FRACTION = 0.15;
 const CRITICAL_FRACTION = 0.1;
 
+// أقصى "نافذة" زمنية للعدّاد التنازلي بتاع "ستبدأ المهمة بعد": لو المهمة
+// اتعملت قبل موعد بدايتها بوقت طويل جدًا (أيام مثلًا)، البار كان بيحسب
+// النسبة من وقت الإنشاء لحد البداية، فبيفضل شبه ممتلئ لفترة طويلة وميبانش
+// عليه إنه بينقص خالص. بالتحديد ده كان بيخلي البار يبان "واقف" وقت ما فعليًا
+// باقي وقت طويل، وبيخلي أي نقصان بسيط في الوقت المتبقي (لو النافذة كبيرة)
+// شبه غير محسوس. بتحديد سقف للنافذة، البار بيفضل ممتلئ 100% لحد ما يدخل
+// آخر ساعة قبل البداية، وبعدها بينقص بشكل واضح ومتناسب مع الوقت المتبقي
+// فعليًا، ويوصل صفر بالظبط لحظة ما المهمة تبدأ — مش قبل ولا بعد كده.
+const UPCOMING_WINDOW_MS = 60 * 60 * 1000;
+
 type Phase = 'unset' | 'upcoming' | 'active' | 'ended';
 
 interface ListLike {
@@ -161,7 +171,10 @@ export default function TaskTimeline({ list }: Props) {
     // البداية نفسه لو مفيش createdAt لأي سبب) لحد وقت البداية. البار بيمثّل
     // نسبة الوقت المتبقي، فبيبدأ ممتلئ وبينقص تدريجيًا لحد ما يوصل صفر
     // بالظبط لحظة ما المهمة تبدأ.
-    const windowStart = created !== null && created < start! ? created : start! - 60 * 60 * 1000;
+    const rawWindowStart = created !== null && created < start! ? created : start! - UPCOMING_WINDOW_MS;
+    // بناخد الأقرب لوقت البداية بين نافذة الإنشاء الفعلية وسقف الساعة، عشان
+    // النافذة متطولش أكتر من اللازم وتفضل حاسة بالنقصان بوضوح.
+    const windowStart = Math.max(rawWindowStart, start! - UPCOMING_WINDOW_MS);
     const upcomingFraction = Math.min(1, Math.max(0, (start! - now) / (start! - windowStart)));
 
     return (
