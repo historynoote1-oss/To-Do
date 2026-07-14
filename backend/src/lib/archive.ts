@@ -50,5 +50,24 @@ export async function syncListArchiveState(listId: string) {
   }
 
   if (Object.keys(data).length === 0) return null;
-  return prisma.todoList.update({ where: { id: listId }, data });
+  const updated = await prisma.todoList.update({ where: { id: listId }, data });
+
+  // تسجيل يوم الإنجاز للاستريك: أول ما مهمة رئيسية تتؤرشف فعليًا (تكتمل)،
+  // بنسجّل "اليوم ده فيه إنجاز" لصاحبها. upsert عشان تكرار نفس اليوم (لو
+  // المستخدم خلّص أكتر من مهمة رئيسية في نفس اليوم) ميعملش تعارض.
+  if (data.archivedAt) {
+    const completedAt = data.archivedAt;
+    const day = new Date(Date.UTC(completedAt.getUTCFullYear(), completedAt.getUTCMonth(), completedAt.getUTCDate()));
+    await prisma.userActivityDay
+      .upsert({
+        where: { userId_date: { userId: list.userId, date: day } },
+        update: {},
+        create: { userId: list.userId, date: day },
+      })
+      .catch(() => {
+        // فشل تسجيل الاستريك مش سبب كافي نفشل عملية الأرشفة نفسها
+      });
+  }
+
+  return updated;
 }

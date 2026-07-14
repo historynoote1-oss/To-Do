@@ -8,6 +8,7 @@ import {
   getAdminItems,
   updateAdminItem,
   deleteAdminItem,
+  sendAdminNotification,
 } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
@@ -17,7 +18,7 @@ import { DynamicIcon } from '../lib/icons';
 const PRIORITY_LABELS: Record<string, string> = { NONE: 'غير محددة', LOW: 'منخفضة', MEDIUM: 'متوسطة', HIGH: 'مرتفعة', CRITICAL: 'حرجة' };
 
 export default function AdminContentPanel() {
-  const [subTab, setSubTab] = useState<'lists' | 'items'>('lists');
+  const [subTab, setSubTab] = useState<'lists' | 'items' | 'notifications'>('lists');
 
   return (
     <div className="admin-content-panel">
@@ -28,8 +29,74 @@ export default function AdminContentPanel() {
         <button type="button" className={`admin-tab ${subTab === 'items' ? 'active' : ''}`} onClick={() => setSubTab('items')}>
           <DynamicIcon name="check-circle" size={14} /> المهام
         </button>
+        <button type="button" className={`admin-tab ${subTab === 'notifications' ? 'active' : ''}`} onClick={() => setSubTab('notifications')}>
+          <DynamicIcon name="megaphone" size={14} /> الإشعارات
+        </button>
       </div>
-      {subTab === 'lists' ? <ListsManager /> : <ItemsManager />}
+      {subTab === 'lists' ? <ListsManager /> : subTab === 'items' ? <ItemsManager /> : <NotificationsSender />}
+    </div>
+  );
+}
+
+// إرسال إشعار/رسالة من الأدمن لكل المستخدمين، أو لمستخدم معيّن لو حدد
+// اسمه — بتظهر في جرس الإشعارات بتاع المستخدم المستهدف (شوف
+// components/NotificationsBell.tsx وroutes/adminContent.ts).
+function NotificationsSender() {
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [username, setUsername] = useState('');
+  const [confirming, setConfirming] = useState(false);
+
+  async function runSend(adminPassword: string) {
+    const result = await sendAdminNotification({
+      title: title.trim(),
+      body: body.trim(),
+      username: username.trim() || undefined,
+      adminPassword,
+    });
+    sounds.success();
+    toast.success(`اتبعت الرسالة لـ ${result.count} مستخدم`);
+    setConfirming(false);
+    setTitle('');
+    setBody('');
+    setUsername('');
+  }
+
+  return (
+    <div>
+      <div className="admin-section-header">
+        <h2>إرسال إشعار</h2>
+      </div>
+      <p className="modal-hint" style={{ marginBottom: 12 }}>
+        سيبك حقل "اسم المستخدم" فاضي عشان الرسالة توصل لكل المستخدمين، أو حدده عشان تبعتها لواحد بعينه.
+      </p>
+
+      <div className="admin-form">
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان الإشعار" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="نص الرسالة" rows={4} />
+        <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="اسم مستخدم معيّن (اختياري — سيبه فاضي للكل)" />
+        <button
+          className="small"
+          type="button"
+          disabled={!title.trim() || !body.trim()}
+          onClick={() => setConfirming(true)}
+        >
+          إرسال
+        </button>
+      </div>
+
+      {confirming && (
+        <AdminConfirmModal
+          title="تأكيد إرسال الإشعار"
+          description={
+            <p>
+              أنت على وشك إرسال هذا الإشعار لـ <strong>{username.trim() || 'كل المستخدمين'}</strong>.
+            </p>
+          }
+          onCancel={() => setConfirming(false)}
+          onConfirm={runSend}
+        />
+      )}
     </div>
   );
 }

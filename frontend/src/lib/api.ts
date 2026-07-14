@@ -504,6 +504,68 @@ export async function unsubscribePush(endpoint: string) {
   return handle(res);
 }
 
+// ===== الاستريك (أيام الإنجاز المتتالية) =====
+
+export async function getStreak(): Promise<{ current: number }> {
+  const res = await fetch(`${API_URL}/api/streak`, { headers: authHeaders() });
+  return handle(res);
+}
+
+// ===== إشعارات الموقع (Inbox) =====
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  source: 'ADMIN' | 'SYSTEM';
+  url: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export async function getNotifications(): Promise<{ notifications: AppNotification[]; unreadCount: number }> {
+  const res = await fetch(`${API_URL}/api/notifications`, { headers: authHeaders() });
+  return handle(res);
+}
+
+export async function markNotificationRead(id: string) {
+  const res = await fetch(`${API_URL}/api/notifications/${id}/read`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function markAllNotificationsRead() {
+  const res = await fetch(`${API_URL}/api/notifications/read-all`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function deleteNotification(id: string) {
+  const res = await fetch(`${API_URL}/api/notifications/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  return handle(res);
+}
+
+export async function sendAdminNotification(data: {
+  title: string;
+  body: string;
+  username?: string;
+  adminPassword: string;
+}): Promise<{ success: true; count: number }> {
+  const res = await fetch(`${API_URL}/api/admin/content/notifications/send`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handle(res);
+}
+
 export async function getAdminStats() {
   const res = await fetch(`${API_URL}/api/admin/stats`, { headers: authHeaders() });
   return handle(res);

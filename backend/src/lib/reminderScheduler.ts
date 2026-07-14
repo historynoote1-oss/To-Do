@@ -50,6 +50,17 @@ async function tick() {
       .filter((r) => r.remindAt >= staleThreshold)
       .map((r) => sendPushToUser(r.userId, buildPushPayload(r)).catch((err) => console.error('فشل إرسال Push:', err)))
   );
+
+  // إشعار داخل الموقع (Inbox) بنسجّله لكل التذكيرات المستحقة (مش بس الطازة)
+  // عشان يفضل موجود في جرس الإشعارات حتى لو المستخدم مفعّلش إشعارات الجهاز.
+  await prisma.notification
+    .createMany({
+      data: due.map((r) => {
+        const payload = buildPushPayload(r);
+        return { userId: r.userId, title: payload.title, body: payload.body, source: 'SYSTEM' as const, url: payload.url };
+      }),
+    })
+    .catch((err) => console.error('فشل تسجيل إشعارات التذكيرات في الـ Inbox:', err));
 }
 
 let started = false;

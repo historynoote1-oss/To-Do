@@ -70,8 +70,59 @@ model User {
   pushSubscriptions PushSubscription[]
   lifeAreas         LifeArea[]
   recurringTasks    RecurringTask[]
+  activityDays      UserActivityDay[]
+  notifications     Notification[]
 
   @@index([createdAt])
+}
+
+// ===== الاستريك (أيام الإنجاز المتتالية) =====
+// صف واحد بس بيتسجّل لكل (مستخدم، يوم) أول ما مهمة رئيسية وحدة على الأقل
+// تتؤرشف فعليًا (يعني اكتملت بالكامل وأكّدها المستخدم — شوف lib/archive.ts).
+// التسجيل دايم ومبيتمسحش حتى لو المستخدم بعدين رجّع المهمة وفتحها تاني،
+// عشان اليوم ده فعلاً اتحقق فيه إنجاز مرة واحدة على الأقل. الاستريك الحالي
+// (متتالي من النهاردة/إمبارح للخلف) بيتحسب "live" من الجدول ده وقت الطلب
+// (شوف routes/streak.ts) بدل ما يتخزن كعداد ممكن يتعارض مع البيانات الفعلية.
+model UserActivityDay {
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// ===== إشعارات الموقع (Inbox) =====
+// رسالة/إشعار داخلي بيظهر في جرس الإشعارات جنب زرار القائمة (Menu Bar).
+// مصدرها إما النظام نفسه (SYSTEM — زي تذكير مهمة استحق موعده، شوف
+// lib/reminderScheduler.ts) أو الأدمن (ADMIN — رسالة عامة أو لمستخدم معيّن
+// من لوحة التحكم، شوف routes/adminContent.ts). isRead بتتحول true لما
+// المستخدم يفتحها أو يضغط "تعليم الكل كمقروء".
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title  String
+  body   String
+  source NotificationSource @default(SYSTEM)
+  url    String?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+enum NotificationSource {
+  ADMIN
+  SYSTEM
 }
 
 // ===== مجالات الحياة (Life Areas) =====

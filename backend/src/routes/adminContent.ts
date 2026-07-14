@@ -164,4 +164,48 @@ router.delete('/items/:id', requireAdminPassword, async (req: AuthRequest, res) 
   res.json({ success: true });
 });
 
+// ===== إشعارات الموقع (Inbox) — إرسال من الأدمن =====
+// بيبعت إشعار لمستخدم معيّن (لو username اتحدد) أو لكل المستخدمين (broadcast
+// لو سايبها فاضية). requireAdminPassword عشان ده إجراء بيوصل لكل المستخدمين
+// دفعة واحدة، فمحتاج تأكيد step-up زي باقي العمليات الحساسة في اللوحة.
+router.post('/notifications/send', requireAdminPassword, async (req: AuthRequest, res) => {
+  const { title, body, username, url } = req.body as {
+    title?: string;
+    body?: string;
+    username?: string;
+    url?: string;
+  };
+  if (!title?.trim() || !body?.trim()) {
+    return res.status(400).json({ error: 'العنوان ونص الرسالة مطلوبين' });
+  }
+
+  let targetUserIds: string[];
+  if (username?.trim()) {
+    const user = await prisma.user.findUnique({ where: { username: username.trim() }, select: { id: true } });
+    if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    targetUserIds = [user.id];
+  } else {
+    const users = await prisma.user.findMany({ select: { id: true } });
+    targetUserIds = users.map((u) => u.id);
+  }
+
+  await prisma.notification.createMany({
+    data: targetUserIds.map((userId) => ({
+      userId,
+      title: title.trim(),
+      body: body.trim(),
+      source: 'ADMIN' as const,
+      url: url?.trim() || null,
+    })),
+  });
+
+  await logAction(
+    req.userId!,
+    `إرسال إشعار${username ? ` لـ ${username}` : ' لكل المستخدمين'}: "${title.trim()}"`,
+    req.ip!,
+    username || null
+  );
+  res.json({ success: true, count: targetUserIds.length });
+});
+
 export default router;

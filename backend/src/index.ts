@@ -18,6 +18,8 @@ import siteRoutes from './routes/site';
 import twoFactorRoutes from './routes/twoFactor';
 import remindersRoutes from './routes/reminders';
 import pushRoutes from './routes/push';
+import streakRoutes from './routes/streak';
+import notificationsRoutes from './routes/notifications';
 import recurringTasksRoutes from './routes/recurringTasks';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
@@ -132,6 +134,8 @@ app.use('/api/life-areas', verifyUser, rehabilitationGate, maintenanceGate, life
 app.use('/api/recurring-tasks', verifyUser, rehabilitationGate, maintenanceGate, recurringTasksRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, remindersRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, pushRoutes);
+app.use('/api/streak', verifyUser, rehabilitationGate, maintenanceGate, streakRoutes);
+app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, notificationsRoutes);
 app.use('/api/profile', verifyUser, rehabilitationGate, maintenanceGate, profileLimiter, profileRoutes);
 app.use('/api/admin/analytics', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminAnalyticsRoutes);
 app.use('/api/admin/content', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminContentRoutes);

@@ -19,6 +19,7 @@ import {
   SessionExpiredError,
   SiteStatus,
   Reminder,
+  getStreak,
 } from './lib/api';
 import { useUndoRedo } from './lib/undoRedo';
 import { sounds } from './lib/sounds';
@@ -28,6 +29,7 @@ import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
 import AdminDashboard, { AdminTab } from './components/AdminDashboard';
 import Profile from './components/Profile';
+import NotificationsBell from './components/NotificationsBell';
 import LifeAreasManager from './components/LifeAreasManager';
 import RecurringTasksManager from './components/RecurringTasksManager';
 import ArchivePage from './components/Archive';
@@ -154,6 +156,10 @@ export default function App() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [lists, setLists] = useState<List[]>([]);
   const [archiveCount, setArchiveCount] = useState<number>(0);
+  // عدد أيام الاستريك المتتالية — بيتحسب في السيرفر من UserActivityDay
+  // (شوف routes/streak.ts)، وبنعيد جلبه كل ما refresh() بيتنادى عشان يفضل
+  // متزامن فورًا بعد ما المستخدم يخلّص مهمة رئيسية.
+  const [streak, setStreak] = useState<number>(0);
   // مهام استُرجعت من الأرشيف ولسه بانتظار مراجعة المستخدم قبل ما ترجع فعليًا
   // لقائمة المهام النشطة — بتتعرض في قسم مخصص فوق الصفحة الرئيسية (شوف
   // PendingRestoreSection). بنجيبها منفصلة عن `lists` عشان الشاشة الرئيسية
@@ -241,6 +247,7 @@ export default function App() {
       refreshLifeAreas();
       refreshArchiveCount();
       refreshPendingRestore();
+      refreshStreak();
       getProfile()
         .then((data) => {
           setDisplayName(data.profile.displayName);
@@ -267,6 +274,17 @@ export default function App() {
   // بنجيب عدد المهام المؤرشفة بس (من غير تفاصيلها) عشان نعرضه كإحصائية سريعة
   // فوق، وبنعيد جلبه بعد أي refresh() للمهام النشطة عشان يفضل متزامن مع أي
   // أرشفة/استرجاع تلقائي حصل في السيرفر.
+  // بنجيب الاستريك الحالي من السيرفر — تجميلي زي باقي إحصائيات الهيدر، فلو
+  // فشل الطلب منسيبش الشاشة الرئيسية تتعطل بسببه.
+  async function refreshStreak() {
+    try {
+      const data = await getStreak();
+      setStreak(data.current);
+    } catch {
+      // تجميلي بس
+    }
+  }
+
   async function refreshArchiveCount() {
     try {
       const data = await getArchive();
@@ -414,6 +432,7 @@ export default function App() {
       const data = await getLists();
       setLists(data);
       refreshArchiveCount();
+      refreshStreak();
     } catch (err) {
       if (err instanceof MaintenanceError) {
         setSiteStatus((prev) => (prev ? { ...prev, maintenanceMode: true, maintenanceMessage: err.message } : prev));
@@ -866,12 +885,9 @@ export default function App() {
                 <span className="header-user-greeting">
                   مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
                 </span>
-                {/* TODO: عنصر Placeholder فقط — سيتم لاحقاً إضافة نظام الاستريك
-                    الحقيقي (حساب الأيام المتتالية) وربطه بالبيانات الفعلية.
-                    من غير أي منطق أو state دلوقتي عن قصد. */}
                 <span className="header-streak" title="أيام الإنجاز المتتالية">
                   <span className="header-streak-icon" aria-hidden="true">🔥</span>
-                  <span className="header-streak-count">0</span>
+                  <span className="header-streak-count">{streak}</span>
                 </span>
               </span>
             </button>
@@ -881,6 +897,7 @@ export default function App() {
             </div>
 
             <div className="top-bar-controls">
+              <NotificationsBell />
               <button
                 className="icon-btn hamburger-btn"
                 onClick={() => setMenuOpen(true)}
