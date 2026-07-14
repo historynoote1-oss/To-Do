@@ -144,11 +144,7 @@ export default function SideMenu({
             >
               <DynamicIcon name="sliders" size={18} className="side-menu-item-icon" />
               <span className="side-menu-item-label">لوحة التحكم</span>
-              {currentView === 'admin' ? (
-                <span className="side-menu-item-current">أنت هنا</span>
-              ) : (
-                <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
-              )}
+              <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
             </button>
           )}
 
@@ -161,11 +157,7 @@ export default function SideMenu({
             <DynamicIcon name="archive" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">الأرشيف</span>
             {archiveCount > 0 && <span className="side-menu-item-badge">{archiveCount}</span>}
-            {currentView === 'archive' ? (
-              <span className="side-menu-item-current">أنت هنا</span>
-            ) : (
-              <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
-            )}
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
           </button>
 
           <button
@@ -176,11 +168,7 @@ export default function SideMenu({
           >
             <DynamicIcon name="compass" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">مجالات الحياة</span>
-            {currentView === 'lifeAreas' ? (
-              <span className="side-menu-item-current">أنت هنا</span>
-            ) : (
-              <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
-            )}
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
           </button>
 
           <button
@@ -191,11 +179,7 @@ export default function SideMenu({
           >
             <DynamicIcon name="repeat" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">المهام المتكررة</span>
-            {currentView === 'recurring' ? (
-              <span className="side-menu-item-current">أنت هنا</span>
-            ) : (
-              <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
-            )}
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
           </button>
 
           <div className="side-menu-divider" role="separator" />

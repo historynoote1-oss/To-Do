@@ -957,27 +957,6 @@ button:disabled {
   transform: translateX(-2px);
 }
 
-.side-menu-item-current {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: var(--radius-pill);
-}
-
-.side-menu-item-current::before {
-  content: '';
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #fff;
-}
-
 .side-menu-item-badge {
   background: var(--accent-dim);
   color: var(--accent-soft);
