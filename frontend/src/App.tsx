@@ -51,8 +51,10 @@ import PriorityFocusCard from './components/PriorityFocusCard';
 import StreakCard from './components/StreakCard';
 import OverdueTasksCard from './components/OverdueTasksCard';
 import PendingRestoreSection from './components/PendingRestoreSection';
+import MusicPlayer from './components/MusicPlayer';
+import MusicPlayerBar from './components/MusicPlayerBar';
 
-type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring';
+type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring' | 'player';
 
 // نفس فكرة صفحة الأرشيف بتبويباتها، لكن كصفحتين مستقلتين فعليًا لهم مسار
 // خاص بكل واحدة (بدل تبويب داخلي بس) — عشان تبقى كل واحدة قابلة للمشاركة
@@ -69,6 +71,7 @@ const VIEW_PATHS: Record<ViewName, string> = {
   lifeAreas: '/life-areas',
   archive: '/archive/completed',
   recurring: '/recurring',
+  player: '/player',
 };
 
 const PATH_VIEWS: Record<string, ViewName> = Object.fromEntries(
@@ -831,6 +834,7 @@ export default function App() {
         onOpenArchive={() => setView('archive')}
         onOpenLifeAreas={() => setView('lifeAreas')}
         onOpenRecurring={() => setView('recurring')}
+        onOpenPlayer={() => setView('player')}
         onToggleMute={handleToggleMute}
         onTogglePush={handleTogglePush}
         onRequestLogout={requestLogout}
@@ -846,6 +850,7 @@ export default function App() {
           onConfirm={confirmLogout}
         />
       )}
+      <MusicPlayerBar onOpenPlayer={() => setView('player')} isOnPlayerPage={view === 'player'} />
     </>
   );
 
@@ -918,6 +923,16 @@ export default function App() {
           activeTab={archiveTab}
           onTabChange={setArchiveTab}
         />
+        {sideMenuAndModals}
+      </>
+    );
+  }
+
+  if (view === 'player') {
+    return (
+      <>
+        <ToastContainer />
+        <MusicPlayer onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
         {sideMenuAndModals}
       </>
     );

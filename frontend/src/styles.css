@@ -8303,3 +8303,296 @@ details[open] > summary .hier-caret {
   color: var(--danger);
 }
 
+
+/* ===== مشغّل الصوت (بحث وتشغيل يوتيوب) ===== */
+
+/* حاوية مشغّل يوتيوب الحقيقي — مخفية بصريًا تمامًا وبعيدة عن أي تفاعل،
+   لكنها لازم تفضل موجودة فعليًا في الـ DOM (مش display:none) عشان
+   الفيديو يفضل شغّال في الخلفية. */
+.yt-audio-player-holder {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  bottom: 0;
+  inset-inline-start: 0;
+  z-index: -1;
+}
+
+.music-page-intro {
+  color: var(--text-muted);
+  font-size: 13.5px;
+  margin: -6px 0 16px;
+}
+
+.music-search-panel {
+  margin-bottom: 18px;
+}
+
+.music-search-row {
+  display: flex;
+  gap: 10px;
+}
+
+.music-search-row input {
+  flex: 1;
+}
+
+.music-search-row button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.music-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.music-skeleton-card {
+  height: 76px;
+}
+
+/* كارت نتيجة بحث — بيستخدم .list-card كأساس (نفس شكل كروت المهام) لكن
+   كزرار كامل قابل للضغط بدل div، عشان يبقى قابل للتشغيل بلوحة المفاتيح
+   برضو من غير جافاسكريبت إضافي. */
+button.music-result-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: start;
+  background: var(--glass-bg);
+  color: var(--text);
+  box-shadow: none;
+  padding: 12px 14px;
+  font-weight: 400;
+  font-size: inherit;
+}
+
+button.music-result-card:hover {
+  filter: none;
+}
+
+button.music-result-card::before,
+button.music-result-card::after {
+  display: none;
+}
+
+button.music-result-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.music-result-thumb {
+  width: 104px;
+  height: 60px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface-3);
+}
+
+.music-result-thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-soft);
+  background: var(--gradient-brand-soft);
+}
+
+.music-result-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.music-result-info strong {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+}
+
+.music-result-info span {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.music-result-play-badge {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-brand-soft);
+  color: var(--accent-soft);
+}
+
+.music-result-card.active .music-result-play-badge {
+  background: var(--gradient-brand);
+  color: #fff;
+}
+
+/* ===== شريط التشغيل الثابت (عام على كل صفحات الموقع) ===== */
+.music-player-bar {
+  position: fixed;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-top: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lift);
+  animation: fade-up var(--dur-slow) var(--ease-out) both;
+}
+
+.music-player-bar-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  box-shadow: none;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-align: start;
+  font-weight: 400;
+  font-size: inherit;
+}
+
+.music-player-bar-track::before,
+.music-player-bar-track::after {
+  display: none;
+}
+
+.music-player-bar-track:hover:not(:disabled) {
+  background: var(--surface-2);
+  filter: none;
+  box-shadow: none;
+}
+
+.music-player-bar-track:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.music-player-bar-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface-3);
+}
+
+.music-player-bar-thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-soft);
+  background: var(--gradient-brand-soft);
+}
+
+.music-player-bar-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.music-player-bar-info strong {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46vw;
+}
+
+.music-player-bar-info span {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46vw;
+}
+
+.music-player-bar-seek {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  flex: 2;
+  min-width: 0;
+}
+
+.music-player-bar-seek input[type='range'] {
+  flex: 1;
+  width: auto;
+  accent-color: var(--accent);
+  height: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.time-mono {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.music-player-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.music-player-bar-playpause {
+  background: var(--gradient-brand);
+  color: #fff;
+  border: none;
+}
+
+.music-player-bar-playpause:hover {
+  filter: brightness(1.08);
+}
+
+@media (min-width: 640px) {
+  .music-player-bar-seek {
+    display: flex;
+  }
+}
+
+/* الحاوية الرئيسية بتاخد padding-bottom كافي أصلاً (.container)، لكن لما
+   شريط التشغيل يبقى ظاهر بنحتاج مساحة إضافية عشان آخر عنصر في الصفحة
+   ميختفيش وراه. */
+body:has(.music-player-bar) .container {
+  padding-bottom: 96px;
+}

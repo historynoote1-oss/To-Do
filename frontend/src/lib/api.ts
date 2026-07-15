@@ -182,6 +182,25 @@ export async function disableTwoFactor(password: string, code: string) {
   return handle(res);
 }
 
+// ===== مشغّل الصوت (بحث يوتيوب) =====
+// بيكلّم مسار /api/youtube/search بتاع الباك إند بتاعنا بس — مفتاح
+// YouTube API نفسه مش موجود هنا ولا في أي كود بيوصل للمتصفح، السيرفر هو
+// اللي بيحتفظ بيه ويكلّم يوتيوب بالنيابة عننا (شوف backend/src/routes/youtube.ts).
+export interface YoutubeSearchResult {
+  videoId: string;
+  title: string;
+  channel: string;
+  thumbnail: string;
+}
+
+export async function searchYoutube(query: string): Promise<YoutubeSearchResult[]> {
+  const res = await fetch(`${API_URL}/api/youtube/search?q=${encodeURIComponent(query)}`, {
+    headers: authHeaders(),
+  });
+  const data = await handle(res);
+  return data.items || [];
+}
+
 export async function getLists() {
   const res = await fetch(`${API_URL}/api/lists`, { headers: authHeaders() });
   return handle(res);

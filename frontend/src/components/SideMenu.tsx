@@ -22,6 +22,7 @@ interface Props {
   onOpenArchive: () => void;
   onOpenLifeAreas: () => void;
   onOpenRecurring: () => void;
+  onOpenPlayer: () => void;
   onToggleMute: () => void;
   onTogglePush: () => void;
   onRequestLogout: () => void;
@@ -49,6 +50,7 @@ export default function SideMenu({
   onOpenArchive,
   onOpenLifeAreas,
   onOpenRecurring,
+  onOpenPlayer,
   onToggleMute,
   onTogglePush,
   onRequestLogout,
@@ -179,6 +181,17 @@ export default function SideMenu({
           >
             <DynamicIcon name="repeat" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">المهام المتكررة</span>
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+          </button>
+
+          <button
+            className={`side-menu-item ${currentView === 'player' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenPlayer)}
+            aria-current={currentView === 'player' ? 'page' : undefined}
+          >
+            <DynamicIcon name="music" size={18} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">مشغّل الصوت</span>
             <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
           </button>
 

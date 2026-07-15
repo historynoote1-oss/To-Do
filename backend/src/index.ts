@@ -21,6 +21,7 @@ import pushRoutes from './routes/push';
 import streakRoutes from './routes/streak';
 import notificationsRoutes from './routes/notifications';
 import recurringTasksRoutes from './routes/recurringTasks';
+import youtubeRoutes from './routes/youtube';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
@@ -125,6 +126,17 @@ const twoFactorLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// حد معقول لعمليات بحث يوتيوب لكل جهاز: البحث بيستهلك من الحصة اليومية
+// المحدودة لمفتاح YouTube Data API (نفس المفتاح مشترك بين كل مستخدمي
+// الموقع)، فالحد ده بيمنع جهاز واحد من استهلاك الحصة كلها لوحده.
+const youtubeLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 30,
+  message: { error: 'عدد كبير من عمليات البحث في وقت قصير، حاول تاني بعد شوية' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 app.use('/api/site', siteStatusLimiter, siteRoutes);
@@ -133,6 +145,7 @@ app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRout
 app.use('/api/archive', verifyUser, rehabilitationGate, maintenanceGate, archiveRoutes);
 app.use('/api/life-areas', verifyUser, rehabilitationGate, maintenanceGate, lifeAreasRoutes);
 app.use('/api/recurring-tasks', verifyUser, rehabilitationGate, maintenanceGate, recurringTasksRoutes);
+app.use('/api/youtube', verifyUser, rehabilitationGate, maintenanceGate, youtubeLimiter, youtubeRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, remindersRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, pushRoutes);
 app.use('/api/streak', verifyUser, rehabilitationGate, maintenanceGate, streakRoutes);
