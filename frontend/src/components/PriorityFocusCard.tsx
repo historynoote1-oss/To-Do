@@ -87,7 +87,7 @@ export default function PriorityFocusCard({ lists, onSelectPriority }: Props) {
       <div className="stat-block-head">
         <span
           className="stat-block-icon"
-          style={{ color: urgentCount > 0 ? '#c13327' : 'var(--text-muted)', background: urgentCount > 0 ? 'rgba(193,51,39,0.12)' : 'var(--surface-2)' }}
+          style={{ color: urgentCount > 0 ? 'var(--danger)' : 'var(--text-muted)', background: urgentCount > 0 ? 'var(--danger-dim)' : 'var(--surface-2)' }}
         >
           <DynamicIcon name="flame" size={16} />
         </span>

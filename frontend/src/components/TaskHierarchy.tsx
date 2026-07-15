@@ -3,12 +3,21 @@
 // عشان يبقى نفس الإحساس البصري في كل التطبيق: هيدر قابل للطي بسهم بيتلف،
 // عداد لكل قسم، وأزرار "فتح الكل / قفل الكل" في الأعلى.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HierarchicalLifeAreaGroup, NO_LIFE_AREA_GROUP } from '../lib/organize';
 import { DynamicIcon } from '../lib/icons';
 import { sounds } from '../lib/sounds';
 import TodoList from './TodoList';
 import { LifeAreaData } from '../lib/lifeArea';
+
+// بيشيل مفتاح من Set ويرجع نفس الـ Set (من غير نسخة جديدة) لو المفتاح مش
+// موجود أصلًا — عشان مانعملش re-render وتشغيل useEffect من غير داعي.
+function withoutKey(set: Set<string>, key: string): Set<string> {
+  if (!set.has(key)) return set;
+  const next = new Set(set);
+  next.delete(key);
+  return next;
+}
 
 export default function TaskHierarchy({
   groups,
@@ -29,6 +38,47 @@ export default function TaskHierarchy({
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [collapsedYears, setCollapsedYears] = useState<Set<string>>(new Set());
   const [collapsedPriorities, setCollapsedPriorities] = useState<Set<string>>(new Set());
+
+  // لو مهمة اتحددت كـ"مضيئة" (Highlighted) من بطاقات الإحصائيات فوق، لازم
+  // نتأكد إن كل الأقسام اللي هي جواها (مجال الحياة/التصنيف/السنة/الأولوية)
+  // مفتوحة فعلًا — قبل كده كان ممكن الضغط على "روح لأول مهمة متأخرة" مثلًا
+  // ميعملش أي حاجة ظاهرة لو المهمة دي جوه قسم مطوي، لأن العنصر مايكونش
+  // موجود في الـ DOM أصلًا (بنعرضه بشرط `{!collapsed && (...)}` مش بس بنخفيه
+  // بالـ CSS)، فـ scrollIntoView كان بيلاقي العنصر مش موجود ومايعملش حاجة.
+  useEffect(() => {
+    if (!highlightedListId) return;
+    for (const area of groups) {
+      for (const cat of area.categoryGroups) {
+        const catKey = `${area.id}-${cat.key}`;
+        const yearGroups = cat.yearGroups && cat.yearGroups.length > 0 ? cat.yearGroups : null;
+        const priorityBuckets = yearGroups
+          ? yearGroups.map((yr) => ({ yearKey: `${catKey}-${yr.key}`, priorityGroups: yr.priorityGroups }))
+          : [{ yearKey: null as string | null, priorityGroups: cat.priorityGroups }];
+
+        for (const bucket of priorityBuckets) {
+          for (const pr of bucket.priorityGroups) {
+            if (!pr.lists.some((l: any) => l.id === highlightedListId)) continue;
+            setCollapsedAreas((prev) => withoutKey(prev, area.id));
+            setCollapsedCategories((prev) => withoutKey(prev, catKey));
+            if (bucket.yearKey) setCollapsedYears((prev) => withoutKey(prev, bucket.yearKey!));
+            setCollapsedPriorities((prev) => withoutKey(prev, `${bucket.yearKey ?? catKey}-${pr.key}`));
+            return;
+          }
+        }
+      }
+    }
+  }, [highlightedListId, groups]);
+
+  // بعد ما القسم يتفتح (لو كان مطوي)، لازم نستنى الـ DOM يترسم فعليًا قبل
+  // ما نعمل scroll — ده بيتكرر مع أي تغيير في حالة الطي عشان نضمن إن
+  // scrollIntoView بيشتغل على العنصر بعد ما يبقى موجود، مش قبلها.
+  useEffect(() => {
+    if (!highlightedListId) return;
+    const raf = requestAnimationFrame(() => {
+      document.getElementById(`list-${highlightedListId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [highlightedListId, collapsedAreas, collapsedCategories, collapsedYears, collapsedPriorities]);
 
   function toggleArea(id: string) {
     sounds.click();

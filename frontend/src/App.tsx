@@ -679,6 +679,12 @@ export default function App() {
 
   // اختصار من بطاقات الإحصائيات: بيوديك لأول مهمة رئيسية غير مكتملة من
   // نفس التصنيف ويضيء حواليها لثانيتين، بدل ما يخفي باقي المهام بفلتر.
+  // اختصار من بطاقات الإحصائيات: بيوديك لأول مهمة رئيسية غير مكتملة من
+  // نفس التصنيف ويضيء حواليها لثانيتين، بدل ما يخفي باقي المهام بفلتر.
+  // ملاحظة: التمرير (scroll) وفتح أي قسم مطوي بيحصل جوه TaskHierarchy نفسها
+  // (شوف useEffect بتاعت highlightedListId هناك) — لأنها الوحيدة العارفة
+  // مين الأقسام المطوية دلوقتي، فمينفعش نعمل getElementById هنا لأن العنصر
+  // ممكن يكون مش موجود في الـ DOM أصلًا لو القسم بتاعه مطوي.
   function jumpToCategory(key: CategoryKey) {
     const target = lists.find((l) => l.category === key && !isListDone(l as any));
     if (!target) {
@@ -688,7 +694,6 @@ export default function App() {
     }
     sounds.click();
     setHighlightedListId(target.id);
-    document.getElementById(`list-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
     highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
   }
@@ -702,7 +707,6 @@ export default function App() {
     }
     sounds.click();
     setHighlightedListId(target.id);
-    document.getElementById(`list-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
     highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
   }
@@ -716,7 +720,6 @@ export default function App() {
     }
     sounds.click();
     setHighlightedListId(target.id);
-    document.getElementById(`list-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
     highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
   }
@@ -970,7 +973,7 @@ export default function App() {
                   مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
                 </span>
                 <span className="header-streak" title="أيام الإنجاز المتتالية">
-                  <span className="header-streak-icon" aria-hidden="true">🔥</span>
+                  <DynamicIcon name="flame" size={12} className="header-streak-icon" />
                   <span className="header-streak-count">{streak}</span>
                 </span>
               </span>

@@ -38,7 +38,7 @@ export default function OverdueTasksCard({ lists, onJumpToOverdue }: Props) {
           className="stat-block-icon"
           style={{
             color: hasOverdue ? 'var(--danger)' : 'var(--text-muted)',
-            background: hasOverdue ? 'rgba(193,51,39,0.12)' : 'var(--surface-2)',
+            background: hasOverdue ? 'var(--danger-dim)' : 'var(--surface-2)',
           }}
         >
           <DynamicIcon name="timer" size={16} />

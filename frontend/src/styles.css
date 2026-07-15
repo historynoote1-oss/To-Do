@@ -34,6 +34,8 @@
   --timeline-warn-dim: rgba(217, 154, 43, 0.14);
   --pending-restore: #c98a1a;
   --pending-restore-dim: rgba(201, 138, 26, 0.13);
+  --streak: #e08a1f;
+  --streak-dim: rgba(224, 138, 31, 0.14);
   --text: #26271f;
   --text-muted: #63604f;
   --text-faint: #938d77;
@@ -113,6 +115,8 @@
   --timeline-warn-dim: rgba(232, 180, 81, 0.16);
   --pending-restore: #e8b451;
   --pending-restore-dim: rgba(232, 180, 81, 0.16);
+  --streak: #f0a94a;
+  --streak-dim: rgba(240, 169, 74, 0.18);
   --text: #edf1f0;
   --text-muted: #a4b0b0;
   --text-faint: #6d7878;
@@ -647,18 +651,6 @@ button:disabled {
   align-items: center;
   gap: 10px;
   width: 100%;
-}
-
-/* صف تاني منفصل لأزرار الإجراءات (صوت/لوحة تحكم/خروج)، بيلف لوحده لو
-   الشاشة ضاقت من غير ما يأثر على مكان شريحة البروفايل فوق. */
-.user-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 14px;
-  color: var(--text-muted);
 }
 
 /* ===== هيدر الصفحة الرئيسية: شبكة 3 أعمدة =====
@@ -1342,6 +1334,22 @@ button:disabled {
   box-shadow: none;
   padding: 2px;
   font-family: var(--font-body);
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+
+.header-user:hover {
+  background: var(--accent-dim);
+  filter: none;
+  box-shadow: none;
+  transform: none;
+  opacity: 1;
+}
+
+.header-user:active {
+  transform: scale(0.97);
 }
 
 .header-user-avatar {
@@ -1426,10 +1434,9 @@ button:disabled {
   font-weight: 700;
 }
 
-/* عنصر الاستريك (Placeholder فقط، بدون منطق) — شارة صغيرة مضغوطة تحت
-   التحية مباشرة: أيقونة نار + رقم بارز، بتصميم "Badge" هادي متسق مع باقي
-   شارات الموقع، جاهزة لاحقًا لاستقبال بيانات الاستريك الحقيقية من غير ما
-   تحتاج تغيير بصري. */
+/* عنصر الاستريك — شارة صغيرة مضغوطة تحت التحية مباشرة: أيقونة نار + رقم
+   بارز، بتصميم "Badge" هادي متسق مع باقي شارات الموقع. متصلة ببيانات
+   الاستريك الحقيقية من /api/streak. */
 .header-streak {
   display: inline-flex;
   align-items: center;
@@ -1442,9 +1449,8 @@ button:disabled {
 }
 
 .header-streak-icon {
-  font-size: 11px;
-  line-height: 1;
-  filter: saturate(1.15);
+  flex-shrink: 0;
+  color: var(--streak);
 }
 
 .header-streak-count {
@@ -1527,7 +1533,7 @@ button:disabled {
 }
 
 .streak-block-value {
-  color: #e08a1f;
+  color: var(--streak);
 }
 
 .stat-block-label {
@@ -4315,29 +4321,6 @@ li input[type='checkbox'] {
 /* ===== الملف الشخصي (Profile) ===== */
 .profile-page {
   max-width: 640px;
-}
-
-.header-user {
-  cursor: pointer;
-  border-radius: var(--radius);
-  transition: background var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-spring);
-}
-
-.header-user::after {
-  content: none;
-}
-
-.header-user:hover {
-  background: var(--accent-dim);
-  filter: none;
-  box-shadow: none;
-  transform: none;
-  opacity: 1;
-}
-
-.header-user:active {
-  transform: scale(0.97);
 }
 
 .profile-hero {

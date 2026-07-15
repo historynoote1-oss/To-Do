@@ -37,8 +37,8 @@ export default function StreakCard() {
         <span
           className="stat-block-icon streak-block-icon"
           style={{
-            color: hasStreak ? '#e08a1f' : 'var(--text-muted)',
-            background: hasStreak ? 'rgba(224, 138, 31, 0.14)' : 'var(--surface-2)',
+            color: hasStreak ? 'var(--streak)' : 'var(--text-muted)',
+            background: hasStreak ? 'var(--streak-dim)' : 'var(--surface-2)',
           }}
         >
           <DynamicIcon name="flame" size={16} />
