@@ -814,6 +814,7 @@ export default function App() {
         onClose={() => setMenuOpen(false)}
         isAdmin={isAdmin}
         currentView={view}
+        archiveCount={archiveCount}
         muted={muted}
         pushState={pushState}
         canUndo={canUndo}
@@ -824,6 +825,7 @@ export default function App() {
         onUndo={() => undo()}
         onRedo={() => redo()}
         onOpenDashboard={openDashboard}
+        onOpenArchive={() => setView('archive')}
         onOpenLifeAreas={() => setView('lifeAreas')}
         onOpenRecurring={() => setView('recurring')}
         onToggleMute={handleToggleMute}

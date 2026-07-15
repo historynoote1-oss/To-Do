@@ -8,6 +8,7 @@ interface Props {
   onClose: () => void;
   isAdmin: boolean;
   currentView?: string;
+  archiveCount: number;
   muted: boolean;
   pushState: PushSupportState;
   canUndo: boolean;
@@ -18,6 +19,7 @@ interface Props {
   onUndo: () => void;
   onRedo: () => void;
   onOpenDashboard: () => void;
+  onOpenArchive: () => void;
   onOpenLifeAreas: () => void;
   onOpenRecurring: () => void;
   onToggleMute: () => void;
@@ -33,6 +35,7 @@ export default function SideMenu({
   onClose,
   isAdmin,
   currentView,
+  archiveCount,
   muted,
   pushState,
   canUndo,
@@ -43,6 +46,7 @@ export default function SideMenu({
   onUndo,
   onRedo,
   onOpenDashboard,
+  onOpenArchive,
   onOpenLifeAreas,
   onOpenRecurring,
   onToggleMute,
@@ -143,6 +147,18 @@ export default function SideMenu({
               <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
             </button>
           )}
+
+          <button
+            className={`side-menu-item ${currentView === 'archive' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenArchive)}
+            aria-current={currentView === 'archive' ? 'page' : undefined}
+          >
+            <DynamicIcon name="archive" size={18} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">الأرشيف</span>
+            {archiveCount > 0 && <span className="side-menu-item-badge">{archiveCount}</span>}
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+          </button>
 
           <button
             className={`side-menu-item ${currentView === 'lifeAreas' ? 'active' : ''}`}
