@@ -53,7 +53,6 @@ import {
   GraduationCap,
   Hand,
   HandHeart,
-  Heart,
   History,
   Home,
   Hourglass,
@@ -122,8 +121,53 @@ import {
   Wrench,
   X,
   Zap,
-  type LucideIcon,
 } from 'lucide-react';
+
+// أيقونة القلب (زرار "إضافة للمفضّلة") متعمولة كـ SVG مكتوب يدويًا هنا، مش
+// مستوردة من مكتبة lucide-react زي باقي الأيقونات. السبب: لو حصلت أي مشكلة
+// في تحميل/تجميع (bundling) مكتبة الأيقونات على السيرفر اللي الموقع منشور
+// عليه، الأيقونة دي هتفضل شغّالة لأنها مش معتمدة عليها خالص — نفس الشكل
+// (Heart) بالظبط لكن SVG مستقل تمامًا. لو حصلت نفس المشكلة مع أيقونة تانية
+// في المستقبل، ممكن نستخدم نفس الأسلوب ده معاها.
+function HeartIcon({
+  size = 18,
+  strokeWidth = 2,
+  className,
+  ...rest
+}: {
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+  'aria-hidden'?: boolean;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      {...rest}
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
+    </svg>
+  );
+}
+
+// نوع بسيط بيوصف "أي مكوّن أيقونة قابل للاستخدام هنا" — بيقبل مكوّنات
+// lucide-react العادية وكمان مكوّنات SVG مكتوبة يدويًا زي HeartIcon فوق،
+// من غير ما نتقيّد بالشكل الداخلي الكامل لمكوّنات lucide (اللي ممكن يمنع
+// إضافة مكوّن بديل بسيط بنفس الخصائص).
+type IconComponent = (props: {
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+  'aria-hidden'?: boolean;
+}) => JSX.Element | null;
 
 export const ICON_MAP = {
   activity: Activity,
@@ -176,7 +220,7 @@ export const ICON_MAP = {
   'graduation-cap': GraduationCap,
   hand: Hand,
   'hand-heart': HandHeart,
-  heart: Heart,
+  heart: HeartIcon,
   history: History,
   home: Home,
   hourglass: Hourglass,
@@ -244,7 +288,7 @@ export const ICON_MAP = {
   wrench: Wrench,
   x: X,
   zap: Zap,
-} satisfies Record<string, LucideIcon>;
+} satisfies Record<string, IconComponent>;
 
 export type IconKey = keyof typeof ICON_MAP;
 
