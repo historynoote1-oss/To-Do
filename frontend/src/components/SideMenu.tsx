@@ -190,8 +190,8 @@ export default function SideMenu({
             onClick={() => go(onOpenPlayer)}
             aria-current={currentView === 'player' ? 'page' : undefined}
           >
-            <DynamicIcon name="music" size={18} className="side-menu-item-icon" />
-            <span className="side-menu-item-label">مشغّل الصوت</span>
+            <DynamicIcon name="book-open" size={18} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">مشغّل القرآن</span>
             <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
           </button>
 

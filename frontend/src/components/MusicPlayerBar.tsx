@@ -15,26 +15,26 @@ function formatTime(seconds: number): string {
 // سبوتيفاي). بيقرا حالته من MusicPlayerProvider العام، فبيفضل متزامن مع
 // المشغّل الحقيقي مهما اتنقّل المستخدم بين الصفحات.
 export default function MusicPlayerBar({ onOpenPlayer, isOnPlayerPage }: { onOpenPlayer: () => void; isOnPlayerPage: boolean }) {
-  const { currentTrack, playing, looping, currentTime, duration, togglePlayPause, toggleLoop, seekToRatio } = useMusicPlayer();
+  const { currentTrack, playing, looping, currentTime, duration, togglePlayPause, toggleLoop, seekToRatio, skip } = useMusicPlayer();
 
   if (!currentTrack) return null;
 
   const ratio = duration > 0 ? currentTime / duration : 0;
 
   return (
-    <div className={`music-player-bar ${isOnPlayerPage ? 'on-player-page' : ''}`} role="region" aria-label="مشغّل الصوت">
+    <div className={`music-player-bar ${isOnPlayerPage ? 'on-player-page' : ''}`} role="region" aria-label="مشغّل القرآن">
       <button
         type="button"
         className="music-player-bar-track"
         onClick={onOpenPlayer}
         disabled={isOnPlayerPage}
-        aria-label={`فتح مشغّل الصوت — ${currentTrack.title}`}
+        aria-label={`فتح مشغّل القرآن — ${currentTrack.title}`}
       >
         {currentTrack.thumbnail ? (
           <img src={currentTrack.thumbnail} alt="" className="music-player-bar-thumb" />
         ) : (
           <span className="music-player-bar-thumb music-player-bar-thumb-fallback" aria-hidden="true">
-            <DynamicIcon name="music" size={16} />
+            <DynamicIcon name="book-open" size={16} />
           </span>
         )}
         <span className="music-player-bar-info">
@@ -62,10 +62,19 @@ export default function MusicPlayerBar({ onOpenPlayer, isOnPlayerPage }: { onOpe
           className={`icon-btn small ${looping ? 'active' : ''}`}
           onClick={toggleLoop}
           aria-pressed={looping}
-          aria-label="تكرار المقطع"
-          title="تكرار المقطع"
+          aria-label="تكرار التلاوة"
+          title="تكرار التلاوة"
         >
           <DynamicIcon name="repeat" size={14} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn small music-player-bar-skip"
+          onClick={() => skip(-10)}
+          aria-label="ترجيع 10 ثواني"
+          title="ترجيع 10 ثواني"
+        >
+          <DynamicIcon name="rotate-ccw" size={14} />
         </button>
         <button
           type="button"
@@ -75,6 +84,15 @@ export default function MusicPlayerBar({ onOpenPlayer, isOnPlayerPage }: { onOpe
           title={playing ? 'إيقاف مؤقت' : 'تشغيل'}
         >
           <DynamicIcon name={playing ? 'pause' : 'play'} size={16} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn small music-player-bar-skip"
+          onClick={() => skip(10)}
+          aria-label="تقديم 10 ثواني"
+          title="تقديم 10 ثواني"
+        >
+          <DynamicIcon name="rotate-cw" size={14} />
         </button>
       </div>
     </div>

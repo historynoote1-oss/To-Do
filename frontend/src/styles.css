@@ -8327,6 +8327,271 @@ details[open] > summary .hier-caret {
   margin: -6px 0 16px;
 }
 
+/* ===== لوحة التحكم الشاملة (تشغيل/تكرار/صوت/سرعة/مؤقّت نوم) ===== */
+.music-control-panel {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.music-control-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.music-control-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--surface-3);
+}
+
+.music-control-thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-soft);
+  background: var(--gradient-brand-soft);
+}
+
+.music-control-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.music-control-info strong {
+  font-size: 14.5px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.music-control-info span {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.music-control-fav.active,
+.music-result-fav.active {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-dim);
+}
+
+.music-control-seek {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.music-control-seek input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 4px;
+}
+
+.music-control-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.music-control-playpause {
+  width: 52px;
+  height: 52px;
+  background: var(--gradient-brand);
+  color: #fff;
+  border: none;
+}
+
+.music-control-playpause:hover {
+  filter: brightness(1.08);
+}
+
+.music-control-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.music-control-row-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.music-control-row input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 4px;
+}
+
+.music-control-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.music-control-chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.music-control-chip-row-wrap {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+.music-control-chip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.music-chip {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.music-chip:hover {
+  filter: none;
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
+.music-chip.active {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #fff;
+}
+
+.music-chip-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-dim);
+}
+
+/* ===== اقتراحات البحث السريع (قرّاء وسور) ===== */
+.music-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.music-suggestions-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.music-suggestions-label {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+/* ===== مكتبة المفضّلة وآخر استماع ===== */
+.music-library {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.music-library-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.music-library-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.music-library-tab:hover {
+  filter: none;
+  border-color: var(--accent);
+}
+
+.music-library-tab.active {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #fff;
+}
+
+.music-result-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.music-result-card-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  text-align: start;
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+  padding: 4px 6px;
+  font-weight: 400;
+  font-size: inherit;
+}
+
+.music-result-card-main:hover {
+  filter: none;
+}
+
+.music-result-card-main::before,
+.music-result-card-main::after {
+  display: none;
+}
+
+.music-result-fav {
+  flex-shrink: 0;
+}
+
 .music-search-panel {
   margin-bottom: 18px;
 }
@@ -8358,33 +8623,11 @@ details[open] > summary .hier-caret {
   height: 76px;
 }
 
-/* كارت نتيجة بحث — بيستخدم .list-card كأساس (نفس شكل كروت المهام) لكن
-   كزرار كامل قابل للضغط بدل div، عشان يبقى قابل للتشغيل بلوحة المفاتيح
-   برضو من غير جافاسكريبت إضافي. */
-button.music-result-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  text-align: start;
-  background: var(--glass-bg);
-  color: var(--text);
-  box-shadow: none;
-  padding: 12px 14px;
-  font-weight: 400;
-  font-size: inherit;
-}
-
-button.music-result-card:hover {
-  filter: none;
-}
-
-button.music-result-card::before,
-button.music-result-card::after {
-  display: none;
-}
-
-button.music-result-card.active {
+/* كارت نتيجة بحث — بيستخدم .list-card كأساس (نفس شكل كروت المهام). جوّاه
+   زرار تشغيل قابل للضغط بلوحة المفاتيح (.music-result-card-main) وزرار
+   مفضّلة منفصل (.music-result-fav)، عشان الاتنين يبقوا قابلين للتفاعل من
+   غير ما يتداخلوا مع بعض. */
+.music-result-card.active {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-dim);
 }
@@ -8582,6 +8825,16 @@ button.music-result-card.active {
 
 .music-player-bar-playpause:hover {
   filter: brightness(1.08);
+}
+
+.music-player-bar-skip {
+  display: none;
+}
+
+@media (min-width: 400px) {
+  .music-player-bar-skip {
+    display: inline-flex;
+  }
 }
 
 @media (min-width: 640px) {

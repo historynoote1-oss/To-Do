@@ -1,14 +1,50 @@
 import { useState } from 'react';
 import { searchYoutube, YoutubeSearchResult } from '../lib/api';
-import { useMusicPlayer } from '../lib/musicPlayer';
+import { useMusicPlayer, YoutubeTrack } from '../lib/musicPlayer';
 import { DynamicIcon } from '../lib/icons';
 import { toast } from '../lib/toast';
 import BackButton from './BackButton';
 
-// صفحة "مشغّل الصوت": بحث في يوتيوب وتشغيل أي نتيجة كصوت في الخلفية.
-// التشغيل الفعلي بيتم عن طريق MusicPlayerProvider العام (شوف
-// lib/musicPlayer.tsx) وشريط التحكم الثابت MusicPlayerBar، عشان الصوت
-// يفضل شغّال حتى لو المستخدم سايب الصفحة دي وراح لصفحة تانية في الموقع.
+// صفحة "مشغّل القرآن": بحث عن تلاوات وسور وقرّاء وتشغيلها كصوت في الخلفية،
+// بلوحة تحكم شاملة (تشغيل، تكرار، تقديم/ترجيع، صوت، سرعة، مؤقّت نوم،
+// مفضّلة، وسجل استماع). التشغيل الفعلي بيتم عن طريق MusicPlayerProvider
+// العام (شوف lib/musicPlayer.tsx) وشريط التحكم الثابت MusicPlayerBar، عشان
+// الصوت يفضل شغّال حتى لو المستخدم سايب الصفحة دي وراح لصفحة تانية في الموقع.
+
+// قرّاء مقترحون وسور شائعة — بيسهّلوا البحث السريع من غير ما المستخدم
+// يكتب بنفسه، وبيوجّهوا نتايج اليوتيوب ناحية تلاوات قرآنية بدل أي حاجة تانية.
+const SUGGESTED_RECITERS = [
+  'مشاري العفاسي',
+  'عبد الباسط عبد الصمد',
+  'ماهر المعيقلي',
+  'عبد الرحمن السديس',
+  'ياسر الدوسري',
+  'سعد الغامدي',
+];
+
+const SUGGESTED_SURAHS = ['الفاتحة', 'البقرة', 'يس', 'الكهف', 'الرحمن', 'الملك'];
+
+const SLEEP_TIMER_OPTIONS = [10, 20, 30, 45, 60];
+const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
+
+function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) seconds = 0;
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60)
+    .toString()
+    .padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+// اليوتيوب بيرجّع أي حاجة لو البحث عام، فبنضيف كلمة "قرآن كريم" تلقائيًا
+// لما المستخدم مكتبهاش صراحة، عشان النتايج تفضل تلاوات مش أغاني أو فيديوهات
+// عامة — ده لب طلب المستخدم إن الصفحة تدوّر على صوت قرآن مش أغنية.
+function buildQuranQuery(raw: string): string {
+  const q = raw.trim();
+  if (/قرآن|قران|تلاوة|surah|quran/i.test(q)) return q;
+  return `${q} قرآن كريم`;
+}
+
 export default function MusicPlayer({
   onBack,
   onOpenMenu,
@@ -18,18 +54,45 @@ export default function MusicPlayer({
   onOpenMenu: () => void;
   menuOpen: boolean;
 }) {
-  const { currentTrack, playing, playTrack, playerReady } = useMusicPlayer();
+  const {
+    currentTrack,
+    playing,
+    looping,
+    playerReady,
+    currentTime,
+    duration,
+    volume,
+    muted,
+    playbackRate,
+    favorites,
+    recentlyPlayed,
+    sleepMinutes,
+    sleepRemainingSeconds,
+    playTrack,
+    togglePlayPause,
+    toggleLoop,
+    seekToRatio,
+    skip,
+    setVolume,
+    toggleMute,
+    setPlaybackRate,
+    toggleFavorite,
+    isFavorite,
+    setSleepTimer,
+  } = useMusicPlayer();
+
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<YoutubeSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<'favorites' | 'recent'>('favorites');
 
-  async function handleSearch() {
-    const q = query.trim();
+  async function runSearch(rawQuery: string) {
+    const q = rawQuery.trim();
     if (!q) return;
     setLoading(true);
     try {
-      const items = await searchYoutube(q);
+      const items = await searchYoutube(buildQuranQuery(q));
       setResults(items);
       setSearched(true);
     } catch (err) {
@@ -37,6 +100,15 @@ export default function MusicPlayer({
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSearch() {
+    runSearch(query);
+  }
+
+  function handleQuickSearch(term: string) {
+    setQuery(term);
+    runSearch(term);
   }
 
   function handlePlay(item: YoutubeSearchResult) {
@@ -47,12 +119,23 @@ export default function MusicPlayer({
     playTrack({ videoId: item.videoId, title: item.title, channel: item.channel, thumbnail: item.thumbnail });
   }
 
+  function handlePlayTrack(track: YoutubeTrack) {
+    if (!playerReady) {
+      toast.info('المشغّل لسه بيجهز، ثانية وحاول تاني');
+      return;
+    }
+    playTrack(track);
+  }
+
+  const ratio = duration > 0 ? currentTime / duration : 0;
+  const libraryList = libraryTab === 'favorites' ? favorites : recentlyPlayed;
+
   return (
     <div className="container view-fade profile-page music-page">
       <div className="top-bar">
         <div className="top-bar-main">
           <BackButton onClick={onBack} />
-          <strong>مشغّل الصوت</strong>
+          <strong>مشغّل القرآن</strong>
           <button
             className="icon-btn hamburger-btn"
             onClick={onOpenMenu}
@@ -72,8 +155,150 @@ export default function MusicPlayer({
       </div>
 
       <p className="music-page-intro">
-        دوّر على أي أغنية أو فيديو وسمّعه كصوت، وسيبه شغّال وانت بتتنقّل بين صفحات الموقع.
+        دوّر على أي سورة أو قارئ وسمّعها كصوت في الخلفية، وسيبها شغّالة وانت بتتنقّل بين صفحات الموقع.
       </p>
+
+      {/* ===== لوحة التحكم الشاملة — بتظهر لما فيه مقطع محمّل ===== */}
+      {currentTrack && (
+        <div className="list-card music-control-panel">
+          <div className="music-control-now-playing">
+            {currentTrack.thumbnail ? (
+              <img src={currentTrack.thumbnail} alt="" className="music-control-thumb" />
+            ) : (
+              <span className="music-control-thumb music-control-thumb-fallback" aria-hidden="true">
+                <DynamicIcon name="book-open" size={26} />
+              </span>
+            )}
+            <div className="music-control-info">
+              <strong>{currentTrack.title}</strong>
+              <span>{currentTrack.channel || 'تلاوة قرآنية'}</span>
+            </div>
+            <button
+              type="button"
+              className={`icon-btn small music-control-fav ${isFavorite(currentTrack.videoId) ? 'active' : ''}`}
+              onClick={() => toggleFavorite(currentTrack)}
+              aria-pressed={isFavorite(currentTrack.videoId)}
+              aria-label="إضافة للمفضّلة"
+              title="إضافة للمفضّلة"
+            >
+              <DynamicIcon name="heart" size={15} />
+            </button>
+          </div>
+
+          <div className="music-control-seek">
+            <span className="time-mono">{formatTime(currentTime)}</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.min(100, Math.max(0, ratio * 100))}
+              onChange={(e) => seekToRatio(Number(e.target.value) / 100)}
+              aria-label="موضع التشغيل"
+            />
+            <span className="time-mono">{formatTime(duration)}</span>
+          </div>
+
+          <div className="music-control-transport">
+            <button
+              type="button"
+              className={`icon-btn ${looping ? 'active' : ''}`}
+              onClick={toggleLoop}
+              aria-pressed={looping}
+              aria-label="تكرار التلاوة"
+              title="تكرار التلاوة"
+            >
+              <DynamicIcon name="repeat" size={16} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => skip(-10)}
+              aria-label="ترجيع 10 ثواني"
+              title="ترجيع 10 ثواني"
+            >
+              <DynamicIcon name="rotate-ccw" size={17} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn music-control-playpause"
+              onClick={togglePlayPause}
+              aria-label={playing ? 'إيقاف مؤقت' : 'تشغيل'}
+              title={playing ? 'إيقاف مؤقت' : 'تشغيل'}
+            >
+              <DynamicIcon name={playing ? 'pause' : 'play'} size={22} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => skip(10)}
+              aria-label="تقديم 10 ثواني"
+              title="تقديم 10 ثواني"
+            >
+              <DynamicIcon name="rotate-cw" size={17} />
+            </button>
+            <button
+              type="button"
+              className={`icon-btn ${muted ? 'active' : ''}`}
+              onClick={toggleMute}
+              aria-pressed={muted}
+              aria-label={muted ? 'إلغاء الكتم' : 'كتم الصوت'}
+              title={muted ? 'إلغاء الكتم' : 'كتم الصوت'}
+            >
+              <DynamicIcon name={muted ? 'volume-off' : 'volume-high'} size={16} />
+            </button>
+          </div>
+
+          <div className="music-control-row">
+            <DynamicIcon name={muted ? 'volume-off' : 'volume-high'} size={14} className="music-control-row-icon" />
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={muted ? 0 : volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              aria-label="مستوى الصوت"
+            />
+          </div>
+
+          <div className="music-control-chip-row">
+            <span className="music-control-chip-label">
+              <DynamicIcon name="gauge" size={13} /> السرعة
+            </span>
+            {PLAYBACK_RATES.map((rate) => (
+              <button
+                key={rate}
+                type="button"
+                className={`music-chip ${playbackRate === rate ? 'active' : ''}`}
+                onClick={() => setPlaybackRate(rate)}
+              >
+                {rate}x
+              </button>
+            ))}
+          </div>
+
+          <div className="music-control-chip-row">
+            <span className="music-control-chip-label">
+              <DynamicIcon name="moon-star" size={13} /> مؤقّت نوم
+            </span>
+            {SLEEP_TIMER_OPTIONS.map((mins) => (
+              <button
+                key={mins}
+                type="button"
+                className={`music-chip ${sleepMinutes === mins ? 'active' : ''}`}
+                onClick={() => setSleepTimer(sleepMinutes === mins ? null : mins)}
+              >
+                {mins} د
+              </button>
+            ))}
+            {sleepMinutes != null && (
+              <button type="button" className="music-chip music-chip-cancel" onClick={() => setSleepTimer(null)}>
+                <DynamicIcon name="x" size={12} />
+                {sleepRemainingSeconds != null ? formatTime(sleepRemainingSeconds) : ''}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="list-card music-search-panel">
         <div className="music-search-row">
@@ -84,13 +309,36 @@ export default function MusicPlayer({
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSearch();
             }}
-            placeholder="اكتب اسم الأغنية أو الفيديو..."
-            aria-label="بحث في يوتيوب"
+            placeholder="اكتب اسم السورة أو القارئ..."
+            aria-label="بحث عن تلاوة قرآنية"
           />
           <button type="button" onClick={handleSearch} disabled={loading || !query.trim()}>
             <DynamicIcon name="search" size={16} />
             بحث
           </button>
+        </div>
+
+        <div className="music-suggestions">
+          <div className="music-suggestions-group">
+            <span className="music-suggestions-label">قرّاء مقترحون</span>
+            <div className="music-control-chip-row music-control-chip-row-wrap">
+              {SUGGESTED_RECITERS.map((name) => (
+                <button key={name} type="button" className="music-chip" onClick={() => handleQuickSearch(name)}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="music-suggestions-group">
+            <span className="music-suggestions-label">سور شائعة</span>
+            <div className="music-control-chip-row music-control-chip-row-wrap">
+              {SUGGESTED_SURAHS.map((name) => (
+                <button key={name} type="button" className="music-chip" onClick={() => handleQuickSearch(`سورة ${name}`)}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -100,13 +348,6 @@ export default function MusicPlayer({
           <div className="skeleton skeleton-card music-skeleton-card" />
           <div className="skeleton skeleton-card music-skeleton-card" />
         </div>
-      )}
-
-      {!loading && !searched && (
-        <p className="empty">
-          <DynamicIcon name="music" size={32} className="empty-icon" />
-          اكتب اللي عايز تسمعه وهيظهر هنا
-        </p>
       )}
 
       {!loading && searched && results.length === 0 && (
@@ -121,29 +362,106 @@ export default function MusicPlayer({
           {results.map((item) => {
             const isActive = currentTrack?.videoId === item.videoId;
             return (
-              <button
-                key={item.videoId}
-                type="button"
-                className={`list-card music-result-card ${isActive ? 'active' : ''}`}
-                onClick={() => handlePlay(item)}
-              >
-                {item.thumbnail ? (
-                  <img src={item.thumbnail} alt="" className="music-result-thumb" />
-                ) : (
-                  <span className="music-result-thumb music-result-thumb-fallback" aria-hidden="true">
-                    <DynamicIcon name="music" size={20} />
+              <div key={item.videoId} className={`list-card music-result-card ${isActive ? 'active' : ''}`}>
+                <button type="button" className="music-result-card-main" onClick={() => handlePlay(item)}>
+                  {item.thumbnail ? (
+                    <img src={item.thumbnail} alt="" className="music-result-thumb" />
+                  ) : (
+                    <span className="music-result-thumb music-result-thumb-fallback" aria-hidden="true">
+                      <DynamicIcon name="book-open" size={20} />
+                    </span>
+                  )}
+                  <span className="music-result-info">
+                    <strong>{item.title}</strong>
+                    <span>{item.channel}</span>
                   </span>
-                )}
-                <span className="music-result-info">
-                  <strong>{item.title}</strong>
-                  <span>{item.channel}</span>
-                </span>
-                <span className="music-result-play-badge" aria-hidden="true">
-                  <DynamicIcon name={isActive && playing ? 'pause' : 'play'} size={16} />
-                </span>
-              </button>
+                  <span className="music-result-play-badge" aria-hidden="true">
+                    <DynamicIcon name={isActive && playing ? 'pause' : 'play'} size={16} />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`icon-btn small music-result-fav ${isFavorite(item.videoId) ? 'active' : ''}`}
+                  onClick={() =>
+                    toggleFavorite({ videoId: item.videoId, title: item.title, channel: item.channel, thumbnail: item.thumbnail })
+                  }
+                  aria-pressed={isFavorite(item.videoId)}
+                  aria-label="إضافة للمفضّلة"
+                  title="إضافة للمفضّلة"
+                >
+                  <DynamicIcon name="heart" size={14} />
+                </button>
+              </div>
             );
           })}
+        </div>
+      )}
+
+      {!loading && !searched && (
+        <div className="music-library">
+          <div className="music-library-tabs">
+            <button
+              type="button"
+              className={`music-library-tab ${libraryTab === 'favorites' ? 'active' : ''}`}
+              onClick={() => setLibraryTab('favorites')}
+            >
+              <DynamicIcon name="heart" size={14} />
+              المفضّلة ({favorites.length})
+            </button>
+            <button
+              type="button"
+              className={`music-library-tab ${libraryTab === 'recent' ? 'active' : ''}`}
+              onClick={() => setLibraryTab('recent')}
+            >
+              <DynamicIcon name="history" size={14} />
+              آخر استماع ({recentlyPlayed.length})
+            </button>
+          </div>
+
+          {libraryList.length === 0 ? (
+            <p className="empty">
+              <DynamicIcon name={libraryTab === 'favorites' ? 'heart' : 'list-music'} size={32} className="empty-icon" />
+              {libraryTab === 'favorites' ? 'مفيش تلاوات مفضّلة لسه' : 'مفيش سجل استماع لسه'}
+              <br />
+              ابحث عن سورة أو قارئ وهيظهر هنا
+            </p>
+          ) : (
+            <div className="music-results">
+              {libraryList.map((track) => {
+                const isActive = currentTrack?.videoId === track.videoId;
+                return (
+                  <div key={track.videoId} className={`list-card music-result-card ${isActive ? 'active' : ''}`}>
+                    <button type="button" className="music-result-card-main" onClick={() => handlePlayTrack(track)}>
+                      {track.thumbnail ? (
+                        <img src={track.thumbnail} alt="" className="music-result-thumb" />
+                      ) : (
+                        <span className="music-result-thumb music-result-thumb-fallback" aria-hidden="true">
+                          <DynamicIcon name="book-open" size={20} />
+                        </span>
+                      )}
+                      <span className="music-result-info">
+                        <strong>{track.title}</strong>
+                        <span>{track.channel}</span>
+                      </span>
+                      <span className="music-result-play-badge" aria-hidden="true">
+                        <DynamicIcon name={isActive && playing ? 'pause' : 'play'} size={16} />
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`icon-btn small music-result-fav ${isFavorite(track.videoId) ? 'active' : ''}`}
+                      onClick={() => toggleFavorite(track)}
+                      aria-pressed={isFavorite(track.videoId)}
+                      aria-label="إضافة للمفضّلة"
+                      title="إضافة للمفضّلة"
+                    >
+                      <DynamicIcon name="heart" size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
