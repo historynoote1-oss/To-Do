@@ -37,6 +37,7 @@ import {
   Construction,
   Dumbbell,
   Download,
+  ExternalLink,
   Eye,
   EyeOff,
   Feather,
@@ -93,6 +94,8 @@ import {
   ShieldCheck,
   ShoppingBag,
   Shirt,
+  SkipBack,
+  SkipForward,
   SlidersHorizontal,
   Smile,
   Sparkles,
@@ -157,6 +160,7 @@ export const ICON_MAP = {
   construction: Construction,
   dumbbell: Dumbbell,
   download: Download,
+  'external-link': ExternalLink,
   eye: Eye,
   'eye-off': EyeOff,
   feather: Feather,
@@ -212,6 +216,8 @@ export const ICON_MAP = {
   'shield-check': ShieldCheck,
   'shopping-bag': ShoppingBag,
   shirt: Shirt,
+  'skip-back': SkipBack,
+  'skip-forward': SkipForward,
   sliders: SlidersHorizontal,
   smile: Smile,
   sparkles: Sparkles,
@@ -254,13 +260,23 @@ interface DynamicIconProps {
 // بيرندر أيقونة Lucide لو الاسم متعرّف في ICON_MAP. لو القيمة مش معروفة (مثلاً
 // إيموجي قديم اتخزّن قبل التحديث ده، أو نص حر كتبه المستخدم في مجال حياة)،
 // بيرجع النص الخام زي ما هو من غير ما يكسر حاجة — توافقية مع بيانات قديمة.
+//
+// ملاحظة مهمة: لو الاسم مفقود تمامًا (undefined/null/فاضي) — وده بيحصل كتير
+// لعناصر قديمة اتخزّنت قبل ما ميزة الأيقونات دي تتضاف، أو تصنيفات المستخدم
+// المخصّصة اللي متسجّلش لها أيقونة — كنا قبل كده بنرجّع null، يعني الزرار
+// بيظهر فاضي تمامًا (مربّع بلا أيقونة). عشان كده لو مفيش name ولا fallback
+// اتبعت، بنستخدم أيقونة افتراضية (tag) بدل ما نسيب الزرار فاضي.
+const DEFAULT_ICON_KEY: IconKey = 'tag';
+
 export function DynamicIcon({ name, size = 18, strokeWidth, className, fallback, ...rest }: DynamicIconProps) {
-  const key = (name || fallback) as IconKey | undefined;
-  const Icon = key ? ICON_MAP[key] : undefined;
+  const trimmed = typeof name === 'string' ? name.trim() : name;
+  const key = (trimmed || fallback || DEFAULT_ICON_KEY) as IconKey;
+  const Icon = ICON_MAP[key];
   if (!Icon) {
-    return name ? (
+    // القيمة موجودة لكنها مش معروفة في الخريطة (إيموجي/نص حر) — نعرضها خام.
+    return trimmed ? (
       <span className={className} aria-hidden="true">
-        {name}
+        {trimmed}
       </span>
     ) : null;
   }

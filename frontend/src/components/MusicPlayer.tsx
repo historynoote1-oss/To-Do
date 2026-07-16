@@ -11,19 +11,6 @@ import BackButton from './BackButton';
 // العام (شوف lib/musicPlayer.tsx) وشريط التحكم الثابت MusicPlayerBar، عشان
 // الصوت يفضل شغّال حتى لو المستخدم سايب الصفحة دي وراح لصفحة تانية في الموقع.
 
-// قرّاء مقترحون وسور شائعة — بيسهّلوا البحث السريع من غير ما المستخدم
-// يكتب بنفسه، وبيوجّهوا نتايج اليوتيوب ناحية تلاوات قرآنية بدل أي حاجة تانية.
-const SUGGESTED_RECITERS = [
-  'مشاري العفاسي',
-  'عبد الباسط عبد الصمد',
-  'ماهر المعيقلي',
-  'عبد الرحمن السديس',
-  'ياسر الدوسري',
-  'سعد الغامدي',
-];
-
-const SUGGESTED_SURAHS = ['الفاتحة', 'البقرة', 'يس', 'الكهف', 'الرحمن', 'الملك'];
-
 const SLEEP_TIMER_OPTIONS = [10, 20, 30, 45, 60];
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 
@@ -43,6 +30,17 @@ function buildQuranQuery(raw: string): string {
   const q = raw.trim();
   if (/قرآن|قران|تلاوة|surah|quran/i.test(q)) return q;
   return `${q} قرآن كريم`;
+}
+
+// الصفحة دي مخصّصة لتلاوات القرآن بس، فبنمنع بحث المستخدم لو كلمات البحث
+// نفسها بتدل صراحةً على أغنية/موسيقى (بالعربي أو الإنجليزي) — ده فحص أوّلي
+// في الواجهة عشان يوقف الطلب بدري ويدي رسالة واضحة، والسيرفر (youtube.ts)
+// بيعمل نفس الفحص كمان كخط دفاع تاني مستقل عن الواجهة.
+const MUSIC_BLOCKLIST =
+  /اغني|أغني|اغاني|أغاني|غناء|مهرجان|كليب|ريمكس|موسيقي|موسيقى|مزيكا|دي جي|راب\b|\bsong\b|\bsongs\b|\bmusic\b|\bremix\b|\blyrics?\b|\brap\b/i;
+
+function containsMusicKeywords(raw: string): boolean {
+  return MUSIC_BLOCKLIST.test(raw);
 }
 
 export default function MusicPlayer({
@@ -86,10 +84,18 @@ export default function MusicPlayer({
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [libraryTab, setLibraryTab] = useState<'favorites' | 'recent'>('favorites');
+  // قائمة التشغيل الحالية (آخر قائمة ضغط منها المستخدم على تلاوة) — بتُستخدم
+  // في زرّاري "التالي/السابق" في لوحة التحكم عشان المستخدم يقدر يتنقّل بين
+  // نتايج البحث أو المفضّلة/آخر استماع من غير ما يرجع يدوس على كل تلاوة.
+  const [activeQueue, setActiveQueue] = useState<YoutubeTrack[]>([]);
 
   async function runSearch(rawQuery: string) {
     const q = rawQuery.trim();
     if (!q) return;
+    if (containsMusicKeywords(q)) {
+      toast.error('الصفحة دي مخصّصة لتلاوات القرآن الكريم بس، مش أغاني أو موسيقى');
+      return;
+    }
     setLoading(true);
     try {
       const items = await searchYoutube(buildQuranQuery(q));
@@ -106,29 +112,36 @@ export default function MusicPlayer({
     runSearch(query);
   }
 
-  function handleQuickSearch(term: string) {
-    setQuery(term);
-    runSearch(term);
-  }
-
   function handlePlay(item: YoutubeSearchResult) {
     if (!playerReady) {
       toast.info('المشغّل لسه بيجهز، ثانية وحاول تاني');
       return;
     }
+    setActiveQueue(results.map((r) => ({ videoId: r.videoId, title: r.title, channel: r.channel, thumbnail: r.thumbnail })));
     playTrack({ videoId: item.videoId, title: item.title, channel: item.channel, thumbnail: item.thumbnail });
   }
 
-  function handlePlayTrack(track: YoutubeTrack) {
+  function handlePlayTrack(track: YoutubeTrack, queue: YoutubeTrack[]) {
     if (!playerReady) {
       toast.info('المشغّل لسه بيجهز، ثانية وحاول تاني');
       return;
     }
+    setActiveQueue(queue);
     playTrack(track);
+  }
+
+  function playRelative(offset: 1 | -1) {
+    if (!currentTrack || activeQueue.length < 2) return;
+    const idx = activeQueue.findIndex((t) => t.videoId === currentTrack.videoId);
+    if (idx === -1) return;
+    const nextIdx = (idx + offset + activeQueue.length) % activeQueue.length;
+    handlePlayTrack(activeQueue[nextIdx], activeQueue);
   }
 
   const ratio = duration > 0 ? currentTime / duration : 0;
   const libraryList = libraryTab === 'favorites' ? favorites : recentlyPlayed;
+  const queuePosition =
+    currentTrack && activeQueue.length > 1 ? activeQueue.findIndex((t) => t.videoId === currentTrack.videoId) : -1;
 
   return (
     <div className="container view-fade profile-page music-page">
@@ -171,8 +184,21 @@ export default function MusicPlayer({
             )}
             <div className="music-control-info">
               <strong>{currentTrack.title}</strong>
-              <span>{currentTrack.channel || 'تلاوة قرآنية'}</span>
+              <span>
+                {currentTrack.channel || 'تلاوة قرآنية'}
+                {queuePosition > -1 && ` · ${queuePosition + 1} / ${activeQueue.length}`}
+              </span>
             </div>
+            <a
+              href={`https://www.youtube.com/watch?v=${currentTrack.videoId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="icon-btn small"
+              aria-label="فتح على يوتيوب"
+              title="فتح على يوتيوب"
+            >
+              <DynamicIcon name="external-link" size={14} />
+            </a>
             <button
               type="button"
               className={`icon-btn small music-control-fav ${isFavorite(currentTrack.videoId) ? 'active' : ''}`}
@@ -209,6 +235,17 @@ export default function MusicPlayer({
             >
               <DynamicIcon name="repeat" size={16} />
             </button>
+            {activeQueue.length > 1 && (
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => playRelative(-1)}
+                aria-label="التلاوة السابقة"
+                title="التلاوة السابقة"
+              >
+                <DynamicIcon name="skip-back" size={16} />
+              </button>
+            )}
             <button
               type="button"
               className="icon-btn"
@@ -236,6 +273,17 @@ export default function MusicPlayer({
             >
               <DynamicIcon name="rotate-cw" size={17} />
             </button>
+            {activeQueue.length > 1 && (
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => playRelative(1)}
+                aria-label="التلاوة التالية"
+                title="التلاوة التالية"
+              >
+                <DynamicIcon name="skip-forward" size={16} />
+              </button>
+            )}
             <button
               type="button"
               className={`icon-btn ${muted ? 'active' : ''}`}
@@ -317,29 +365,6 @@ export default function MusicPlayer({
             بحث
           </button>
         </div>
-
-        <div className="music-suggestions">
-          <div className="music-suggestions-group">
-            <span className="music-suggestions-label">قرّاء مقترحون</span>
-            <div className="music-control-chip-row music-control-chip-row-wrap">
-              {SUGGESTED_RECITERS.map((name) => (
-                <button key={name} type="button" className="music-chip" onClick={() => handleQuickSearch(name)}>
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="music-suggestions-group">
-            <span className="music-suggestions-label">سور شائعة</span>
-            <div className="music-control-chip-row music-control-chip-row-wrap">
-              {SUGGESTED_SURAHS.map((name) => (
-                <button key={name} type="button" className="music-chip" onClick={() => handleQuickSearch(`سورة ${name}`)}>
-                  {name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {loading && (
@@ -379,6 +404,16 @@ export default function MusicPlayer({
                     <DynamicIcon name={isActive && playing ? 'pause' : 'play'} size={16} />
                   </span>
                 </button>
+                <a
+                  href={`https://www.youtube.com/watch?v=${item.videoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="icon-btn small"
+                  aria-label="فتح على يوتيوب"
+                  title="فتح على يوتيوب"
+                >
+                  <DynamicIcon name="external-link" size={13} />
+                </a>
                 <button
                   type="button"
                   className={`icon-btn small music-result-fav ${isFavorite(item.videoId) ? 'active' : ''}`}
@@ -431,7 +466,11 @@ export default function MusicPlayer({
                 const isActive = currentTrack?.videoId === track.videoId;
                 return (
                   <div key={track.videoId} className={`list-card music-result-card ${isActive ? 'active' : ''}`}>
-                    <button type="button" className="music-result-card-main" onClick={() => handlePlayTrack(track)}>
+                    <button
+                      type="button"
+                      className="music-result-card-main"
+                      onClick={() => handlePlayTrack(track, libraryList)}
+                    >
                       {track.thumbnail ? (
                         <img src={track.thumbnail} alt="" className="music-result-thumb" />
                       ) : (
@@ -447,6 +486,16 @@ export default function MusicPlayer({
                         <DynamicIcon name={isActive && playing ? 'pause' : 'play'} size={16} />
                       </span>
                     </button>
+                    <a
+                      href={`https://www.youtube.com/watch?v=${track.videoId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="icon-btn small"
+                      aria-label="فتح على يوتيوب"
+                      title="فتح على يوتيوب"
+                    >
+                      <DynamicIcon name="external-link" size={13} />
+                    </a>
                     <button
                       type="button"
                       className={`icon-btn small music-result-fav ${isFavorite(track.videoId) ? 'active' : ''}`}

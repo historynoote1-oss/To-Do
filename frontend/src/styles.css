@@ -8405,7 +8405,9 @@ details[open] > summary .hier-caret {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 
 .music-control-playpause {
@@ -8496,26 +8498,6 @@ details[open] > summary .hier-caret {
   color: var(--danger);
   border-color: var(--danger);
   background: var(--danger-dim);
-}
-
-/* ===== اقتراحات البحث السريع (قرّاء وسور) ===== */
-.music-suggestions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.music-suggestions-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.music-suggestions-label {
-  font-size: 12px;
-  color: var(--text-faint);
-  font-weight: 600;
 }
 
 /* ===== مكتبة المفضّلة وآخر استماع ===== */

@@ -10,6 +10,22 @@ const router = Router();
 // فالمفتاح مش موجود خالص في أي كود بيوصل لمتصفح المستخدم.
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
+// الصفحة اللي بتستخدم المسار ده هي "مشغّل القرآن" بس — مفروض متتحوّلش لمحرّك
+// بحث عام عن أغاني أو موسيقى. الفحص ده بيتم هنا في السيرفر (مش بس في
+// الواجهة) عشان يبقى الضمان الحقيقي، لأن أي حد يقدر يكلّم الـ API مباشرة
+// من غير ما يمرّ بالواجهة أصلًا.
+const MUSIC_BLOCKLIST =
+  /اغني|أغني|اغاني|أغاني|غناء|مهرجان|كليب|ريمكس|موسيقي|موسيقى|مزيكا|دي جي|راب\b|\bsong\b|\bsongs\b|\bmusic\b|\bremix\b|\blyrics?\b|\brap\b/i;
+
+// كلمات بتدل على تلاوة قرآنية — لو مفيش ولا واحدة منها في البحث بنضيف
+// "قرآن كريم" تلقائيًا (نفس اللي الواجهة بتعمله)، عشان نتايج يوتيوب تفضل
+// محصورة في التلاوات مش أي حاجة عامة.
+const QURAN_HINT = /قرآن|قران|تلاوة|surah|quran|قارئ|القارئ/i;
+
+function buildSafeQuery(raw: string): string {
+  return QURAN_HINT.test(raw) ? raw : `${raw} قرآن كريم`;
+}
+
 interface YoutubeSearchApiItem {
   id?: { videoId?: string };
   snippet?: {
@@ -33,6 +49,9 @@ router.get('/search', async (req, res) => {
   if (q.length > 100) {
     return res.status(400).json({ error: 'كلمة البحث طويلة جدًا' });
   }
+  if (MUSIC_BLOCKLIST.test(q)) {
+    return res.status(400).json({ error: 'الصفحة دي مخصّصة لتلاوات القرآن الكريم بس، مش أغاني أو موسيقى' });
+  }
 
   if (!YOUTUBE_API_KEY) {
     // الأدمن لسه محطّطش YOUTUBE_API_KEY في إعدادات السيرفر — بنرجّع رسالة
@@ -41,7 +60,8 @@ router.get('/search', async (req, res) => {
   }
 
   try {
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(q)}&key=${YOUTUBE_API_KEY}`;
+    const safeQuery = buildSafeQuery(q);
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(safeQuery)}&key=${YOUTUBE_API_KEY}`;
     const ytRes = await fetch(url, { signal: AbortSignal.timeout(8000) });
     const data = await ytRes.json();
 
@@ -59,7 +79,10 @@ router.get('/search', async (req, res) => {
         title: item.snippet?.title || 'بدون عنوان',
         channel: item.snippet?.channelTitle || '',
         thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || '',
-      }));
+      }))
+      // فلترة إضافية: حتى لو يوتيوب رجّع نتيجة عنوانها أو اسم قناتها بيدل على
+      // أغنية/موسيقى (بيحصل أحيانًا مع بحث عام)، بنستبعدها من الرد النهائي.
+      .filter((item) => !MUSIC_BLOCKLIST.test(item.title) && !MUSIC_BLOCKLIST.test(item.channel));
 
     res.json({ items });
   } catch (err) {
