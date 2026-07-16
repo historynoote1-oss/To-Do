@@ -8389,6 +8389,14 @@ details[open] > summary .hier-caret {
   background: var(--danger-dim);
 }
 
+/* لما التلاوة تتضاف للمفضّلة، بنملى شكل القلب (مش بس نلوّنه) عشان يبقى
+   واضح بصريًا إنه "متفعّل" من غير ما يعتمد على تغيير اللون بس، وده كمان
+   بيحل مشكلة إن القلب الفاضي (outline) يبان وكأنه زرار من غير أيقونة. */
+.music-control-fav.active svg,
+.music-result-fav.active svg {
+  fill: currentColor;
+}
+
 .music-control-seek {
   display: flex;
   align-items: center;

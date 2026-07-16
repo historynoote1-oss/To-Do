@@ -189,16 +189,6 @@ export default function MusicPlayer({
                 {queuePosition > -1 && ` · ${queuePosition + 1} / ${activeQueue.length}`}
               </span>
             </div>
-            <a
-              href={`https://www.youtube.com/watch?v=${currentTrack.videoId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="icon-btn small"
-              aria-label="فتح على يوتيوب"
-              title="فتح على يوتيوب"
-            >
-              <DynamicIcon name="external-link" size={14} />
-            </a>
             <button
               type="button"
               className={`icon-btn small music-control-fav ${isFavorite(currentTrack.videoId) ? 'active' : ''}`}
@@ -207,7 +197,7 @@ export default function MusicPlayer({
               aria-label="إضافة للمفضّلة"
               title="إضافة للمفضّلة"
             >
-              <DynamicIcon name="heart" size={15} />
+              <DynamicIcon name="heart" size={16} strokeWidth={2.25} />
             </button>
           </div>
 
@@ -404,16 +394,6 @@ export default function MusicPlayer({
                     <DynamicIcon name={isActive && playing ? 'pause' : 'play'} size={16} />
                   </span>
                 </button>
-                <a
-                  href={`https://www.youtube.com/watch?v=${item.videoId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="icon-btn small"
-                  aria-label="فتح على يوتيوب"
-                  title="فتح على يوتيوب"
-                >
-                  <DynamicIcon name="external-link" size={13} />
-                </a>
                 <button
                   type="button"
                   className={`icon-btn small music-result-fav ${isFavorite(item.videoId) ? 'active' : ''}`}
@@ -424,7 +404,7 @@ export default function MusicPlayer({
                   aria-label="إضافة للمفضّلة"
                   title="إضافة للمفضّلة"
                 >
-                  <DynamicIcon name="heart" size={14} />
+                  <DynamicIcon name="heart" size={16} strokeWidth={2.25} />
                 </button>
               </div>
             );
@@ -486,16 +466,6 @@ export default function MusicPlayer({
                         <DynamicIcon name={isActive && playing ? 'pause' : 'play'} size={16} />
                       </span>
                     </button>
-                    <a
-                      href={`https://www.youtube.com/watch?v=${track.videoId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="icon-btn small"
-                      aria-label="فتح على يوتيوب"
-                      title="فتح على يوتيوب"
-                    >
-                      <DynamicIcon name="external-link" size={13} />
-                    </a>
                     <button
                       type="button"
                       className={`icon-btn small music-result-fav ${isFavorite(track.videoId) ? 'active' : ''}`}
@@ -504,7 +474,7 @@ export default function MusicPlayer({
                       aria-label="إضافة للمفضّلة"
                       title="إضافة للمفضّلة"
                     >
-                      <DynamicIcon name="heart" size={14} />
+                      <DynamicIcon name="heart" size={16} strokeWidth={2.25} />
                     </button>
                   </div>
                 );

@@ -553,7 +553,7 @@ export default function LifeAreasManager({
               aria-label="نقل لأعلى"
               title="نقل لأعلى"
             >
-              ▲
+              <DynamicIcon name="chevron-up" size={14} />
             </button>
             <button
               type="button"
@@ -563,7 +563,7 @@ export default function LifeAreasManager({
               aria-label="نقل لأسفل"
               title="نقل لأسفل"
             >
-              ▼
+              <DynamicIcon name="chevron-down" size={14} />
             </button>
           </div>
 
