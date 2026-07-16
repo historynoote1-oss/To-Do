@@ -149,11 +149,22 @@
    can ever force horizontal overflow or get clipped, regardless of which
    component/breakpoint it lives in. */
 img,
-svg,
 video,
 canvas {
   max-width: 100%;
   height: auto;
+}
+
+/* الـ SVG اتشال من القاعدة اللي فوق قصدًا: كل الـ <svg> في الموقع ده
+   أيقونات صغيرة بحجم ثابت (مش صور محتوى كبيرة محتاجة تتجاوب مع الشاشة)،
+   وحجمها بيتحدد صراحةً من الكومبوننت نفسه (width/height بالبكسل). لو
+   طبّقنا `height: auto` عليها زي الصور، ده بيلغي حجمها الفعلي (خواص
+   width/height في وسم svg أولويتها أقل من أي قاعدة CSS)، وده كان بيخلي
+   أيقونات معيّنة (زي المفضّلة، البحث، التكرار) تظهر فاضية في بعض
+   المتصفحات. `max-width: 100%` لسه مفيد كخط دفاع أخير ضد overflow. */
+svg {
+  max-width: 100%;
+  flex-shrink: 0;
 }
 
 input,

@@ -3,6 +3,7 @@
 // بقى يخزّن *مفتاح نصي* بدل الرمز، وده بيرندره عن طريق DynamicIcon.
 // كده الشكل موحّد، قابل للتحجيم بالـ CSS، ومتوافق مع أي ثيم (فاتح/غامق).
 
+import type { CSSProperties } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -133,11 +134,13 @@ function HeartIcon({
   size = 18,
   strokeWidth = 2,
   className,
+  style,
   ...rest
 }: {
   size?: number;
   strokeWidth?: number;
   className?: string;
+  style?: CSSProperties;
   'aria-hidden'?: boolean;
 }) {
   return (
@@ -151,6 +154,7 @@ function HeartIcon({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      style={style}
       {...rest}
     >
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
@@ -166,6 +170,7 @@ type IconComponent = (props: {
   size?: number;
   strokeWidth?: number;
   className?: string;
+  style?: CSSProperties;
   'aria-hidden'?: boolean;
 }) => JSX.Element | null;
 
@@ -312,6 +317,17 @@ interface DynamicIconProps {
 // اتبعت، بنستخدم أيقونة افتراضية (tag) بدل ما نسيب الزرار فاضي.
 const DEFAULT_ICON_KEY: IconKey = 'tag';
 
+// ملاحظة عن الحجم: بنبعت الحجم كـ inline style (width/height بالبكسل) مش
+// بس كـ خاصية SVG عادية. السبب: خاصية width/height في وسم <svg> بتتحول من
+// المتصفح لـ "presentational hint" له أولوية أقل من أي قاعدة CSS في أي
+// stylesheet — حتى لو القاعدة عامة زي `svg { height: auto }`. الموقع فيه
+// قاعدة عامة زي دي (شوف "Responsive safety net" في styles.css) كانت بتلغي
+// حجم الأيقونة الفعلي وتخليه "auto"، وده اللي كان بيخلي أيقونات معيّنة
+// (زي القلب والبحث والتكرار) تظهر فاضية تمامًا في بعض المتصفحات/الـ webview
+// من غير أي شكل جواها. inline style ليها أولوية أعلى من أي قاعدة في أي
+// stylesheet (غير !important)، فبتضمن إن الأيقونة تفضل بحجمها الصح دايمًا
+// أيًا كانت قواعد الـ CSS التانية في الصفحة — ده الحل النهائي/الدائم لمشكلة
+// "الأيقونة الفاضية".
 export function DynamicIcon({ name, size = 18, strokeWidth, className, fallback, ...rest }: DynamicIconProps) {
   const trimmed = typeof name === 'string' ? name.trim() : name;
   const key = (trimmed || fallback || DEFAULT_ICON_KEY) as IconKey;
@@ -324,7 +340,20 @@ export function DynamicIcon({ name, size = 18, strokeWidth, className, fallback,
       </span>
     ) : null;
   }
+  const iconStyle: CSSProperties = {
+    width: size,
+    height: size,
+    minWidth: size,
+    minHeight: size,
+    flexShrink: 0,
+  };
   return (
-    <Icon size={size} strokeWidth={strokeWidth} className={className} aria-hidden={rest['aria-hidden'] !== false} />
+    <Icon
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
+      style={iconStyle}
+      aria-hidden={rest['aria-hidden'] !== false}
+    />
   );
 }
