@@ -221,11 +221,41 @@ function warningThreshold(totalSeconds: number): number {
 // حقيقي فوق أي تطبيق تاني فاتحه، مش بس لما يكون بعيد عن التاب. لسه مشروط
 // بإذن الإشعارات (ensureNotificationPermission تحت بتطلبه أول ما المستخدم
 // يبدأ المؤقّت).
-function notifyBrowser(title: string, body: string) {
+//
+// ملحوظة مهمة: لو فيه Service Worker مسجّل ومتحكم في الصفحة (وده حاصل
+// أصلًا في المشروع ده عشان تذكيرات المهام بتستخدم Web Push — /sw.js)،
+// متصفحات زي أندرويد كروم بترفض تنفيذ `new Notification()` من صفحة فيها
+// SW شغّال وبترمي Exception فورًا. الكود القديم كان بيبلع الخطأ ده بهدوء
+// جوه try/catch، فالنتيجة كانت: التوست الداخلي بيشتغل عادي، لكن إشعار
+// الجهاز الحقيقي مكانش بيظهر خالص من غير أي رسالة خطأ توضّح السبب. الحل
+// إننا نستخدم `registration.showNotification()` (نفس الطريقة اللي
+// بيستخدمها sw.js لتذكيرات المهام) بدل الـ constructor المباشر، ونرجع
+// للـ constructor العادي بس لو مفيش Service Worker متسجّل أصلًا.
+async function notifyBrowser(title: string, body: string) {
   try {
     if (typeof window === 'undefined' || typeof Notification === 'undefined') return;
     if (Notification.permission !== 'granted') return;
-    new Notification(title, { body, icon: '/icon-192.png', tag: 'pomodoro' });
+
+    const options: NotificationOptions = {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'pomodoro',
+      dir: 'rtl',
+      lang: 'ar',
+      // @ts-expect-error: vibrate مش موجودة في تعريف TS القياسي لـ NotificationOptions لكنها مدعومة فعليًا في المتصفحات
+      vibrate: [120, 60, 120],
+    };
+
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+      if (reg) {
+        await reg.showNotification(title, options);
+        return;
+      }
+    }
+
+    new Notification(title, options);
   } catch {
     // إشعارات الجهاز مش أساسية لعمل المؤقّت — أي فشل هنا بنتجاهله بهدوء.
   }
@@ -236,11 +266,19 @@ function notifyBrowser(title: string, body: string) {
 // أصلًا — مش ممكن تتطلب تلقائيًا من غير تفاعل). لو الإذن اتاخد قبل كده
 // (granted) أو اترفض (denied) مش بيعمل حاجة تانية؛ بيسأل بس أول مرة
 // (default) وبهدوء تام لو المتصفح مش بيدعم الإشعارات أصلًا.
+//
+// كمان بنسجّل الـ Service Worker هنا (لو لسه مش متسجّل) بدل ما نستنى
+// لحد ما المستخدم يفعّل تذكيرات المهام — عشان notifyBrowser فوق يلاقي
+// registration جاهز يستخدمه من أول مرة المؤقّت يخلص، مش يضطر يرجع
+// للـ constructor القديم الأقل ثباتًا.
 function ensureNotificationPermission() {
   try {
     if (typeof window === 'undefined' || typeof Notification === 'undefined') return;
     if (Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {});
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
   } catch {
     // نفس منطق التسامح فوق.
