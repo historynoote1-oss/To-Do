@@ -77,6 +77,8 @@ export function AreaGlyph({ area, size = 'md' }: { area: LifeAreaLite | null | u
         className={`life-area-glyph-img ${size}`}
         src={resolveLifeAreaImageUrl(area.imageUrl) ?? undefined}
         alt=""
+        loading="lazy"
+        decoding="async"
       />
     );
   }

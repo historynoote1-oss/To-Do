@@ -380,7 +380,7 @@ export default function MusicPlayer({
               <div key={item.videoId} className={`list-card music-result-card ${isActive ? 'active' : ''}`}>
                 <button type="button" className="music-result-card-main" onClick={() => handlePlay(item)}>
                   {item.thumbnail ? (
-                    <img src={item.thumbnail} alt="" className="music-result-thumb" />
+                    <img src={item.thumbnail} alt="" className="music-result-thumb" loading="lazy" decoding="async" />
                   ) : (
                     <span className="music-result-thumb music-result-thumb-fallback" aria-hidden="true">
                       <DynamicIcon name="book-open" size={20} />
@@ -452,7 +452,7 @@ export default function MusicPlayer({
                       onClick={() => handlePlayTrack(track, libraryList)}
                     >
                       {track.thumbnail ? (
-                        <img src={track.thumbnail} alt="" className="music-result-thumb" />
+                        <img src={track.thumbnail} alt="" className="music-result-thumb" loading="lazy" decoding="async" />
                       ) : (
                         <span className="music-result-thumb music-result-thumb-fallback" aria-hidden="true">
                           <DynamicIcon name="book-open" size={20} />

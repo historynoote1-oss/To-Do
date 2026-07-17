@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import {
   getLists,
   createList,
@@ -27,18 +27,22 @@ import { toast } from './lib/toast';
 import { getPushState, enablePush, disablePush, PushSupportState, PushError } from './lib/push';
 import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
-import AdminDashboard, { AdminTab } from './components/AdminDashboard';
-import Profile from './components/Profile';
+import type { AdminTab } from './components/AdminDashboard';
 import NotificationsBell from './components/NotificationsBell';
-import LifeAreasManager from './components/LifeAreasManager';
-import RecurringTasksManager from './components/RecurringTasksManager';
-import ArchivePage from './components/Archive';
 import MaintenancePage from './components/MaintenancePage';
 import ToastContainer from './components/ToastContainer';
 import SideMenu from './components/SideMenu';
 import ThemeToggleButton from './components/ThemeToggleButton';
 import ConfirmModal from './components/ConfirmModal';
-import AddTaskModal, { NewTaskPayload } from './components/AddTaskModal';
+import type { NewTaskPayload } from './components/AddTaskModal';
+import {
+  ViewName,
+  ArchiveTab,
+  VIEW_PATHS,
+  ADMIN_TAB_PATHS,
+  ARCHIVE_TAB_PATHS,
+  resolveFromPath,
+} from './lib/routes';
 import { CategoryKey } from './lib/category';
 import { PriorityKey } from './lib/priority';
 import { LifeAreaData } from './lib/lifeArea';
@@ -51,79 +55,34 @@ import PriorityFocusCard from './components/PriorityFocusCard';
 import StreakCard from './components/StreakCard';
 import OverdueTasksCard from './components/OverdueTasksCard';
 import PendingRestoreSection from './components/PendingRestoreSection';
-import MusicPlayer from './components/MusicPlayer';
 import MusicPlayerBar from './components/MusicPlayerBar';
-import Pomodoro from './components/Pomodoro';
 import PomodoroBar from './components/PomodoroBar';
 
-type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring' | 'player' | 'pomodoro';
+// الصفحات دي مش بتتفتح كل زيارة (لوحة الأدمن، البروفايل، المهام
+// المتكررة، الأرشيف، مشغّل القرآن، البومودورو) وبعضها تقيل نسبيًا (لوحة
+// الأدمن بالذات بتجر معاها 4 لوحات فرعية). بدل ما يتحمّلوا كلهم مع أول
+// تحميل للموقع (يبطّئ أول ظهور للشاشة الرئيسية)، بنحمّلهم "عند الطلب" فقط
+// أول ما المستخدم يفتح الصفحة المعنية — الملف بتاعها بيتنزّل في الخلفية
+// في نفس لحظة الانتقال، فمفيش فرق محسوس في التجربة لكن حجم أول تحميل
+// للموقع بيقل بشكل كبير.
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const Profile = lazy(() => import('./components/Profile'));
+const LifeAreasManager = lazy(() => import('./components/LifeAreasManager'));
+const RecurringTasksManager = lazy(() => import('./components/RecurringTasksManager'));
+const ArchivePage = lazy(() => import('./components/Archive'));
+const MusicPlayer = lazy(() => import('./components/MusicPlayer'));
+const Pomodoro = lazy(() => import('./components/Pomodoro'));
+const AddTaskModal = lazy(() => import('./components/AddTaskModal'));
 
-// نفس فكرة صفحة الأرشيف بتبويباتها، لكن كصفحتين مستقلتين فعليًا لهم مسار
-// خاص بكل واحدة (بدل تبويب داخلي بس) — عشان تبقى كل واحدة قابلة للمشاركة
-// برابط مباشر ورجوع المتصفح يفرّق بينهم.
-type ArchiveTab = 'completed' | 'overdue';
-
-// خريطة كل شاشة لمسارها في الـ URL — ده اللي بيخلي كل قسم في الموقع يكون
-// ليه رابط فعلي (بدل ما الرابط يفضل ثابت دايمًا على الصفحة الرئيسية)، فيبقى
-// ممكن تشارك رابط مباشر لأي قسم، وزرار رجوع المتصفح يشتغل بشكل طبيعي.
-const VIEW_PATHS: Record<ViewName, string> = {
-  todos: '/',
-  admin: '/admin',
-  profile: '/profile',
-  lifeAreas: '/life-areas',
-  archive: '/archive/completed',
-  recurring: '/recurring',
-  player: '/player',
-  pomodoro: '/pomodoro',
-};
-
-const PATH_VIEWS: Record<string, ViewName> = Object.fromEntries(
-  Object.entries(VIEW_PATHS).map(([viewName, path]) => [path, viewName])
-) as Record<string, ViewName>;
-
-// مسارات صفحتي الأرشيف الفرعيتين (المهام المنجزة / المهام المتأخرة).
-const ARCHIVE_TAB_PATHS: Record<ArchiveTab, string> = {
-  completed: '/archive/completed',
-  overdue: '/archive/overdue',
-};
-
-const ARCHIVE_PATH_TABS: Record<string, ArchiveTab> = Object.fromEntries(
-  Object.entries(ARCHIVE_TAB_PATHS).map(([tab, path]) => [path, tab])
-) as Record<string, ArchiveTab>;
-
-// نفس فكرة VIEW_PATHS بالظبط، لكن لتبويبات لوحة الإدارة الداخلية — كل
-// تبويب (نظرة عامة، تحليلات، مستخدمين...) بقى ليه رابط فرعي تحت /admin
-// بدل ما كل التبويبات تشترك في نفس رابط /admin الثابت.
-const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
-  overview: '/admin',
-  analytics: '/admin/analytics',
-  users: '/admin/users',
-  content: '/admin/content',
-  settings: '/admin/settings',
-  security: '/admin/security',
-};
-
-const ADMIN_PATH_TABS: Record<string, AdminTab> = Object.fromEntries(
-  Object.entries(ADMIN_TAB_PATHS).map(([tabName, path]) => [path, tabName])
-) as Record<string, AdminTab>;
-
-// بيقرأ الرابط الحالي ويرجّع الشاشة الرئيسية + تبويب الإدارة (لو الشاشة
-// إدارة) + صفحة الأرشيف الفرعية (لو الشاشة أرشيف) المطابقين له. مركزي عشان
-// يُستخدم مع التحميل الأول ومع popstate.
-function resolveFromPath(): { view: ViewName; adminTab: AdminTab; archiveTab: ArchiveTab } {
-  const path = window.location.pathname;
-  if (path in ADMIN_PATH_TABS) {
-    return { view: 'admin', adminTab: ADMIN_PATH_TABS[path], archiveTab: 'completed' };
-  }
-  if (path in ARCHIVE_PATH_TABS) {
-    return { view: 'archive', adminTab: 'overview', archiveTab: ARCHIVE_PATH_TABS[path] };
-  }
-  // رابط الأرشيف القديم (من غير تحديد صفحة فرعية) بيتحوّل تلقائيًا لصفحة
-  // المهام المنجزة، عشان أي رابط قديم متحفوظ يفضل شغّال.
-  if (path === '/archive') {
-    return { view: 'archive', adminTab: 'overview', archiveTab: 'completed' };
-  }
-  return { view: PATH_VIEWS[path] ?? 'todos', adminTab: 'overview', archiveTab: 'completed' };
+// شاشة انتظار بسيطة (نفس سبينر شاشة الإقلاع) بتظهر لحظة تحميل صفحة جديدة
+// عند الطلب — عادةً أجزاء من الثانية على أي اتصال عادي.
+function RouteLoading() {
+  return (
+    <div className="app-boot" role="status" aria-live="polite">
+      <span className="app-boot-spinner" />
+      <span className="sr-only">جاري التحميل...</span>
+    </div>
+  );
 }
 
 interface List {
@@ -864,13 +823,15 @@ export default function App() {
       <>
         <ToastContainer />
         <div className="view-fade">
-          <AdminDashboard
-            onBack={() => setView('todos')}
-            tab={adminTab}
-            onTabChange={setAdminTab}
-            onOpenMenu={() => setMenuOpen(true)}
-            menuOpen={menuOpen}
-          />
+          <Suspense fallback={<RouteLoading />}>
+            <AdminDashboard
+              onBack={() => setView('todos')}
+              tab={adminTab}
+              onTabChange={setAdminTab}
+              onOpenMenu={() => setMenuOpen(true)}
+              menuOpen={menuOpen}
+            />
+          </Suspense>
         </div>
         {sideMenuAndModals}
       </>
@@ -881,13 +842,15 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <Profile
-          onBack={() => setView('todos')}
-          onDisplayNameChange={setDisplayName}
-          onAvatarChange={setAvatarUrl}
-          onOpenMenu={() => setMenuOpen(true)}
-          menuOpen={menuOpen}
-        />
+        <Suspense fallback={<RouteLoading />}>
+          <Profile
+            onBack={() => setView('todos')}
+            onDisplayNameChange={setDisplayName}
+            onAvatarChange={setAvatarUrl}
+            onOpenMenu={() => setMenuOpen(true)}
+            menuOpen={menuOpen}
+          />
+        </Suspense>
         {sideMenuAndModals}
       </>
     );
@@ -897,15 +860,17 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <LifeAreasManager
-          onBack={() => setView('todos')}
-          onChange={() => {
-            refreshLifeAreas();
-            refresh();
-          }}
-          onOpenMenu={() => setMenuOpen(true)}
-          menuOpen={menuOpen}
-        />
+        <Suspense fallback={<RouteLoading />}>
+          <LifeAreasManager
+            onBack={() => setView('todos')}
+            onChange={() => {
+              refreshLifeAreas();
+              refresh();
+            }}
+            onOpenMenu={() => setMenuOpen(true)}
+            menuOpen={menuOpen}
+          />
+        </Suspense>
         {sideMenuAndModals}
       </>
     );
@@ -915,19 +880,21 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <ArchivePage
-          onBack={() => setView('todos')}
-          onChange={() => {
-            refresh();
-            refreshPendingRestore();
-          }}
-          onOpenMenu={() => setMenuOpen(true)}
-          menuOpen={menuOpen}
-          lifeAreas={lifeAreas}
-          onManageLifeAreas={() => setView('lifeAreas')}
-          activeTab={archiveTab}
-          onTabChange={setArchiveTab}
-        />
+        <Suspense fallback={<RouteLoading />}>
+          <ArchivePage
+            onBack={() => setView('todos')}
+            onChange={() => {
+              refresh();
+              refreshPendingRestore();
+            }}
+            onOpenMenu={() => setMenuOpen(true)}
+            menuOpen={menuOpen}
+            lifeAreas={lifeAreas}
+            onManageLifeAreas={() => setView('lifeAreas')}
+            activeTab={archiveTab}
+            onTabChange={setArchiveTab}
+          />
+        </Suspense>
         {sideMenuAndModals}
       </>
     );
@@ -937,7 +904,9 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <MusicPlayer onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+        <Suspense fallback={<RouteLoading />}>
+          <MusicPlayer onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+        </Suspense>
         {sideMenuAndModals}
       </>
     );
@@ -947,7 +916,9 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <Pomodoro onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+        <Suspense fallback={<RouteLoading />}>
+          <Pomodoro onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+        </Suspense>
         {sideMenuAndModals}
       </>
     );
@@ -957,15 +928,17 @@ export default function App() {
     return (
       <>
         <ToastContainer />
-        <RecurringTasksManager
-          lifeAreas={lifeAreas}
-          onBack={() => setView('todos')}
-          onChange={refresh}
-          onManageLifeAreas={() => setView('lifeAreas')}
-          onOpenMenu={() => setMenuOpen(true)}
-          menuOpen={menuOpen}
-          onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
-        />
+        <Suspense fallback={<RouteLoading />}>
+          <RecurringTasksManager
+            lifeAreas={lifeAreas}
+            onBack={() => setView('todos')}
+            onChange={refresh}
+            onManageLifeAreas={() => setView('lifeAreas')}
+            onOpenMenu={() => setMenuOpen(true)}
+            menuOpen={menuOpen}
+            onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
+          />
+        </Suspense>
         {sideMenuAndModals}
       </>
     );
@@ -1061,17 +1034,19 @@ export default function App() {
           </button>
         </div>
 
-        <AddTaskModal
-          open={addTaskOpen}
-          lifeAreas={lifeAreas}
-          onClose={() => setAddTaskOpen(false)}
-          onManageLifeAreas={() => {
-            setAddTaskOpen(false);
-            setView('lifeAreas');
-          }}
-          onCreate={handleCreate}
-          onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
-        />
+        <Suspense fallback={null}>
+          <AddTaskModal
+            open={addTaskOpen}
+            lifeAreas={lifeAreas}
+            onClose={() => setAddTaskOpen(false)}
+            onManageLifeAreas={() => {
+              setAddTaskOpen(false);
+              setView('lifeAreas');
+            }}
+            onCreate={handleCreate}
+            onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
+          />
+        </Suspense>
 
         <PendingRestoreSection
           lists={pendingRestoreLists}
