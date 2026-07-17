@@ -69,9 +69,10 @@
   --space-7: 36px;
   --space-8: 48px;
 
-  --radius-sm: 9px;
-  --radius: 14px;
-  --radius-lg: 20px;
+  --radius-sm: 12px;
+  --radius: 18px;
+  --radius-lg: 26px;
+  --radius-xl: 32px;
   --radius-pill: 999px;
 
   /* ---- Motion ---- */
@@ -7938,9 +7939,7 @@ details[open] > summary .hier-caret {
 }
 
 .hier-year-body {
-  padding-inline-start: 10px;
-  border-inline-start: 2px dashed var(--border-soft);
-  margin-inline-start: 4px;
+  margin-top: 2px;
 }
 
 /* ===== تحسينات إضافية على شجرة عرض المهام في الصفحة الرئيسية — كل
@@ -7993,20 +7992,39 @@ details[open] > summary .hier-caret {
    منضيّعش مساحة أفقية ثمينة، والكروت والمحتوى برضه بياخدوا العرض المتاح
    بالكامل (شوف hier-lists-grid فوق). */
 .task-hierarchy .archive-year-body {
-  padding-inline-start: 12px;
-  border-inline-start: 2px dashed var(--border-soft);
-  margin-inline-start: 12px;
   margin-top: 2px;
 }
 
 .task-hierarchy .archive-month-body {
-  padding-inline-start: 10px;
-  border-inline-start: 2px dashed var(--border-soft);
-  margin-inline-start: 9px;
+  margin-top: 2px;
 }
 
 .hier-priority-group:last-child {
   margin-bottom: 0;
+}
+
+@media (max-width: 420px) {
+  .hier-area-summary,
+  .task-hierarchy .archive-year-header {
+    padding: 10px 12px;
+    font-size: 13.5px;
+  }
+
+  .hier-category-summary,
+  .task-hierarchy .archive-month-header {
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
+
+  .hier-priority-header {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .task-hierarchy .hier-icon-chip {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 /* ===== زرار الرجوع الموحّد (Back Button) ===== */
