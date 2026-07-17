@@ -6770,6 +6770,269 @@ body.modal-lock-scroll {
   overflow: hidden;
 }
 
+/* ===== زرار "خريطة الأهداف" في صف الإضافة السريعة بالصفحة الرئيسية =====
+   بيمتد على عرض الصف بالكامل (بدل ما ياخد نص الشبكة زي زرارَي "إضافة
+   مهمة"/"إضافة مهمة متكررة") عشان يبان كوجهة مستقلة مهمة، مش زرار إضافة
+   عادي — نفس فلسفة إبراز الميزة الجديدة من غير ما نكسر شبكة العمودين
+   الأصلية. */
+.quick-add-card-goalmap {
+  grid-column: 1 / -1;
+}
+
+.quick-add-icon-wrap-goalmap {
+  background: var(--gradient-brand);
+}
+
+/* ===== عنصر "خريطة الأهداف" في القائمة الجانبية =====
+   نفس شكل side-menu-item العادي بس بحدّ فاصل خفيف بلون الهوية عشان يلفت
+   الانتباه كوجهة رئيسية جديدة، من غير ما يكسر نمط باقي العناصر. */
+.side-menu-item-highlight {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--gradient-brand-soft);
+}
+
+.side-menu-item-highlight:hover {
+  border-color: var(--accent);
+}
+
+/* ======================================================================
+   خريطة الأهداف (Goal Map) — شاشة التخطيط الهرمي سنة ← شهر ← أسبوع ← يوم
+   ====================================================================== */
+
+.goal-map-year-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 14px;
+}
+
+.goal-map-year-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.goal-map-year-chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.goal-map-year-chip.active {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  color: #f4fbfa;
+  box-shadow: var(--shadow-sm);
+}
+
+.goal-map-year-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  font-size: 11px;
+}
+
+.goal-map-year-chip-add {
+  border-style: dashed;
+  color: var(--accent);
+}
+
+.goal-map-year-add-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--accent);
+  background: var(--surface);
+}
+
+.goal-map-year-add-input {
+  width: 84px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 6px 4px;
+  text-align: center;
+}
+
+.goal-map-year-add-input:focus {
+  outline: none;
+}
+
+.goal-map-year-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
+}
+
+.goal-map-year-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.goal-map-year-header-title {
+  font-size: 22px;
+  font-weight: 800;
+  background: var(--gradient-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.goal-map-year-header-sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.goal-map-add-year-goal-btn {
+  white-space: nowrap;
+}
+
+.goal-map-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 40px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.goal-map-empty p {
+  max-width: 420px;
+  line-height: 1.6;
+}
+
+.goal-map-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 24px;
+}
+
+/* ===== عقدة هدف واحدة في الشجرة =====
+   goal-node-card-row: زرار الطي جنب الكارت نفسه. goal-node-children: كل
+   الأبناء متزحزحين لجهة البداية (padding-inline-start) بخط رأسي واضح
+   بلون العلامة، بنفس فكرة الخط الجانبي في شجرة الأرشيف لكن بتصميم أوضح
+   عشان العمق هنا ممكن يوصل لـ4 مستويات (سنة/شهر/أسبوع/يوم). */
+.goal-node {
+  position: relative;
+}
+
+.goal-node-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.goal-node-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+
+.goal-node-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.goal-node-toggle svg {
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.goal-node-toggle:not(.expanded) svg {
+  transform: rotate(-90deg);
+}
+
+.goal-node-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.goal-node-children {
+  position: relative;
+  margin-top: 12px;
+  padding-inline-start: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* الخط الرأسي اللي بيربط كل الأبناء ببعض وبأبوهم بصريًا. */
+.goal-node-children::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 13px;
+  top: -2px;
+  bottom: 12px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent) 0%, color-mix(in srgb, var(--accent) 25%, transparent) 100%);
+  opacity: 0.55;
+  border-radius: 2px;
+}
+
+.goal-node-empty-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+  padding-inline-start: 42px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+  .goal-node-children {
+    padding-inline-start: 22px;
+  }
+  .goal-node-children::before {
+    inset-inline-start: 9px;
+  }
+  .goal-node-empty-hint {
+    padding-inline-start: 30px;
+  }
+}
+
 /* ----- نافذة إضافة مهمة رئيسية جديدة ----- */
 .add-task-overlay {
   align-items: flex-end;

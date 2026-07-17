@@ -66,6 +66,7 @@ const Profile = lazy(() => import('./components/Profile'));
 const LifeAreasManager = lazy(() => import('./components/LifeAreasManager'));
 const RecurringTasksManager = lazy(() => import('./components/RecurringTasksManager'));
 const ArchivePage = lazy(() => import('./components/Archive'));
+const GoalMap = lazy(() => import('./components/GoalMap'));
 const MusicPlayer = lazy(() => import('./components/MusicPlayer'));
 const Pomodoro = lazy(() => import('./components/Pomodoro'));
 const AddTaskModal = lazy(() => import('./components/AddTaskModal'));
@@ -773,6 +774,7 @@ export default function App() {
         onUndo={() => undo()}
         onRedo={() => redo()}
         onOpenDashboard={openDashboard}
+        onOpenGoalMap={() => setView('goalMap')}
         onOpenArchive={() => setView('archive')}
         onOpenLifeAreas={() => setView('lifeAreas')}
         onOpenRecurring={() => setView('recurring')}
@@ -829,6 +831,29 @@ export default function App() {
             onAvatarChange={setAvatarUrl}
             onOpenMenu={() => setMenuOpen(true)}
             menuOpen={menuOpen}
+          />
+        </Suspense>
+        {sideMenuAndModals}
+      </>
+    );
+  }
+
+  if (view === 'goalMap') {
+    return (
+      <>
+        <ToastContainer />
+        <Suspense fallback={<RouteLoading />}>
+          <GoalMap
+            lists={lists as any}
+            lifeAreas={lifeAreas}
+            onBack={() => setView('todos')}
+            onChange={refresh}
+            onDeleteList={handleDelete}
+            onManageLifeAreas={() => setView('lifeAreas')}
+            onCreateGoal={handleCreate}
+            onOpenMenu={() => setMenuOpen(true)}
+            menuOpen={menuOpen}
+            onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
           />
         </Suspense>
         {sideMenuAndModals}
@@ -1009,6 +1034,13 @@ export default function App() {
                 </span>
               </span>
               <span className="quick-add-label">إضافة مهمة متكررة</span>
+            </button>
+
+            <button className="quick-add-card quick-add-card-goalmap" onClick={() => setView('goalMap')} type="button">
+              <span className="quick-add-icon-wrap quick-add-icon-wrap-goalmap">
+                <DynamicIcon name="route" size={18} />
+              </span>
+              <span className="quick-add-label">خريطة الأهداف</span>
             </button>
           </div>
 

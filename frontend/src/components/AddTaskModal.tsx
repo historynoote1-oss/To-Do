@@ -84,6 +84,13 @@ interface Props {
   // الفرعي المناسب (مثلاً شهري لو presetParentGoal سنوي) ومربوطة بيه
   // تلقائيًا من غير ما المستخدم يمر بخطوة اختيار التصنيف/الهدف الأب يدوي.
   presetParentGoal?: GoalOption | null;
+  // ===== إنشاء هدف سنوي جديد مباشرة من "خريطة الأهداف" =====
+  // لو اتبعتوا (ومفيش presetParentGoal ولا editTarget)، النافذة بتفتح وخطوة
+  // "التصنيف" معمورة مسبقًا بالتصنيف والسنة دول (عادةً YEARLY + السنة اللي
+  // المستخدم واقف عليها في خريطة الأهداف) — المستخدم لسه يقدر يغيّرهم من نفس
+  // الخطوة لو حاب، ده بس تسهيل يبدأ بيه بدل ما يختار من الصفر كل مرة.
+  presetCategory?: CategoryKey | null;
+  presetTargetYear?: number | null;
 }
 
 function toDatetimeLocalValue(d: Date) {
@@ -145,6 +152,8 @@ export default function AddTaskModal({
   editTarget = null,
   onSave,
   presetParentGoal = null,
+  presetCategory = null,
+  presetTargetYear = null,
 }: Props) {
   const isEditing = !!editTarget;
   const [stepIndex, setStepIndex] = useState(0);
@@ -229,8 +238,11 @@ export default function AddTaskModal({
         setPriority('MEDIUM');
         // إضافة هدف فرعي من كارت هدف موجود: بنبدأ بتصنيف "الابن" المناسب
         // ومربوطين بيه تلقائيًا، بدل ما المستخدم يمر بالخطوتين يدوي.
-        setCategory(presetParentGoal ? (CHILD_CATEGORY_OF[(presetParentGoal.category as CategoryKey) || 'YEARLY'] ?? null) : null);
-        setTargetYear(null);
+        const initialCategory = presetParentGoal
+          ? CHILD_CATEGORY_OF[(presetParentGoal.category as CategoryKey) || 'YEARLY'] ?? null
+          : presetCategory;
+        setCategory(initialCategory);
+        setTargetYear(initialCategory === 'YEARLY' ? presetTargetYear ?? new Date().getFullYear() : null);
         setLifeAreaId(null);
         setParentGoalId(presetParentGoal ? presetParentGoal.id : null);
         setStartDraft('');
@@ -254,7 +266,7 @@ export default function AddTaskModal({
       requestAnimationFrame(() => titleRef.current?.focus());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editTarget?.id, presetParentGoal?.id]);
+  }, [open, editTarget?.id, presetParentGoal?.id, presetCategory, presetTargetYear]);
 
   useEffect(() => {
     if (!open) return;

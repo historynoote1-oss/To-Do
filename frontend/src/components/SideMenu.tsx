@@ -19,6 +19,7 @@ interface Props {
   onUndo: () => void;
   onRedo: () => void;
   onOpenDashboard: () => void;
+  onOpenGoalMap: () => void;
   onOpenArchive: () => void;
   onOpenLifeAreas: () => void;
   onOpenRecurring: () => void;
@@ -48,6 +49,7 @@ export default function SideMenu({
   onUndo,
   onRedo,
   onOpenDashboard,
+  onOpenGoalMap,
   onOpenArchive,
   onOpenLifeAreas,
   onOpenRecurring,
@@ -151,6 +153,17 @@ export default function SideMenu({
               <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
             </button>
           )}
+
+          <button
+            className={`side-menu-item side-menu-item-highlight ${currentView === 'goalMap' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenGoalMap)}
+            aria-current={currentView === 'goalMap' ? 'page' : undefined}
+          >
+            <DynamicIcon name="route" size={18} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">خريطة الأهداف</span>
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+          </button>
 
           <button
             className={`side-menu-item ${currentView === 'archive' ? 'active' : ''}`}
