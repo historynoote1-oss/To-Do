@@ -17,6 +17,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { sounds } from './sounds';
+import { toast } from './toast';
 
 export type PomodoroPhase = 'focus' | 'break';
 export type PomodoroStatus = 'idle' | 'running' | 'paused' | 'finished';
@@ -199,6 +200,53 @@ function durationSeconds(phase: PomodoroPhase, isLongBreak: boolean, settings: P
   return Math.round((isLongBreak ? settings.longBreakMinutes : settings.breakMinutes) * 60);
 }
 
+// نفس صيغة تسمية المرحلة المستخدمة في واجهة Pomodoro.tsx، بس هنا كنص عادي
+// عشان يتحط جوه رسائل التنبيه (توست + إشعار المتصفح).
+function phaseLabel(phase: PomodoroPhase, isLongBreak: boolean): string {
+  return phase === 'focus' ? 'المذاكرة' : isLongBreak ? 'الاستراحة الطويلة' : 'الاستراحة';
+}
+
+// عتبة تحذير "قرب الوقت يخلص" متكيّفة مع مدة المرحلة نفسها: 60 ثانية
+// للمراحل العادية (زي مذاكرة 25 دقيقة أو استراحة 5 دقايق)، لكن لو المستخدم
+// ظبط مدة قصيرة جدًا (أقل من دقيقتين) بننزّل العتبة لنص المدة عشان التحذير
+// يبان في نص الوقت مش يتشغّل فور ما العدّ يبدأ. مراحل أقصر من 10 ثواني
+// أصلًا مالهاش تحذير منفصل عن النهاية.
+function warningThreshold(totalSeconds: number): number {
+  if (totalSeconds <= 10) return 0;
+  if (totalSeconds > 120) return 60;
+  return Math.max(5, Math.floor(totalSeconds / 2));
+}
+
+// إشعار جهاز فعلي (مش توست جوه الصفحة بس) — بيوصل للمستخدم كإشعار نظام
+// حقيقي فوق أي تطبيق تاني فاتحه، مش بس لما يكون بعيد عن التاب. لسه مشروط
+// بإذن الإشعارات (ensureNotificationPermission تحت بتطلبه أول ما المستخدم
+// يبدأ المؤقّت).
+function notifyBrowser(title: string, body: string) {
+  try {
+    if (typeof window === 'undefined' || typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'granted') return;
+    new Notification(title, { body, icon: '/icon-192.png', tag: 'pomodoro' });
+  } catch {
+    // إشعارات الجهاز مش أساسية لعمل المؤقّت — أي فشل هنا بنتجاهله بهدوء.
+  }
+}
+
+// بيطلب إذن إشعارات الجهاز أول ما المستخدم يبدأ/يكمّل المؤقّت بنفسه (فعل
+// مستخدم فعلي زي ضغطة زرار، وده شرط المتصفحات عشان تسمح بنافذة الإذن
+// أصلًا — مش ممكن تتطلب تلقائيًا من غير تفاعل). لو الإذن اتاخد قبل كده
+// (granted) أو اترفض (denied) مش بيعمل حاجة تانية؛ بيسأل بس أول مرة
+// (default) وبهدوء تام لو المتصفح مش بيدعم الإشعارات أصلًا.
+function ensureNotificationPermission() {
+  try {
+    if (typeof window === 'undefined' || typeof Notification === 'undefined') return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  } catch {
+    // نفس منطق التسامح فوق.
+  }
+}
+
 // حفظ "حالة" المؤقّت نفسه (المرحلة الحالية، حالته، الوقت المتبقي، عدد
 // الدورات المكتملة...) عشان لو المستخدم عمل refresh للصفحة أو رجع تاني
 // بعدين، يلاقي كل حاجة زي ما سابها بالظبط بدل ما يبدأ من الصفر. بنخزّن
@@ -287,6 +335,20 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   const statusRef = useRef<PomodoroStatus>(initialTimerState?.status ?? 'idle');
   statusRef.current = status;
 
+  // Refs بتتزامن مع أحدث قيمة لحظة كل render — الـ tick (setInterval) بتاع
+  // startTick مبنيّ يفضل نفس الدالة طول عمر المؤقّت (من غير ما يتعاد إنشاؤه
+  // مع كل تغيير)، فلازم يقرا المرحلة/الإعدادات الحالية من refs مش من
+  // متغيرات مقفولة (closure) وقت إنشائه، وإلا كان هيفضل شغّال على قيم قديمة.
+  const phaseRef = useRef<PomodoroPhase>(phase);
+  phaseRef.current = phase;
+  const isLongBreakRef = useRef(isLongBreak);
+  isLongBreakRef.current = isLongBreak;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  // بيتصفّر مع كل بداية عدّ جديدة (beginCountdown) عشان تنبيه "قرب يخلص"
+  // يتشغّل مرة واحدة بالظبط لكل مرحلة، مش في كل tick بعد ما يعدّي العتبة.
+  const warnedRef = useRef(false);
+
   const clearTick = useCallback(() => {
     if (intervalRef.current) {
       window.clearInterval(intervalRef.current);
@@ -303,11 +365,28 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
       if (!endAtRef.current) return;
       const remaining = Math.max(0, Math.round((endAtRef.current - Date.now()) / 1000));
       setRemainingSeconds(remaining);
+
+      // تنبيه "قرب الوقت يخلص" — مرة واحدة بس لكل مرحلة، بصوت واضح ورسالة
+      // على الشاشة، وكمان إشعار جهاز لو المستخدم مش شايف التاب أصلًا.
+      if (!warnedRef.current && remaining > 0) {
+        const total = durationSeconds(phaseRef.current, isLongBreakRef.current, settingsRef.current);
+        if (remaining <= warningThreshold(total)) {
+          warnedRef.current = true;
+          const label = phaseLabel(phaseRef.current, isLongBreakRef.current);
+          sounds.pomodoroWarning();
+          toast.reminder(`⏳ متبقّي أقل من دقيقة على نهاية ${label}!`);
+          notifyBrowser('بومودورو — قرب الوقت يخلص', `متبقّي أقل من دقيقة على نهاية ${label}.`);
+        }
+      }
+
       if (remaining <= 0) {
         clearTick();
         endAtRef.current = null;
         setStatus('finished');
-        sounds.timelineEnd();
+        const label = phaseLabel(phaseRef.current, isLongBreakRef.current);
+        sounds.pomodoroEnd();
+        toast.reminder(`⏰ انتهى وقت ${label}!`);
+        notifyBrowser('بومودورو — انتهى الوقت', `انتهى وقت ${label}.`);
       }
     }, 250);
   }, [clearTick]);
@@ -446,9 +525,11 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   const beginCountdown = useCallback((forPhase: PomodoroPhase, forLongBreak: boolean, forSettings: PomodoroSettings) => {
     const total = durationSeconds(forPhase, forLongBreak, forSettings);
     endAtRef.current = Date.now() + total * 1000;
+    warnedRef.current = false;
     setRemainingSeconds(total);
     setStatus('running');
     sounds.timelineStart();
+    ensureNotificationPermission();
   }, []);
 
   const start = useCallback(() => {
@@ -472,6 +553,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     endAtRef.current = Date.now() + remainingSeconds * 1000;
     setStatus('running');
     startTick();
+    ensureNotificationPermission();
   }, [remainingSeconds, startTick]);
 
   const reset = useCallback(() => {
