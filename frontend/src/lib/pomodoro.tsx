@@ -199,21 +199,92 @@ function durationSeconds(phase: PomodoroPhase, isLongBreak: boolean, settings: P
   return Math.round((isLongBreak ? settings.longBreakMinutes : settings.breakMinutes) * 60);
 }
 
+// حفظ "حالة" المؤقّت نفسه (المرحلة الحالية، حالته، الوقت المتبقي، عدد
+// الدورات المكتملة...) عشان لو المستخدم عمل refresh للصفحة أو رجع تاني
+// بعدين، يلاقي كل حاجة زي ما سابها بالظبط بدل ما يبدأ من الصفر. بنخزّن
+// وقت "النهاية" الفعلي (endAt) مش العدّ التنازلي نفسه، عشان لو الوقت فات
+// إحنا احنا مسافرين (مثلاً قفل التاب لمدة أطول من الوقت المتبقي) نقدر
+// نحسب صح إن المرحلة خلصت.
+const TIMER_STATE_KEY = 'pomodoro.timerState';
+
+interface PersistedTimerState {
+  phase: PomodoroPhase;
+  isLongBreak: boolean;
+  status: PomodoroStatus;
+  endAt: number | null;
+  remainingSeconds: number;
+  focusStreak: number;
+  completedFocusSessions: number;
+}
+
+function loadTimerState(): PersistedTimerState | null {
+  try {
+    const raw = localStorage.getItem(TIMER_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const phase: PomodoroPhase = parsed.phase === 'break' ? 'break' : 'focus';
+    const status: PomodoroStatus = ['idle', 'running', 'paused', 'finished'].includes(parsed.status)
+      ? parsed.status
+      : 'idle';
+    return {
+      phase,
+      isLongBreak: !!parsed.isLongBreak,
+      status,
+      endAt: typeof parsed.endAt === 'number' ? parsed.endAt : null,
+      remainingSeconds: Number.isFinite(Number(parsed.remainingSeconds)) ? Math.max(0, Number(parsed.remainingSeconds)) : 0,
+      focusStreak: Number.isFinite(Number(parsed.focusStreak)) ? Math.max(0, Math.round(Number(parsed.focusStreak))) : 0,
+      completedFocusSessions: Number.isFinite(Number(parsed.completedFocusSessions))
+        ? Math.max(0, Math.round(Number(parsed.completedFocusSessions)))
+        : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistTimerState(state: PersistedTimerState) {
+  try {
+    localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // نفس منطق التسامح مع غياب التخزين المحلي في باقي الملف.
+  }
+}
+
 export function PomodoroProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<PomodoroSettings>(() => loadSettings());
-  const [phase, setPhase] = useState<PomodoroPhase>('focus');
-  const [isLongBreak, setIsLongBreak] = useState(false);
-  const [status, setStatus] = useState<PomodoroStatus>('idle');
-  const [remainingSeconds, setRemainingSeconds] = useState(() => durationSeconds('focus', false, loadSettings()));
-  const [focusStreak, setFocusStreak] = useState(0);
-  const [completedFocusSessions, setCompletedFocusSessions] = useState(0);
+  const initialSettings = loadSettings();
+  const initialTimerState = loadTimerState();
+
+  const [settings, setSettings] = useState<PomodoroSettings>(initialSettings);
+  const [phase, setPhase] = useState<PomodoroPhase>(initialTimerState?.phase ?? 'focus');
+  const [isLongBreak, setIsLongBreak] = useState(initialTimerState?.isLongBreak ?? false);
+  const [status, setStatus] = useState<PomodoroStatus>(() => {
+    if (!initialTimerState) return 'idle';
+    // لو كان شغّال وقت ما المستخدم قفل الصفحة، هنقرر حالته الحقيقية دلوقتي
+    // (لسه شغّال ولا خلص فعلاً وهو مقفول) في الـ effect بعد أول render،
+    // فبنبدأ هنا بحالة مؤقتة "running" لو كانت كده، وهنصححها فورًا.
+    return initialTimerState.status;
+  });
+  const [remainingSeconds, setRemainingSeconds] = useState(() => {
+    if (initialTimerState) {
+      if (initialTimerState.status === 'running' && initialTimerState.endAt) {
+        return Math.max(0, Math.round((initialTimerState.endAt - Date.now()) / 1000));
+      }
+      return initialTimerState.remainingSeconds;
+    }
+    return durationSeconds('focus', false, initialSettings);
+  });
+  const [focusStreak, setFocusStreak] = useState(initialTimerState?.focusStreak ?? 0);
+  const [completedFocusSessions, setCompletedFocusSessions] = useState(initialTimerState?.completedFocusSessions ?? 0);
   const [presets, setPresets] = useState<PomodoroPreset[]>(() => loadPresets());
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [todayFocusMinutes, setTodayFocusMinutes] = useState<number>(() => loadTodayFocusMinutes());
 
-  const endAtRef = useRef<number | null>(null);
+  const endAtRef = useRef<number | null>(
+    initialTimerState?.status === 'running' ? initialTimerState.endAt : null
+  );
   const intervalRef = useRef<number | null>(null);
-  const statusRef = useRef<PomodoroStatus>('idle');
+  const statusRef = useRef<PomodoroStatus>(initialTimerState?.status ?? 'idle');
   statusRef.current = status;
 
   const clearTick = useCallback(() => {
@@ -242,6 +313,42 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   }, [clearTick]);
 
   useEffect(() => clearTick, [clearTick]);
+
+  // كل مرة أي حاجة في "تقدّم" المؤقّت تتغيّر (المرحلة، حالته، الوقت
+  // المتبقي، عدد الدورات/الجلسات) بنخزّنها فورًا، عشان أي refresh أو
+  // إغلاق للتاب متاخدش حاجة من المستخدم.
+  useEffect(() => {
+    persistTimerState({
+      phase,
+      isLongBreak,
+      status,
+      endAt: endAtRef.current,
+      remainingSeconds,
+      focusStreak,
+      completedFocusSessions,
+    });
+  }, [phase, isLongBreak, status, remainingSeconds, focusStreak, completedFocusSessions]);
+
+  // عند أول تحميل للصفحة فقط: لو كان فيه عدّ شغّال قبل ما المستخدم يعمل
+  // refresh، لازم نتأكد هل الوقت خلص وهو مقفول ولا لسه شغّال فعلاً،
+  // وبعدين نكمّل العدّ التلقائي (setInterval) من غير ما نبدأ مرحلة جديدة
+  // من الصفر.
+  useEffect(() => {
+    if (initialTimerState?.status === 'running') {
+      const endAt = initialTimerState.endAt;
+      if (!endAt || endAt <= Date.now()) {
+        // الوقت خلص فعلاً وإحنا مسافرين — ندخل حالة "finished" زي لو كنا
+        // فاتحين الصفحة والمؤقّت خلص لتوّه.
+        endAtRef.current = null;
+        setRemainingSeconds(0);
+        setStatus('finished');
+      } else {
+        // لسه فيه وقت متبقي — نكمّل العدّ من غير ما نغيّر أي حاجة تانية.
+        startTick();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const applySettingsToIdleTimer = useCallback(
     (next: PomodoroSettings) => {

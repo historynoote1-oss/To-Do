@@ -90,22 +90,94 @@ function saveTracksToStorage(key: string, tracks: YoutubeTrack[]) {
   }
 }
 
+// حفظ "حالة التشغيل" الحالية (المقطع الحالي، مكانه، الصوت، الكتم، السرعة،
+// التكرار، وهل كان شغّال) — عشان لو المستخدم عمل refresh للصفحة يرجع
+// يلاقي نفس المقطع محمّل في نفس المكان تقريبًا بدل ما يبدأ من الصفر.
+// ملحوظة: المتصفحات بتمنع التشغيل التلقائي بصوت من غير تفاعل مباشر من
+// المستخدم، فبعد الـ refresh هنحمّل المقطع في مكانه الصحيح ومتوقّف، والمستخدم
+// بس يضغط تشغيل عشان يكمل (بدل ما يفتكر المقطع والمكان من الأول).
+const PLAYER_STATE_KEY = 'quranPlayer.playbackState';
+
+interface PersistedPlayerState {
+  track: YoutubeTrack | null;
+  currentTime: number;
+  volume: number;
+  muted: boolean;
+  playbackRate: number;
+  looping: boolean;
+  wasPlaying: boolean;
+}
+
+const DEFAULT_PLAYER_STATE: PersistedPlayerState = {
+  track: null,
+  currentTime: 0,
+  volume: 100,
+  muted: false,
+  playbackRate: 1,
+  looping: false,
+  wasPlaying: false,
+};
+
+function isValidTrack(value: unknown): value is YoutubeTrack {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as any).videoId === 'string' &&
+    typeof (value as any).title === 'string'
+  );
+}
+
+function loadPlayerState(): PersistedPlayerState {
+  try {
+    const raw = localStorage.getItem(PLAYER_STATE_KEY);
+    if (!raw) return DEFAULT_PLAYER_STATE;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return DEFAULT_PLAYER_STATE;
+    return {
+      track: isValidTrack(parsed.track) ? parsed.track : null,
+      currentTime: Number.isFinite(Number(parsed.currentTime)) ? Math.max(0, Number(parsed.currentTime)) : 0,
+      volume: Number.isFinite(Number(parsed.volume)) ? Math.min(100, Math.max(0, Number(parsed.volume))) : 100,
+      muted: !!parsed.muted,
+      playbackRate: Number.isFinite(Number(parsed.playbackRate)) && Number(parsed.playbackRate) > 0 ? Number(parsed.playbackRate) : 1,
+      looping: !!parsed.looping,
+      wasPlaying: !!parsed.wasPlaying,
+    };
+  } catch {
+    return DEFAULT_PLAYER_STATE;
+  }
+}
+
+function savePlayerState(state: PersistedPlayerState) {
+  try {
+    localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // نفس منطق التسامح مع غياب التخزين المحلي في باقي الملف.
+  }
+}
+
 export function MusicPlayerProvider({ children }: { children: ReactNode }) {
+  const initialPlayerState = loadPlayerState();
+
   const playerRef = useRef<any>(null);
   const progressTimerRef = useRef<number | null>(null);
   const sleepTimerRef = useRef<number | null>(null);
   const sleepEndAtRef = useRef<number | null>(null);
-  const loopingRef = useRef(false);
+  const loopingRef = useRef(initialPlayerState.looping);
+  // بنستخدمهم مرة واحدة بس لحظة ما المشغّل يبقى جاهز، عشان نحمّل المقطع
+  // ومكانه ونطبّق الصوت/السرعة قبل ما المستخدم يضغط أي زرار.
+  const hasRestoredRef = useRef(false);
+  const restoreTrackRef = useRef<YoutubeTrack | null>(initialPlayerState.track);
+  const restoreTimeRef = useRef(initialPlayerState.currentTime);
 
   const [playerReady, setPlayerReady] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState<YoutubeTrack | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<YoutubeTrack | null>(initialPlayerState.track);
   const [playing, setPlaying] = useState(false);
-  const [looping, setLooping] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [looping, setLooping] = useState(initialPlayerState.looping);
+  const [currentTime, setCurrentTime] = useState(initialPlayerState.currentTime);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolumeState] = useState(100);
-  const [muted, setMuted] = useState(false);
-  const [playbackRate, setPlaybackRateState] = useState(1);
+  const [volume, setVolumeState] = useState(initialPlayerState.volume);
+  const [muted, setMuted] = useState(initialPlayerState.muted);
+  const [playbackRate, setPlaybackRateState] = useState(initialPlayerState.playbackRate);
   const [favorites, setFavorites] = useState<YoutubeTrack[]>(() => loadTracksFromStorage(FAVORITES_KEY));
   const [recentlyPlayed, setRecentlyPlayed] = useState<YoutubeTrack[]>(() => loadTracksFromStorage(RECENT_KEY));
   const [sleepMinutes, setSleepMinutes] = useState<number | null>(null);
@@ -114,6 +186,20 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loopingRef.current = looping;
   }, [looping]);
+
+  // أي تغيير في حالة التشغيل (المقطع، مكانه، الصوت، الكتم، السرعة،
+  // التكرار، شغّال ولا لأ) بيتخزّن فورًا محليًا.
+  useEffect(() => {
+    savePlayerState({
+      track: currentTrack,
+      currentTime,
+      volume,
+      muted,
+      playbackRate,
+      looping,
+      wasPlaying: playing,
+    });
+  }, [currentTrack, currentTime, volume, muted, playbackRate, looping, playing]);
 
   function startProgressLoop() {
     if (progressTimerRef.current) window.clearInterval(progressTimerRef.current);
@@ -134,7 +220,42 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         width: '1',
         playerVars: { playsinline: 1, controls: 0, disablekb: 1, modestbranding: 1, rel: 0, fs: 0 },
         events: {
-          onReady: () => setPlayerReady(true),
+          onReady: (event: any) => {
+            setPlayerReady(true);
+            const player = event.target;
+            player.setVolume?.(initialPlayerState.volume);
+            player.setPlaybackRate?.(initialPlayerState.playbackRate);
+            if (initialPlayerState.muted) player.mute?.();
+            const track = restoreTrackRef.current;
+            if (track && !hasRestoredRef.current) {
+              hasRestoredRef.current = true;
+              // بنحمّل المقطع في مكانه الصحيح لكن من غير تشغيل تلقائي —
+              // المتصفحات بتمنع تشغيل صوت تلقائي من غير تفاعل مباشر من
+              // المستخدم، فبنسيبه جاهز ومتوقّف عند نفس اللحظة اللي كان
+              // فيها قبل الـ refresh، وبضغطة تشغيل واحدة يكمل من هناك.
+              player.cueVideoById({ videoId: track.videoId, startSeconds: restoreTimeRef.current });
+              setCurrentTrack(track);
+              setCurrentTime(restoreTimeRef.current);
+              setDuration(0);
+              if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', () => playerRef.current?.playVideo());
+                navigator.mediaSession.setActionHandler('pause', () => playerRef.current?.pauseVideo());
+                navigator.mediaSession.setActionHandler('seekto', (details: any) => {
+                  if (details.seekTime != null) playerRef.current?.seekTo(details.seekTime, true);
+                });
+                navigator.mediaSession.setActionHandler('seekforward', () => {
+                  const p = playerRef.current;
+                  if (!p) return;
+                  p.seekTo((p.getCurrentTime() || 0) + 10, true);
+                });
+                navigator.mediaSession.setActionHandler('seekbackward', () => {
+                  const p = playerRef.current;
+                  if (!p) return;
+                  p.seekTo(Math.max(0, (p.getCurrentTime() || 0) - 10), true);
+                });
+              }
+            }
+          },
           onStateChange: (event: any) => {
             const State = window.YT.PlayerState;
             if (event.data === State.PLAYING) {
@@ -150,6 +271,19 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
                 playerRef.current.playVideo();
               } else {
                 setPlaying(false);
+              }
+            } else if (event.data === State.CUED) {
+              // المقطع اتحمّل (زي حالة الاسترجاع بعد الـ refresh) — نجيب
+              // مدّته الحقيقية ونحدّث بيانات الميديا في نظام التشغيل.
+              const player = playerRef.current;
+              const track = restoreTrackRef.current;
+              if (player) setDuration(player.getDuration() || 0);
+              if (track && 'mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                  title: track.title,
+                  artist: track.channel || 'القرآن الكريم',
+                  artwork: track.thumbnail ? [{ src: track.thumbnail, sizes: '320x180', type: 'image/jpeg' }] : [],
+                });
               }
             }
           },
