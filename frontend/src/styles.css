@@ -624,6 +624,22 @@ button:disabled {
   background: var(--accent-dim);
 }
 
+.icon-btn.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-dim);
+}
+
+.icon-btn.accent {
+  color: var(--accent-soft);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.icon-btn.accent:hover {
+  filter: brightness(1.08);
+}
+
 .icon-btn.small {
   width: 28px;
   height: 28px;
@@ -8869,6 +8885,29 @@ body:has(.music-player-bar) .container {
   margin-bottom: 16px;
   text-align: center;
   overflow: visible;
+  background-image: radial-gradient(circle at 50% -10%, var(--accent-dim), transparent 60%);
+  transition: background-image var(--dur-slow) var(--ease-out);
+}
+
+.pomodoro-timer-card.phase-break {
+  background-image: radial-gradient(circle at 50% -10%, var(--success-dim), transparent 60%);
+}
+
+.pomodoro-timer-card.long-break {
+  background-image: radial-gradient(circle at 50% -10%, var(--streak-dim), transparent 60%);
+}
+
+.pomodoro-timer-card.status-running .pomodoro-ring-wrap {
+  animation: pomodoro-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes pomodoro-breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    filter: drop-shadow(0 0 14px var(--accent-dim));
+  }
 }
 
 .pomodoro-phase-row {
@@ -9010,6 +9049,14 @@ body:has(.music-player-bar) .container {
   transform: scale(1.15);
 }
 
+.pomodoro-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+
 .pomodoro-sessions-count {
   display: inline-flex;
   align-items: center;
@@ -9017,6 +9064,14 @@ body:has(.music-player-bar) .container {
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+.pomodoro-sessions-count.today {
+  color: var(--accent-soft);
+}
+
+.pomodoro-sessions-count.today svg {
+  color: var(--streak, var(--accent));
 }
 
 /* ===== أزرار التحكم ===== */
@@ -9077,6 +9132,212 @@ body:has(.music-player-bar) .container {
   border-color: var(--accent);
   color: var(--accent-soft);
   filter: none;
+}
+
+/* ===== شبكة "القوالب + الإعدادات" — عمود واحد على الموبايل، عمودين
+   جنب بعض على الشاشات الأوسع (تابلت/ديسكتوب) عشان نستغل المساحة أحسن ===== */
+.pomodoro-lower-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pomodoro-lower-grid .pomodoro-presets-card,
+.pomodoro-lower-grid .pomodoro-settings-card {
+  margin-bottom: 0;
+}
+
+@media (min-width: 720px) {
+  .pomodoro-lower-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+
+  .pomodoro-ring-wrap {
+    width: min(280px, 34vw);
+    height: min(280px, 34vw);
+  }
+}
+
+/* ===== كارت القوالب المحفوظة ===== */
+.pomodoro-presets-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.pomodoro-presets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.pomodoro-presets-header span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pomodoro-presets-header svg {
+  color: var(--streak);
+}
+
+.pomodoro-presets-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.pomodoro-presets-empty {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.pomodoro-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pomodoro-preset-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1.5px solid transparent;
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+}
+
+.pomodoro-preset-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.pomodoro-preset-apply {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13px;
+  text-align: start;
+}
+
+.pomodoro-preset-apply:hover {
+  filter: none;
+  color: var(--accent-soft);
+}
+
+.pomodoro-preset-active-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.pomodoro-preset-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.pomodoro-preset-meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  direction: ltr;
+  flex-shrink: 0;
+}
+
+.pomodoro-preset-actions,
+.pomodoro-preset-confirm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-inline-end: 4px;
+}
+
+.pomodoro-preset-rename-form {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
+.pomodoro-preset-rename-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.pomodoro-preset-save-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pomodoro-preset-save-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12.5px;
+  width: 100%;
+}
+
+.pomodoro-preset-save-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+  filter: none;
+}
+
+.pomodoro-preset-save-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pomodoro-preset-save-form input {
+  flex: 1;
+  min-width: 0;
+}
+
+.pomodoro-preset-error {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--danger);
+  font-weight: 600;
 }
 
 /* ===== كارت الإعدادات ===== */

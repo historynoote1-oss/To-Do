@@ -28,6 +28,16 @@ export interface PomodoroSettings {
   cyclesUntilLongBreak: number;
 }
 
+// قالب إعدادات محفوظ باسم مخصوص من المستخدم — عشان يقدر يبدّل بين أكتر
+// من "وضع" (مثلاً "مذاكرة عميقة"، "مراجعة سريعة"، "قراءة") بضغطة واحدة
+// من غير ما يعيد كتابة كل رقم في كل مرة.
+export interface PomodoroPreset {
+  id: string;
+  name: string;
+  settings: PomodoroSettings;
+  createdAt: number;
+}
+
 export const DEFAULT_POMODORO_SETTINGS: PomodoroSettings = {
   focusMinutes: 25,
   breakMinutes: 5,
@@ -35,9 +45,18 @@ export const DEFAULT_POMODORO_SETTINGS: PomodoroSettings = {
   cyclesUntilLongBreak: 4,
 };
 
+export const MAX_PRESETS = 12;
+export const MAX_PRESET_NAME_LENGTH = 30;
+
 interface PomodoroContextValue {
   settings: PomodoroSettings;
   updateSettings: (patch: Partial<PomodoroSettings>) => void;
+  presets: PomodoroPreset[];
+  activePresetId: string | null;
+  savePreset: (name: string) => boolean;
+  applyPreset: (id: string) => void;
+  renamePreset: (id: string, name: string) => void;
+  deletePreset: (id: string) => void;
   phase: PomodoroPhase;
   isLongBreak: boolean;
   status: PomodoroStatus;
@@ -45,6 +64,7 @@ interface PomodoroContextValue {
   totalSeconds: number;
   focusStreak: number;
   completedFocusSessions: number;
+  todayFocusMinutes: number;
   nextPhaseLabel: string;
   start: () => void;
   pause: () => void;
@@ -82,6 +102,83 @@ function saveSettings(settings: PomodoroSettings) {
   }
 }
 
+const PRESETS_KEY = 'pomodoro.presets';
+
+function makePresetId(): string {
+  return `preset_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sanitizePresetSettings(raw: unknown): PomodoroSettings {
+  const src = (raw ?? {}) as Partial<Record<keyof PomodoroSettings, unknown>>;
+  return {
+    focusMinutes: clampMinutes(src.focusMinutes, DEFAULT_POMODORO_SETTINGS.focusMinutes),
+    breakMinutes: clampMinutes(src.breakMinutes, DEFAULT_POMODORO_SETTINGS.breakMinutes),
+    longBreakMinutes: clampMinutes(src.longBreakMinutes, DEFAULT_POMODORO_SETTINGS.longBreakMinutes),
+    cyclesUntilLongBreak: clampCycles(src.cyclesUntilLongBreak, DEFAULT_POMODORO_SETTINGS.cyclesUntilLongBreak),
+  };
+}
+
+// قوالب الإعدادات المحفوظة بتتخزّن محليًا (نفس أسلوب الإعدادات العادية)
+// عشان تفضل موجودة حتى من غير حساب/سيرفر — كل قالب اسم + 4 أرقام بس.
+function loadPresets(): PomodoroPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((p): p is Record<string, unknown> => !!p && typeof p === 'object' && typeof (p as any).name === 'string')
+      .slice(0, MAX_PRESETS)
+      .map((p) => ({
+        id: typeof p.id === 'string' && p.id ? p.id : makePresetId(),
+        name: String(p.name).slice(0, MAX_PRESET_NAME_LENGTH),
+        settings: sanitizePresetSettings(p.settings),
+        createdAt: typeof p.createdAt === 'number' ? p.createdAt : Date.now(),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function persistPresets(presets: PomodoroPreset[]) {
+  try {
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+  } catch {
+    // زي حفظ الإعدادات العادية — لو التخزين المحلي مش متاح نتجاهل بهدوء.
+  }
+}
+
+const TODAY_FOCUS_KEY = 'pomodoro.todayFocusMinutes';
+
+function todayDateKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+// إجمالي دقايق المذاكرة "النهاردة" — بيتصفّر تلقائيًا لو اليوم اتغيّر،
+// وبيفضل محفوظ حتى لو المستخدم قفل التطبيق ورجعله تاني في نفس اليوم
+// (على عكس عدّاد "دورات المذاكرة" اللي بيصفّر مع كل تحميل للصفحة).
+function loadTodayFocusMinutes(): number {
+  try {
+    const raw = localStorage.getItem(TODAY_FOCUS_KEY);
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.date !== todayDateKey()) return 0;
+    const n = Number(parsed.minutes);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function persistTodayFocusMinutes(minutes: number) {
+  try {
+    localStorage.setItem(TODAY_FOCUS_KEY, JSON.stringify({ date: todayDateKey(), minutes }));
+  } catch {
+    // نفس منطق التسامح مع غياب التخزين المحلي في باقي الملف.
+  }
+}
+
 // حماية بسيطة: مفيش حد أدنى/أقصى "مفروض" فعليًا على المستخدم (زي 25
 // دقيقة تحديدًا)، لكن بنمنع قيم مالهاش معنى زي صفر أو سالب أو أرقام
 // عملاقة تكسر الواجهة — أقل قيمة دقيقة واحدة، وأقصى قيمة 6 ساعات.
@@ -110,6 +207,9 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   const [remainingSeconds, setRemainingSeconds] = useState(() => durationSeconds('focus', false, loadSettings()));
   const [focusStreak, setFocusStreak] = useState(0);
   const [completedFocusSessions, setCompletedFocusSessions] = useState(0);
+  const [presets, setPresets] = useState<PomodoroPreset[]>(() => loadPresets());
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [todayFocusMinutes, setTodayFocusMinutes] = useState<number>(() => loadTodayFocusMinutes());
 
   const endAtRef = useRef<number | null>(null);
   const intervalRef = useRef<number | null>(null);
@@ -165,9 +265,74 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         applySettingsToIdleTimer(next);
         return next;
       });
+      // تعديل يدوي لأي رقم معناه إننا ابتعدنا عن القالب المحفوظ اللي كان
+      // مطبّق (لو فيه)، فبنشيل علامة "القالب النشط" عشان الواجهة متبقاش
+      // مضلّلة إنه لسه مطابق للقالب.
+      setActivePresetId(null);
     },
     [applySettingsToIdleTimer]
   );
+
+  // حفظ الإعدادات الحالية كقالب جديد باسم يختاره المستخدم. بيرجع true/false
+  // عشان الواجهة تقدر توضّح لو الاسم فاضي أو العدد وصل للحد الأقصى.
+  const savePreset = useCallback(
+    (name: string): boolean => {
+      const trimmed = name.trim().slice(0, MAX_PRESET_NAME_LENGTH);
+      if (!trimmed) return false;
+      let ok = false;
+      setPresets((prev) => {
+        if (prev.length >= MAX_PRESETS) {
+          ok = false;
+          return prev;
+        }
+        const preset: PomodoroPreset = { id: makePresetId(), name: trimmed, settings, createdAt: Date.now() };
+        const next = [...prev, preset];
+        persistPresets(next);
+        ok = true;
+        setActivePresetId(preset.id);
+        return next;
+      });
+      return ok;
+    },
+    [settings]
+  );
+
+  // تطبيق قالب محفوظ: بيحدّث كل الأربع قيم دفعة واحدة (زي updateSettings)
+  // وبيعلّم القالب ده كـ"نشط" عشان يتوضّح في الواجهة إنه المطبّق دلوقتي.
+  const applyPreset = useCallback(
+    (id: string) => {
+      setPresets((currentPresets) => {
+        const preset = currentPresets.find((p) => p.id === id);
+        if (preset) {
+          setSettings(preset.settings);
+          saveSettings(preset.settings);
+          applySettingsToIdleTimer(preset.settings);
+          setActivePresetId(preset.id);
+        }
+        return currentPresets;
+      });
+    },
+    [applySettingsToIdleTimer]
+  );
+
+  const renamePreset = useCallback((id: string, name: string) => {
+    const trimmed = name.trim().slice(0, MAX_PRESET_NAME_LENGTH);
+    if (!trimmed) return;
+    setPresets((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, name: trimmed } : p));
+      persistPresets(next);
+      return next;
+    });
+  }, []);
+
+  const deletePreset = useCallback((id: string) => {
+    setPresets((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      persistPresets(next);
+      return next;
+    });
+    setActivePresetId((prev) => (prev === id ? null : prev));
+  }, []);
 
   // بدء العدّ لأي مرحلة — دايمًا فعل يدوي (زرار المستخدم هو اللي بينادي
   // الدالة دي)، مفيش نداء تلقائي ليها في أي مكان تاني في الملف.
@@ -226,6 +391,9 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     if (phase === 'focus') {
       setFocusStreak((prev) => (prev + 1) % settings.cyclesUntilLongBreak);
       setCompletedFocusSessions((prev) => prev + 1);
+      const nextTotal = Math.round((loadTodayFocusMinutes() + settings.focusMinutes) * 10) / 10;
+      persistTodayFocusMinutes(nextTotal);
+      setTodayFocusMinutes(nextTotal);
     }
     const { phase: nextPhase, isLongBreak: nextLong } = computeNextPhase();
     setPhase(nextPhase);
@@ -260,6 +428,12 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
       value={{
         settings,
         updateSettings,
+        presets,
+        activePresetId,
+        savePreset,
+        applyPreset,
+        renamePreset,
+        deletePreset,
         phase,
         isLongBreak,
         status,
@@ -267,6 +441,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         totalSeconds,
         focusStreak,
         completedFocusSessions,
+        todayFocusMinutes,
         nextPhaseLabel,
         start,
         pause,
