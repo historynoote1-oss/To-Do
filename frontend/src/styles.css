@@ -3106,6 +3106,11 @@ li input[type='checkbox'] {
   padding: 2px 9px;
   border-radius: var(--radius-pill);
   width: fit-content;
+  margin-inline-start: 6px;
+}
+
+.admin-badge-danger {
+  background: var(--danger);
 }
 
 .suspended-badge {

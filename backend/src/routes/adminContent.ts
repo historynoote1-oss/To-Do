@@ -21,10 +21,11 @@ async function logAction(adminId: string, action: string, ip: string, targetUser
 
 router.get('/lists', async (req, res) => {
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const status = typeof req.query.status === 'string' ? req.query.status : ''; // '' | active | archived | overdue
   const page = Math.max(Number(req.query.page) || 1, 1);
   const pageSize = Math.min(Math.max(Number(req.query.pageSize) || 20, 1), 100);
 
-  const where = q
+  const where: Record<string, unknown> = q
     ? {
         OR: [
           { title: { contains: q, mode: 'insensitive' as const } },
@@ -32,6 +33,18 @@ router.get('/lists', async (req, res) => {
         ],
       }
     : {};
+
+  // فلتر الحالة: "متأخرة" بس هي اللي بتظهر زرار الاسترجاع بتاع الأدمن —
+  // شوف syncListArchiveState في lib/archive.ts لتفاصيل الفرق بين COMPLETED
+  // و OVERDUE.
+  if (status === 'overdue') {
+    where.archivedAt = { not: null };
+    where.archiveReason = 'OVERDUE';
+  } else if (status === 'archived') {
+    where.archivedAt = { not: null };
+  } else if (status === 'active') {
+    where.archivedAt = null;
+  }
 
   const [lists, total] = await Promise.all([
     prisma.todoList.findMany({
@@ -41,6 +54,9 @@ router.get('/lists', async (req, res) => {
         title: true,
         createdAt: true,
         updatedAt: true,
+        archivedAt: true,
+        archiveReason: true,
+        pendingRestoreAt: true,
         user: { select: { id: true, username: true } },
         _count: { select: { items: true } },
       },
@@ -86,6 +102,29 @@ router.delete('/lists/:id', requireAdminPassword, async (req: AuthRequest, res) 
   await prisma.todoList.delete({ where: { id: list.id } });
   await logAction(req.userId!, `حذف قائمة "${list.title}"`, req.ip!, list.user.username);
   res.json({ success: true });
+});
+
+// استرجاع مهمة "متأخرة" (اتؤرشفت تلقائيًا لأنها فاتت معادها) — الاسترجاع
+// ده ممنوع تمامًا على المستخدم نفسه (شوف POST /:id/restore في routes/lists.ts
+// وتعليق archiveReason في lib/archive.ts)، لكن الأدمن وحده يقدر يتخطاه في
+// حالات استثنائية (مثلًا المستخدم يتواصل بيطلب استرجاع مهمة مهمة اتأرشفت
+// بالغلط). زي باقي الإجراءات الحساسة في اللوحة، محتاج تأكيد بكلمة مرور
+// الأدمن. بترجعها لمنطقة "بانتظار المراجعة" (نفس مسار الاسترجاع العادي)
+// عشان صاحبها يراجعها بنفسه قبل ما تتأكد نهائيًا، وبنصفّر archiveReason
+// عشان ترجع تتعامل كمهمة عادية بعد كده (من غير التجميد الدائم بتاع OVERDUE).
+router.post('/lists/:id/restore-overdue', requireAdminPassword, async (req: AuthRequest, res) => {
+  const list = await prisma.todoList.findUnique({ where: { id: req.params.id }, include: { user: true } });
+  if (!list) return res.status(404).json({ error: 'القائمة غير موجودة' });
+  if (list.archiveReason !== 'OVERDUE' || !list.archivedAt) {
+    return res.status(400).json({ error: 'القائمة دي مش من المهام المتأخرة أصلًا' });
+  }
+
+  const updated = await prisma.todoList.update({
+    where: { id: list.id },
+    data: { archivedAt: null, pendingRestoreAt: new Date(), archiveReason: 'COMPLETED' },
+  });
+  await logAction(req.userId!, `استرجاع مهمة متأخرة "${list.title}"`, req.ip!, list.user.username);
+  res.json(updated);
 });
 
 // ===== المهام (Items) — بحث + فلترة عبر كل المستخدمين =====

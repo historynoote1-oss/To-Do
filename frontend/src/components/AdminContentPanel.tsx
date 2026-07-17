@@ -5,6 +5,7 @@ import {
   getAdminLists,
   updateAdminList,
   deleteAdminList,
+  restoreAdminOverdueList,
   getAdminItems,
   updateAdminItem,
   deleteAdminItem,
@@ -104,6 +105,7 @@ function NotificationsSender() {
 function ListsManager() {
   const [lists, setLists] = useState<AdminListEntry[]>([]);
   const [q, setQ] = useState('');
+  const [status, setStatus] = useState<'active' | 'archived' | 'overdue' | ''>('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -111,25 +113,26 @@ function ListsManager() {
   const [editing, setEditing] = useState<AdminListEntry | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [deleting, setDeleting] = useState<AdminListEntry | null>(null);
+  const [restoring, setRestoring] = useState<AdminListEntry | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => {
       setPage(1);
-      load(1, q);
+      load(1, q, status);
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [q, status]);
 
   useEffect(() => {
-    load(page, q);
+    load(page, q, status);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
-  async function load(p: number, query: string) {
+  async function load(p: number, query: string, statusFilter: typeof status) {
     setLoading(true);
     try {
-      const data = await getAdminLists({ q: query, page: p, pageSize: 20 });
+      const data = await getAdminLists({ q: query, status: statusFilter, page: p, pageSize: 20 });
       setLists(data.lists);
       setTotalPages(data.totalPages);
       setTotal(data.total);
@@ -146,7 +149,7 @@ function ListsManager() {
       await updateAdminList(editing.id, editTitle);
       sounds.success();
       setEditing(null);
-      await load(page, q);
+      await load(page, q, status);
     } catch (err) {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'فشل التعديل');
@@ -158,7 +161,16 @@ function ListsManager() {
     await deleteAdminList(deleting.id, password);
     sounds.deleteItem();
     setDeleting(null);
-    await load(page, q);
+    await load(page, q, status);
+  }
+
+  async function runRestore(password: string) {
+    if (!restoring) return;
+    await restoreAdminOverdueList(restoring.id, password);
+    sounds.success();
+    toast.success(`اتسترجعت "${restoring.title}" — هتظهر لصاحبها في "بانتظار المراجعة" بالصفحة الرئيسية`);
+    setRestoring(null);
+    await load(page, q, status);
   }
 
   return (
@@ -166,36 +178,54 @@ function ListsManager() {
       <div className="admin-section-header">
         <h2>كل القوائم ({total})</h2>
       </div>
-      <input className="admin-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث بعنوان القائمة أو اسم صاحبها..." />
+      <div className="audit-log-filters">
+        <input className="admin-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث بعنوان القائمة أو اسم صاحبها..." />
+        <select className="admin-select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
+          <option value="">كل الحالات</option>
+          <option value="active">نشطة</option>
+          <option value="archived">مؤرشفة</option>
+          <option value="overdue">متأخرة (تحتاج استرجاع)</option>
+        </select>
+      </div>
 
       <div className="users-table">
         {loading && <div className="skeleton" style={{ height: 60, marginBottom: 10 }} />}
         {!loading && lists.length === 0 && <p className="empty">مفيش نتائج مطابقة</p>}
-        {lists.map((l) => (
-          <div className="user-row" key={l.id}>
-            <div className="user-row-info">
-              <strong>{l.title}</strong>
-              <span className="user-row-meta">
-                صاحبها: {l.user.username} · {l._count.items} مهمة
-              </span>
-              <span className="user-row-meta">آخر تعديل: {new Date(l.updatedAt).toLocaleString('ar-EG')}</span>
+        {lists.map((l) => {
+          const isOverdue = l.archiveReason === 'OVERDUE' && !!l.archivedAt;
+          return (
+            <div className="user-row" key={l.id}>
+              <div className="user-row-info">
+                <strong>
+                  {l.title} {isOverdue && <span className="admin-badge admin-badge-danger">متأخرة</span>}
+                </strong>
+                <span className="user-row-meta">
+                  صاحبها: {l.user.username} · {l._count.items} مهمة
+                </span>
+                <span className="user-row-meta">آخر تعديل: {new Date(l.updatedAt).toLocaleString('ar-EG')}</span>
+              </div>
+              <div className="user-row-actions">
+                {isOverdue && (
+                  <button className="small" onClick={() => setRestoring(l)}>
+                    <DynamicIcon name="rotate-ccw" size={13} /> استرجاع
+                  </button>
+                )}
+                <button
+                  className="small"
+                  onClick={() => {
+                    setEditing(l);
+                    setEditTitle(l.title);
+                  }}
+                >
+                  تعديل العنوان
+                </button>
+                <button className="danger small" onClick={() => setDeleting(l)}>
+                  حذف
+                </button>
+              </div>
             </div>
-            <div className="user-row-actions">
-              <button
-                className="small"
-                onClick={() => {
-                  setEditing(l);
-                  setEditTitle(l.title);
-                }}
-              >
-                تعديل العنوان
-              </button>
-              <button className="danger small" onClick={() => setDeleting(l)}>
-                حذف
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {totalPages > 1 && (
@@ -241,6 +271,21 @@ function ListsManager() {
           }
           onCancel={() => setDeleting(null)}
           onConfirm={runDelete}
+        />
+      )}
+
+      {restoring && (
+        <AdminConfirmModal
+          title="تأكيد استرجاع المهمة المتأخرة"
+          description={
+            <p>
+              المهمة <strong>"{restoring.title}"</strong> بتاعة <strong>{restoring.user.username}</strong> اتؤرشفت تلقائيًا لأنها
+              فاتت معادها، وده إجراء المستخدم نفسه مايقدرش يتراجع عنه. هترجعها لقسم "بانتظار المراجعة" عند صاحبها عشان يراجعها
+              ويأكّدها بنفسه.
+            </p>
+          }
+          onCancel={() => setRestoring(null)}
+          onConfirm={runRestore}
         />
       )}
     </div>

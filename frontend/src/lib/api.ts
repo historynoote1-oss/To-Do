@@ -831,6 +831,9 @@ export interface AdminListEntry {
   title: string;
   createdAt: string;
   updatedAt: string;
+  archivedAt: string | null;
+  archiveReason: 'COMPLETED' | 'OVERDUE';
+  pendingRestoreAt: string | null;
   user: { id: string; username: string };
   _count: { items: number };
 }
@@ -843,9 +846,12 @@ export interface AdminListsPage {
   totalPages: number;
 }
 
-export async function getAdminLists(params: { q?: string; page?: number; pageSize?: number } = {}) {
+export async function getAdminLists(
+  params: { q?: string; status?: 'active' | 'archived' | 'overdue' | ''; page?: number; pageSize?: number } = {}
+) {
   const qs = new URLSearchParams();
   if (params.q) qs.set('q', params.q);
+  if (params.status) qs.set('status', params.status);
   qs.set('page', String(params.page || 1));
   qs.set('pageSize', String(params.pageSize || 20));
   const res = await fetch(`${API_URL}/api/admin/content/lists?${qs.toString()}`, { headers: authHeaders() });
@@ -864,6 +870,17 @@ export async function updateAdminList(id: string, title: string) {
 export async function deleteAdminList(id: string, adminPassword: string) {
   const res = await fetch(`${API_URL}/api/admin/content/lists/${id}`, {
     method: 'DELETE',
+    headers: authHeaders(),
+    body: JSON.stringify({ adminPassword }),
+  });
+  return handle(res);
+}
+
+// استرجاع مهمة "متأخرة" اتؤرشفت تلقائيًا — ممنوع على المستخدم نفسه، الأدمن
+// بس يقدر يعمله (شوف POST /lists/:id/restore-overdue في routes/adminContent.ts).
+export async function restoreAdminOverdueList(id: string, adminPassword: string) {
+  const res = await fetch(`${API_URL}/api/admin/content/lists/${id}/restore-overdue`, {
+    method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ adminPassword }),
   });
