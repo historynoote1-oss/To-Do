@@ -92,6 +92,10 @@ interface List {
   lifeAreaId?: string | null;
   lifeArea?: { id: string; name: string; color: string; icon: string | null; imageUrl: string | null } | null;
   recurringTaskId?: string | null;
+  // ===== خريطة الأهداف الهرمية =====
+  parentGoalId?: string | null;
+  parentGoal?: { id: string; title: string; category: string | null; targetYear: number | null } | null;
+  subGoals?: { id: string; title: string; category: string | null; archivedAt: string | null; archiveReason: string | null }[];
   items: any[];
 }
 
@@ -506,8 +510,8 @@ export default function App() {
   // (Undo) عن الإضافة وحب يرجّعها. بترجع الـ list الناتج عشان نعرف الـ id
   // الجديد (بيتغيّر كل مرة لأن كل إنشاء بياخد id مختلف من السيرفر).
   async function createTaskFromPayload(data: NewTaskPayload) {
-    const { title, subtasks, priority, category, targetYear, lifeAreaId, startTime, endTime, reminders } = data;
-    const list = await createList(title, priority, category, targetYear, lifeAreaId, startTime, endTime);
+    const { title, subtasks, priority, category, targetYear, lifeAreaId, parentGoalId, startTime, endTime, reminders } = data;
+    const list = await createList(title, priority, category, targetYear, lifeAreaId, startTime, endTime, parentGoalId);
     for (const subtask of subtasks) {
       await addItem(list.id, subtask.content);
     }
@@ -530,7 +534,7 @@ export default function App() {
     sounds.addItem();
     // تحديث تفاؤلي: المهمة الرئيسية بتظهر فورًا من غير ما ننتظر السيرفر
     const tempId = `temp-${Date.now()}`;
-    setLists((prev) => [...prev, { id: tempId, title, priority: data.priority, category: data.category, targetYear: data.targetYear, lifeAreaId: data.lifeAreaId, items: [] }]);
+    setLists((prev) => [...prev, { id: tempId, title, priority: data.priority, category: data.category, targetYear: data.targetYear, lifeAreaId: data.lifeAreaId, parentGoalId: data.parentGoalId, items: [] }]);
     try {
       const list = await createTaskFromPayload(data);
       // ref قابل للتعديل بيتبع آخر id فعلي للمهمة دي — لازم نحدّثه بعد أي
@@ -571,7 +575,8 @@ export default function App() {
       snapshot.targetYear,
       snapshot.lifeAreaId,
       snapshot.startTime,
-      snapshot.endTime
+      snapshot.endTime,
+      snapshot.parentGoalId
     );
     for (const item of snapshot.items || []) {
       const newItem = await addItem(recreated.id, item.content, item.priority);
@@ -1069,6 +1074,7 @@ export default function App() {
               lifeAreas={lifeAreas}
               onManageLifeAreas={() => setView('lifeAreas')}
               highlightedListId={highlightedListId}
+              onCreateSubGoal={handleCreate}
             />
           )}
         </main>

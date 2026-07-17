@@ -4,10 +4,11 @@ import { CategoryPicker } from './Category';
 import { LifeAreaPicker } from './LifeArea';
 import QuickCreateLifeArea from './QuickCreateLifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
-import { CategoryKey, categoryOf } from '../lib/category';
+import { CategoryKey, categoryOf, requiresParentGoal, goalLabelFor, CHILD_CATEGORY_OF, PARENT_CATEGORY_OF } from '../lib/category';
 import { LifeAreaData } from '../lib/lifeArea';
 import { DynamicIcon } from '../lib/icons';
 import { sounds } from '../lib/sounds';
+import { getGoalOptions, GoalOption } from '../lib/api';
 import Portal from './Portal';
 import ConfirmModal from './ConfirmModal';
 
@@ -35,6 +36,10 @@ export interface NewTaskPayload {
   category: CategoryKey | null;
   targetYear: number | null;
   lifeAreaId: string | null;
+  // ===== خريطة الأهداف الهرمية =====
+  // ID الهدف الأب المباشر (سنوي/شهري/أسبوعي حسب تصنيف المهمة دي) — null لو
+  // مش مربوطة بأي هدف أعلى. شوف lib/category.ts (PARENT_CATEGORY_OF).
+  parentGoalId: string | null;
   startTime: string | null;
   endTime: string | null;
   reminders: NewTaskReminder[];
@@ -49,6 +54,7 @@ export interface EditTaskTarget {
   category: CategoryKey | null;
   targetYear: number | null;
   lifeAreaId: string | null;
+  parentGoalId: string | null;
   startTime: string | null;
   endTime: string | null;
   // المهام الفرعية والتذكيرات الحالية للمهمة — لازم تتبعت عشان الويزارد
@@ -73,6 +79,11 @@ interface Props {
   // بقيم المهمة الحالية، وبتنادي onSave بدل onCreate عند الحفظ.
   editTarget?: EditTaskTarget | null;
   onSave?: (id: string, data: NewTaskPayload) => Promise<void> | void;
+  // ===== إضافة هدف فرعي مباشرة من كارت هدف =====
+  // لو اتبعتوا (ومفيش editTarget)، النافذة بتفتح جاهزة على تصنيف الهدف
+  // الفرعي المناسب (مثلاً شهري لو presetParentGoal سنوي) ومربوطة بيه
+  // تلقائيًا من غير ما المستخدم يمر بخطوة اختيار التصنيف/الهدف الأب يدوي.
+  presetParentGoal?: GoalOption | null;
 }
 
 function toDatetimeLocalValue(d: Date) {
@@ -95,7 +106,7 @@ function formatOffsetFromMinutes(totalMinutes: number): string {
   return formatOffsetParts(days, hours, minutes);
 }
 
-type StepId = 'title' | 'subtasks' | 'priority' | 'category' | 'lifeArea' | 'reminder' | 'timeline' | 'review';
+type StepId = 'title' | 'subtasks' | 'priority' | 'category' | 'goal' | 'lifeArea' | 'reminder' | 'timeline' | 'review';
 
 interface StepDef {
   id: StepId;
@@ -108,6 +119,10 @@ const ALL_STEPS: StepDef[] = [
   { id: 'subtasks', label: 'المهام الفرعية', icon: 'list-checks' },
   { id: 'priority', label: 'الأولوية', icon: 'flag' },
   { id: 'category', label: 'التصنيف', icon: 'tag' },
+  // بتظهر بس للتصنيفات المحتاجة "هدف أب" (شهري/أسبوعي/يومي) — شوف فلترة
+  // STEPS جوه الكومبوننت. عن قصد بعد "التصنيف" مباشرة عشان نعرف الأول
+  // التصنيف قبل ما نجيب خيارات الأب المناسبة له.
+  { id: 'goal', label: 'الهدف الأب', icon: 'route' },
   { id: 'lifeArea', label: 'مجال الحياة', icon: 'compass' },
   { id: 'timeline', label: 'الجدول الزمني', icon: 'timer' },
   { id: 'reminder', label: 'التذكير', icon: 'bell' },
@@ -129,9 +144,9 @@ export default function AddTaskModal({
   onLifeAreaCreated,
   editTarget = null,
   onSave,
+  presetParentGoal = null,
 }: Props) {
   const isEditing = !!editTarget;
-  const STEPS = ALL_STEPS;
   const [stepIndex, setStepIndex] = useState(0);
 
   const [title, setTitle] = useState('');
@@ -148,6 +163,14 @@ export default function AddTaskModal({
   const [category, setCategory] = useState<CategoryKey | null>(null);
   const [targetYear, setTargetYear] = useState<number | null>(null);
   const [lifeAreaId, setLifeAreaId] = useState<string | null>(null);
+  // ===== خريطة الأهداف الهرمية =====
+  // parentGoalId: الهدف الأب المختار حاليًا (أو null لو المستخدم مش عاوز
+  // يربط، أو التصنيف الحالي مالوش أب أصلًا زي السنوي). parentGoalOptions:
+  // الأهداف المرشحة تتربط كأب للتصنيف الحالي، بتتجاب من السيرفر كل ما
+  // التصنيف يتغيّر لحاجة محتاجة أب.
+  const [parentGoalId, setParentGoalId] = useState<string | null>(null);
+  const [parentGoalOptions, setParentGoalOptions] = useState<GoalOption[]>([]);
+  const [parentGoalOptionsLoading, setParentGoalOptionsLoading] = useState(false);
   // مجالات اتنشأت من جوه الويزارد نفسه (شوف QuickCreateLifeArea) — بتتحط
   // فوق قائمة `lifeAreas` الجاية من الأب عشان تبان وتتحدد فورًا، من غير
   // ما نستنى دورة تحديث كاملة من الأب الأول. بمجرد ما الأب يحدّث قائمته
@@ -194,6 +217,7 @@ export default function AddTaskModal({
         setCategory(editTarget.category);
         setTargetYear(editTarget.targetYear);
         setLifeAreaId(editTarget.lifeAreaId);
+        setParentGoalId(editTarget.parentGoalId ?? null);
         setStartDraft(editTarget.startTime ? toDatetimeLocalValue(new Date(editTarget.startTime)) : '');
         setEndDraft(editTarget.endTime ? toDatetimeLocalValue(new Date(editTarget.endTime)) : '');
         setSubtasks((editTarget.subtasks || []).map((s) => ({ id: s.id, content: s.content })));
@@ -203,9 +227,12 @@ export default function AddTaskModal({
       } else {
         setTitle('');
         setPriority('MEDIUM');
-        setCategory(null);
+        // إضافة هدف فرعي من كارت هدف موجود: بنبدأ بتصنيف "الابن" المناسب
+        // ومربوطين بيه تلقائيًا، بدل ما المستخدم يمر بالخطوتين يدوي.
+        setCategory(presetParentGoal ? (CHILD_CATEGORY_OF[(presetParentGoal.category as CategoryKey) || 'YEARLY'] ?? null) : null);
         setTargetYear(null);
         setLifeAreaId(null);
+        setParentGoalId(presetParentGoal ? presetParentGoal.id : null);
         setStartDraft('');
         setEndDraft('');
         setSubtasks([]);
@@ -227,7 +254,7 @@ export default function AddTaskModal({
       requestAnimationFrame(() => titleRef.current?.focus());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editTarget?.id]);
+  }, [open, editTarget?.id, presetParentGoal?.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -245,6 +272,42 @@ export default function AddTaskModal({
       document.body.classList.remove('modal-lock-scroll');
     };
   }, [open, onClose, quickCreateOpen]);
+
+  // ===== خريطة الأهداف الهرمية =====
+  // كل ما التصنيف يتغيّر لحاجة محتاجة "هدف أب" (شهري/أسبوعي/يومي)، بنجيب
+  // الأهداف المرشحة من التصنيف الأعلى مباشرة من السيرفر. لو الهدف المختار
+  // حاليًا مش موجود ضمن الخيارات الجديدة (اتغيّر التصنيف مثلاً)، بنمسحه.
+  useEffect(() => {
+    if (!open) return;
+    if (!requiresParentGoal(category)) {
+      setParentGoalOptions([]);
+      return;
+    }
+    let cancelled = false;
+    setParentGoalOptionsLoading(true);
+    getGoalOptions(category as string, editTarget?.id)
+      .then((options) => {
+        if (cancelled) return;
+        setParentGoalOptions(options);
+        setParentGoalId((current) => (current && !options.some((o) => o.id === current) ? null : current));
+      })
+      .catch(() => {
+        if (!cancelled) setParentGoalOptions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setParentGoalOptionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, category, editTarget?.id]);
+
+  // خطوة "الهدف الأب" بتظهر بس لو التصنيف الحالي محتاج أب في الهرم — مفيش
+  // معنى ليها مع السنوي (قمة الهرم) أو من غير تصنيف أصلًا.
+  const STEPS = useMemo(() => {
+    if (!requiresParentGoal(category)) return ALL_STEPS.filter((s) => s.id !== 'goal');
+    return ALL_STEPS;
+  }, [category]);
 
   const step = STEPS[stepIndex];
   const isFirst = stepIndex === 0;
@@ -464,6 +527,7 @@ export default function AddTaskModal({
         category,
         targetYear,
         lifeAreaId,
+        parentGoalId: requiresParentGoal(category) ? parentGoalId : null,
         startTime,
         endTime,
         reminders,
@@ -481,6 +545,10 @@ export default function AddTaskModal({
   }
 
   const reviewCategory = useMemo(() => categoryOf(category), [category]);
+  const reviewParentGoal = useMemo(
+    () => (requiresParentGoal(category) ? parentGoalOptions.find((o) => o.id === parentGoalId) || null : null),
+    [category, parentGoalId, parentGoalOptions]
+  );
   const reviewLifeArea = useMemo(
     () => displayLifeAreas.find((a) => a.id === lifeAreaId) || null,
     [displayLifeAreas, lifeAreaId]
@@ -644,6 +712,73 @@ export default function AddTaskModal({
                   setTargetYear(key === 'YEARLY' ? year ?? new Date().getFullYear() : null);
                 }}
               />
+            </div>
+          )}
+
+          {step.id === 'goal' && (
+            <div className="add-task-field">
+              <span className="add-task-label">{goalLabelFor(category)} الأب</span>
+              <p className="wizard-empty-hint">
+                <DynamicIcon name="route" size={12} /> اربط الهدف ده بهدف أعلى منه في الهرم عشان يتحسب ضمن تقدّمه —
+                الربط اختياري، تقدر تكمّله بعدين من تعديل المهمة.
+              </p>
+
+              {parentGoalOptionsLoading ? (
+                <p className="wizard-empty-hint">جاري تحميل الأهداف المتاحة…</p>
+              ) : parentGoalOptions.length === 0 ? (
+                <p className="wizard-empty-hint">
+                  لسه معملتش أي {goalLabelFor(category ? PARENT_CATEGORY_OF[category] : null)} — تقدر تكمّل من غير
+                  ربط دلوقتي وتربطه بعدين لما تعمل واحد.
+                </p>
+              ) : (
+                <ul className="goal-parent-option-list">
+                  <li>
+                    <button
+                      type="button"
+                      className={`goal-parent-option ${parentGoalId === null ? 'selected' : ''}`}
+                      onClick={() => {
+                        sounds.hover();
+                        setParentGoalId(null);
+                      }}
+                    >
+                      <span className="goal-parent-option-icon">
+                        <DynamicIcon name="unlink" size={14} />
+                      </span>
+                      <span className="goal-parent-option-text">بدون ربط</span>
+                      {parentGoalId === null && (
+                        <span className="priority-check">
+                          <DynamicIcon name="check" size={14} />
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                  {parentGoalOptions.map((opt) => (
+                    <li key={opt.id}>
+                      <button
+                        type="button"
+                        className={`goal-parent-option ${parentGoalId === opt.id ? 'selected' : ''}`}
+                        onClick={() => {
+                          sounds.hover();
+                          setParentGoalId(opt.id);
+                        }}
+                      >
+                        <span className="goal-parent-option-icon">
+                          <DynamicIcon name={categoryOf(opt.category)?.icon || 'trophy'} size={14} />
+                        </span>
+                        <span className="goal-parent-option-text">
+                          {opt.title}
+                          {opt.targetYear ? <span className="goal-parent-option-year" dir="ltr"> · {opt.targetYear}</span> : null}
+                        </span>
+                        {parentGoalId === opt.id && (
+                          <span className="priority-check">
+                            <DynamicIcon name="check" size={14} />
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -826,6 +961,12 @@ export default function AddTaskModal({
                 <span className="wizard-review-label"><DynamicIcon name="tag" size={14} /> التصنيف</span>
                 <span className="wizard-review-value">{reviewCategory ? reviewCategory.label : 'مفيش'}</span>
               </div>
+              {requiresParentGoal(category) && (
+                <div className="wizard-review-row">
+                  <span className="wizard-review-label"><DynamicIcon name="route" size={14} /> {goalLabelFor(category)} الأب</span>
+                  <span className="wizard-review-value">{reviewParentGoal ? reviewParentGoal.title : 'بدون ربط'}</span>
+                </div>
+              )}
               <div className="wizard-review-row">
                 <span className="wizard-review-label"><DynamicIcon name="compass" size={14} /> مجال الحياة</span>
                 <span className="wizard-review-value">{reviewLifeArea ? reviewLifeArea.name : 'مفيش'}</span>

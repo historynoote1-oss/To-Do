@@ -26,6 +26,7 @@ export default function TaskHierarchy({
   lifeAreas,
   onManageLifeAreas,
   highlightedListId,
+  onCreateSubGoal,
 }: {
   groups: HierarchicalLifeAreaGroup<any>[];
   onChange: () => void;
@@ -33,6 +34,9 @@ export default function TaskHierarchy({
   lifeAreas: LifeAreaData[];
   onManageLifeAreas: () => void;
   highlightedListId?: string | null;
+  // بيتنادى لما المستخدم يضيف "هدف فرعي" من كارت هدف موجود مباشرة — شوف
+  // نفس الـ prop على TodoList.
+  onCreateSubGoal?: (data: any) => Promise<void> | void;
 }) {
   const [collapsedAreas, setCollapsedAreas] = useState<Set<string>>(new Set());
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
@@ -198,6 +202,7 @@ export default function TaskHierarchy({
                       lifeAreas={lifeAreas}
                       onManageLifeAreas={onManageLifeAreas}
                       highlighted={highlightedListId === list.id}
+                      onCreateSubGoal={onCreateSubGoal}
                     />
                   </div>
                 ))}

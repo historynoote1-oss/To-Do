@@ -27,8 +27,9 @@ import { PriorityBadge } from './Priority';
 import { CategoryBadge } from './Category';
 import { LifeAreaBadge } from './LifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
-import { CategoryKey } from '../lib/category';
+import { CategoryKey, CHILD_CATEGORY_OF, goalLabelFor } from '../lib/category';
 import { LifeAreaData } from '../lib/lifeArea';
+import { GoalOption } from '../lib/api';
 import { DynamicIcon } from '../lib/icons';
 import { sortItems } from '../lib/organize';
 
@@ -44,6 +45,7 @@ export default function TodoList({
   highlighted = false,
   pendingRestore = false,
   onFinalizeRestore,
+  onCreateSubGoal,
 }: any) {
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [burstKey, setBurstKey] = useState(0);
@@ -54,6 +56,10 @@ export default function TodoList({
   // بتفتح نافذة تعديل المهمة (نفس مراحل الإنشاء بالظبط بس في وضع تعديل) —
   // بتتفتح لما يدوس المستخدم على أيقونة القلم في رأس الكارت.
   const [editModalOpen, setEditModalOpen] = useState(false);
+  // بتفتح نافذة إضافة "هدف فرعي" جديد مربوط بالهدف ده مباشرة (سنوي → شهري
+  // → أسبوعي → يومي) — نفس ويزارد الإنشاء العادي بس مبدئيًا على التصنيف
+  // والربط الصح، شوف presetParentGoal في AddTaskModal.
+  const [addSubGoalOpen, setAddSubGoalOpen] = useState(false);
   // تذكيرات المهمة الرئيسية الحالية — بتتجاب من السيرفر لما نافذة التعديل
   // تتفتح، عشان تتعرض جاهزة للتعديل جوه خطوة "التذكير" بدل ما تبان فاضية.
   const [editReminders, setEditReminders] = useState<
@@ -108,6 +114,18 @@ export default function TodoList({
   const sortedItems = useMemo(() => sortItems(list.items), [list.items]);
   const done = list.items.filter((i: any) => i.isDone).length;
   const progress = total === 0 ? 0 : Math.round((done / total) * 100);
+
+  // ===== خريطة الأهداف الهرمية =====
+  // نسبة إنجاز الأهداف الفرعية المربوطة بالهدف ده (سنوي/شهري/أسبوعي) —
+  // "خلص" هنا معناها اتؤرشف فعليًا بسبب COMPLETED (شوف archiveReason)،
+  // مش بس اتعلّم Done، عشان يتماشى مع نفس معنى "الإنجاز" في باقي الموقع.
+  const subGoals: any[] = list.subGoals || [];
+  const subGoalsTotal = subGoals.length;
+  const subGoalsDone = subGoals.filter((g) => g.archivedAt && g.archiveReason === 'COMPLETED').length;
+  const subGoalsProgress = subGoalsTotal === 0 ? 0 : Math.round((subGoalsDone / subGoalsTotal) * 100);
+  // زرار "إضافة هدف فرعي" بيظهر بس على الأهداف اللي أصلًا ليها تصنيف
+  // بينقسم لتصنيف أصغر منه في الهرم (سنوي/شهري/أسبوعي، مش يومي).
+  const subGoalChildCategory = list.category ? CHILD_CATEGORY_OF[list.category as CategoryKey] : null;
   // كل المهام الفرعية خلصت — شرط ضروري (بس مش كافي لوحده) عشان مربع
   // التأكيد النهائي يتفعّل. لسه محتاج المستخدم يعلّم عليه بنفسه.
   const allSubtasksDone = total > 0 && done === total;
@@ -257,6 +275,7 @@ export default function TodoList({
       category: (list.category ?? null) as CategoryKey | null,
       targetYear: list.targetYear ?? null,
       lifeAreaId: list.lifeArea?.id ?? list.lifeAreaId ?? null,
+      parentGoalId: list.parentGoal?.id ?? list.parentGoalId ?? null,
       startTime: list.startTime ?? null,
       endTime: list.endTime ?? null,
     };
@@ -266,6 +285,7 @@ export default function TodoList({
       category: data.category,
       targetYear: data.targetYear,
       lifeAreaId: data.lifeAreaId,
+      parentGoalId: data.parentGoalId,
       startTime: data.startTime,
       endTime: data.endTime,
     };
@@ -551,6 +571,7 @@ export default function TodoList({
 
   return (
     <div
+      id={`list-${list.id}`}
       className={`list-card list-card-compact ${isComplete ? 'list-complete' : ''} ${highlighted ? 'list-card-jump-highlight' : ''} ${pendingRestore ? 'list-card-pending-restore' : ''}`}
       style={{
         position: 'relative',
@@ -637,11 +658,34 @@ export default function TodoList({
               <DynamicIcon name="list-checks" size={17} />
             </button>
           )}
+          {!editingTitle && subGoalChildCategory && onCreateSubGoal && (
+            <button
+              className="card-icon-action"
+              onClick={() => setAddSubGoalOpen(true)}
+              aria-label={`إضافة ${goalLabelFor(subGoalChildCategory)}`}
+              type="button"
+              title={`إضافة ${goalLabelFor(subGoalChildCategory)} مربوط بالهدف ده`}
+            >
+              <DynamicIcon name="route" size={17} />
+            </button>
+          )}
           <button className="card-icon-action danger" onClick={handleDeleteList} aria-label="حذف المهمة الرئيسية" type="button" title="حذف">
             <DynamicIcon name="trash" size={17} />
           </button>
         </div>
       </div>
+
+      {list.parentGoal && (
+        <button
+          type="button"
+          className="goal-parent-chip"
+          title={`جزء من ${goalLabelFor(list.parentGoal.category)}: ${list.parentGoal.title}`}
+          onClick={() => document.getElementById(`list-${list.parentGoal.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+        >
+          <DynamicIcon name="route" size={12} />
+          <span>{goalLabelFor(list.parentGoal.category)}: {list.parentGoal.title}</span>
+        </button>
+      )}
 
       {/* شريط بيانات معروضة فقط — أولوية / تصنيف / مجال حياة مصغّرين (يمين
           السطر)، وباقي السطر كله (أكتر من نصه) لعنصر واحد بس: إما عدّاد
@@ -665,6 +709,17 @@ export default function TodoList({
           <TaskTimeline list={list} />
         </div>
       </div>
+
+      {subGoalsTotal > 0 && (
+        <div className="list-progress-row goal-progress-row" title={`${goalLabelFor(subGoalChildCategory)} فرعية: ${subGoalsDone}/${subGoalsTotal}`}>
+          <div className="list-progress goal-progress">
+            <div className="list-progress-fill goal-progress-fill" style={{ width: `${subGoalsProgress}%` }} />
+          </div>
+          <span className="list-progress-label">
+            <DynamicIcon name="target" size={12} /> {subGoalsDone}/{subGoalsTotal} أهداف فرعية · {subGoalsProgress}٪
+          </span>
+        </div>
+      )}
 
       {total > 0 && (
         <div className="list-progress-row">
@@ -779,6 +834,7 @@ export default function TodoList({
             category: list.category ?? null,
             targetYear: list.targetYear ?? null,
             lifeAreaId: list.lifeArea?.id ?? list.lifeAreaId ?? null,
+            parentGoalId: list.parentGoal?.id ?? list.parentGoalId ?? null,
             startTime: list.startTime ?? null,
             endTime: list.endTime ?? null,
             subtasks: [...(list.items || [])]
@@ -787,6 +843,30 @@ export default function TodoList({
             reminders: editReminders,
           }}
           onSave={handleEditSave}
+        />
+      )}
+
+      {addSubGoalOpen && (
+        <AddTaskModal
+          open={addSubGoalOpen}
+          lifeAreas={lifeAreas}
+          onClose={() => setAddSubGoalOpen(false)}
+          onManageLifeAreas={() => {
+            setAddSubGoalOpen(false);
+            onManageLifeAreas?.();
+          }}
+          presetParentGoal={
+            {
+              id: list.id,
+              title: list.title,
+              category: list.category ?? null,
+              targetYear: list.targetYear ?? null,
+            } as GoalOption
+          }
+          onCreate={async (data) => {
+            await onCreateSubGoal?.(data);
+            setAddSubGoalOpen(false);
+          }}
         />
       )}
     </div>

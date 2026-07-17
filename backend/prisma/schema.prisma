@@ -270,6 +270,20 @@ model TodoList {
   recurringTask   RecurringTask? @relation(fields: [recurringTaskId], references: [id], onDelete: SetNull)
   occurrenceDate  DateTime?
 
+  // ===== خريطة الأهداف الهرمية (سنوي ← شهري ← أسبوعي ← يومي) =====
+  // parentGoalId بيربط المهمة الرئيسية دي بـ"الهدف الأب" اللي بتساهم في
+  // تحقيقه. الربط اختياري ومسموح بس بين مستويين متتاليين في الهرم (شوف
+  // PARENT_CATEGORY_OF والتحقق في routes/lists.ts): هدف شهري لازم أبوه
+  // سنوي، أسبوعي لازم أبوه شهري، يومي لازم أبوه أسبوعي — والهدف السنوي
+  // نفسه يفضل من غير أب لأنه قمة الهرم. لو الهدف الأب اتحذف، الأهداف
+  // الفرعية بترجع "بدون أب" (onDelete: SetNull) بدل ما تتحذف معاه، بنفس
+  // فلسفة عدم الحذف المتسلسل المتّبعة في كل المشروع. subGoals هو العكس:
+  // كل الأهداف الفرعية المربوطة بالهدف ده، بتُستخدم لحساب نسبة الإنجاز
+  // الإجمالية للهدف (كام هدف فرعي خلص من كام).
+  parentGoalId String?
+  parentGoal   TodoList?  @relation("GoalHierarchy", fields: [parentGoalId], references: [id], onDelete: SetNull)
+  subGoals     TodoList[] @relation("GoalHierarchy")
+
   @@unique([userId, title])
   @@index([userId])
   @@index([lifeAreaId])
@@ -277,6 +291,7 @@ model TodoList {
   @@index([userId, pendingRestoreAt])
   @@index([recurringTaskId])
   @@index([archivedAt, endTime])
+  @@index([parentGoalId])
 }
 
 // TodoItem بتمثّل "المهمة الفرعية" جوه المهمة الرئيسية.

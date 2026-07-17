@@ -6,6 +6,28 @@ import { resolveActivityDay } from '../lib/localDate';
 
 const router = Router();
 
+// ===== خريطة الأهداف الهرمية =====
+// بيوصف لكل تصنيف "التصنيف الأب" اللي المفروض تُبنى عليه — الهدف السنوي
+// وحده هو قمة الهرم ومالوش أب. مستخدم في التحقق من صحة parentGoalId، وفي
+// نقطة /goal-options اللي بترجع الأهداف المرشحة تتربط كأب لتصنيف معيّن.
+const PARENT_CATEGORY_OF: Record<string, string> = {
+  MONTHLY: 'YEARLY',
+  WEEKLY: 'MONTHLY',
+  DAILY: 'WEEKLY',
+};
+
+// بيتضاف لأي include بيرجّع مهمة رئيسية للواجهة — عشان الكارت يقدر يعرض
+// شارة "الهدف الأب" (breadcrumb) ويحسب نسبة إنجاز الأهداف الفرعية المربوطة
+// بيه من غير طلب إضافي. subGoals بيرجّع بس الحقول اللازمة لحساب التقدّم
+// (خلص/لسه)، مش المهمة كاملة، عشان الحمولة تفضل خفيفة.
+const GOAL_INCLUDE = {
+  parentGoal: { select: { id: true, title: true, category: true, targetYear: true } },
+  subGoals: {
+    select: { id: true, title: true, category: true, archivedAt: true, archiveReason: true },
+    orderBy: { createdAt: 'asc' as const },
+  },
+};
+
 // بترجع المهام الرئيسية "النشطة" بس (مش المؤرشفة، ومش اللي بانتظار مراجعة
 // الاسترجاع من الأرشيف) — المهام المكتملة اللي اتؤرشفت (تلقائيًا أو يدويًا)
 // بتتقرا من GET /api/archive بدالها، واللي بانتظار المراجعة بتتقرا من
@@ -17,6 +39,7 @@ router.get('/', async (req: AuthRequest, res) => {
       items: { orderBy: { position: 'asc' }, include: { _count: { select: { reminders: true } } } },
       _count: { select: { reminders: true } },
       lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
+      ...GOAL_INCLUDE,
     },
     orderBy: { createdAt: 'asc' },
   });
@@ -34,10 +57,35 @@ router.get('/pending-restore', async (req: AuthRequest, res) => {
       items: { orderBy: { position: 'asc' }, include: { _count: { select: { reminders: true } } } },
       _count: { select: { reminders: true } },
       lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
+      ...GOAL_INCLUDE,
     },
     orderBy: { pendingRestoreAt: 'desc' },
   });
   res.json(lists);
+});
+
+// بترجع الأهداف المرشحة تتربط كـ"أب" لتصنيف معيّن — مثلاً ?category=WEEKLY
+// بترجع كل الأهداف الشهرية النشطة (غير المؤرشفة) بتاعة المستخدم، لأن
+// الشهري هو أب الأسبوعي في الهرم. لو التصنيف سنوي (أو مش موجود في الهرم)
+// بترجع مصفوفة فاضية لأنه مالوش أب أصلًا. بتُستخدم في خطوة "الهدف الأب"
+// جوه ويزارد الإنشاء/التعديل.
+router.get('/goal-options', async (req: AuthRequest, res) => {
+  const category = String(req.query.category || '');
+  const parentCategory = PARENT_CATEGORY_OF[category];
+  if (!parentCategory) return res.json([]);
+
+  const excludeId = typeof req.query.excludeId === 'string' ? req.query.excludeId : undefined;
+  const options = await prisma.todoList.findMany({
+    where: {
+      userId: req.userId!,
+      category: parentCategory as any,
+      archivedAt: null,
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { id: true, title: true, category: true, targetYear: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  res.json(options);
 });
 
 // أرشفة يدوية — بتسمح للمستخدم يؤرشف مهمة رئيسية بنفسه حتى لو لسه مش
@@ -197,6 +245,34 @@ async function parseLifeAreaId(value: unknown, userId: string): Promise<string |
   return value;
 }
 
+// بتقبل: undefined (معدلش)، null (مسح الربط)، أو ID هدف فعلاً بيخص
+// المستخدم نفسه، نشط (مش مؤرشف)، وتصنيفه هو بالظبط "التصنيف الأب" المطلوب
+// لـ finalCategory (شوف PARENT_CATEGORY_OF فوق). finalCategory لازم تتحسب
+// بعد دمج القيمة الجديدة مع القديمة الأول (زي targetYear بالظبط) عشان
+// التحقق يبقى صحيح حتى لو المستخدم بعت parentGoalId من غير ما يبعت category
+// في نفس الطلب. الهدف السنوي (أو أي مهمة من غير تصنيف) مالهاش أب أبدًا.
+async function parseParentGoalId(
+  value: unknown,
+  userId: string,
+  finalCategory: string | null
+): Promise<string | null | undefined> {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string') throw new Error('الهدف الأب غير صحيح');
+
+  const requiredParentCategory = finalCategory ? PARENT_CATEGORY_OF[finalCategory] : undefined;
+  if (!requiredParentCategory) {
+    throw new Error('التصنيف الحالي مالوش هدف أب في الهرم');
+  }
+
+  const parent = await prisma.todoList.findFirst({ where: { id: value, userId, archivedAt: null } });
+  if (!parent) throw new Error('الهدف الأب غير موجود');
+  if (parent.category !== requiredParentCategory) {
+    throw new Error('الهدف الأب لازم يكون من التصنيف الأعلى مباشرة في الهرم');
+  }
+  return value;
+}
+
 router.post('/', async (req: AuthRequest, res) => {
   const { priority } = req.body;
   if (priority && !VALID_PRIORITIES.includes(priority)) {
@@ -208,12 +284,17 @@ router.post('/', async (req: AuthRequest, res) => {
   let category: string | null | undefined;
   let targetYear: number | null | undefined;
   let lifeAreaId: string | null | undefined;
+  let parentGoalId: string | null | undefined;
   try {
     startTime = parseNullableDate(req.body.startTime, 'وقت البداية');
     endTime = parseNullableDate(req.body.endTime, 'وقت النهاية');
     category = parseCategory(req.body.category);
     targetYear = parseTargetYear(req.body.targetYear);
     lifeAreaId = await parseLifeAreaId(req.body.lifeAreaId, req.userId!);
+    parentGoalId =
+      req.body.parentGoalId === undefined
+        ? undefined
+        : await parseParentGoalId(req.body.parentGoalId, req.userId!, category ?? null);
   } catch (err) {
     return res.status(400).json({ error: err instanceof Error ? err.message : 'بيانات غير صحيحة' });
   }
@@ -223,6 +304,8 @@ router.post('/', async (req: AuthRequest, res) => {
   // targetYear مالوش معنى غير مع تصنيف YEARLY.
   if (category !== 'YEARLY') targetYear = null;
   else if (!targetYear) targetYear = new Date().getFullYear();
+  // الهدف السنوي قمة الهرم — مالوش أب أبدًا حتى لو اتبعت parentGoalId بالغلط.
+  if (category === 'YEARLY') parentGoalId = null;
 
   try {
     const list = await prisma.todoList.create({
@@ -235,8 +318,12 @@ router.post('/', async (req: AuthRequest, res) => {
         category: (category ?? undefined) as any,
         targetYear: targetYear ?? undefined,
         lifeAreaId: lifeAreaId ?? undefined,
+        parentGoalId: parentGoalId ?? undefined,
       },
-      include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
+      include: {
+        lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
+        ...GOAL_INCLUDE,
+      },
     });
     res.json(list);
   } catch (err) {
@@ -247,6 +334,7 @@ router.post('/', async (req: AuthRequest, res) => {
 router.patch('/:id', async (req: AuthRequest, res) => {
   const list = await prisma.todoList.findFirst({
     where: { id: req.params.id, userId: req.userId! },
+    include: { subGoals: { select: { id: true } } },
   });
   if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
 
@@ -259,6 +347,7 @@ router.patch('/:id', async (req: AuthRequest, res) => {
   let category: string | null | undefined;
   let targetYear: number | null | undefined;
   let lifeAreaId: string | null | undefined;
+  let parentGoalId: string | null | undefined;
   try {
     startTime = parseNullableDate(req.body.startTime, 'وقت البداية');
     endTime = parseNullableDate(req.body.endTime, 'وقت النهاية');
@@ -290,6 +379,25 @@ router.patch('/:id', async (req: AuthRequest, res) => {
     targetYear = new Date().getFullYear();
   }
 
+  // مهمة ليها أهداف فرعية مربوطة بيها ومعنى الهرم بتاعها هيتكسر لو تصنيفها
+  // اتغيّر فجأة (مثلاً هدف شهري ليه أهداف أسبوعية بيتحول لتصنيف يومي) —
+  // بنمنع تغيير التصنيف في الحالة دي، ولازم المستخدم يفك ربط الأهداف
+  // الفرعية الأول لو فعلًا عاوز يغيّر التصنيف.
+  if (category !== undefined && category !== list.category && list.subGoals.length > 0) {
+    return res.status(400).json({ error: 'لازم تفك ربط الأهداف الفرعية عن الهدف ده الأول قبل ما تغيّر تصنيفه' });
+  }
+
+  try {
+    parentGoalId =
+      req.body.parentGoalId === undefined
+        ? undefined
+        : await parseParentGoalId(req.body.parentGoalId, req.userId!, finalCategory ?? null);
+  } catch (err) {
+    return res.status(400).json({ error: err instanceof Error ? err.message : 'بيانات غير صحيحة' });
+  }
+  // الهدف السنوي قمة الهرم — مالوش أب أبدًا.
+  if (finalCategory === 'YEARLY') parentGoalId = null;
+
   const updated = await prisma.todoList.update({
     where: { id: list.id },
     data: {
@@ -300,8 +408,12 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       category: category === undefined ? undefined : ((category as any) ?? null),
       targetYear,
       lifeAreaId: lifeAreaId === undefined ? undefined : lifeAreaId,
+      parentGoalId: parentGoalId === undefined ? undefined : parentGoalId,
     },
-    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
+    include: {
+      lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
+      ...GOAL_INCLUDE,
+    },
   });
   res.json(updated);
 });

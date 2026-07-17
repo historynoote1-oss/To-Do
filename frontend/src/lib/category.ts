@@ -63,3 +63,31 @@ export function categoryOf(key?: string | null): CategoryDef | null {
   if (!key) return null;
   return CATEGORY_MAP[key as CategoryKey] || null;
 }
+
+// ===== خريطة الأهداف الهرمية (سنوي ← شهري ← أسبوعي ← يومي) =====
+// نفس منطق backend/src/routes/lists.ts (PARENT_CATEGORY_OF) وعن قصد: كل
+// تصنيف غير سنوي لازم "هدف أب" من التصنيف الأعلى مباشرة. الهدف السنوي هو
+// قمة الهرم ومالوش أب. مصدر واحد للحقيقة عشان الويزارد يبني نفس القرارات
+// اللي السيرفر هيتحقق منها بالظبط.
+export const PARENT_CATEGORY_OF: Partial<Record<CategoryKey, CategoryKey>> = {
+  MONTHLY: 'YEARLY',
+  WEEKLY: 'MONTHLY',
+  DAILY: 'WEEKLY',
+};
+
+// العكس: بيوصف لكل تصنيف "التصنيف الابن" اللي بينقسم له — بيُستخدم لما
+// نضيف "هدف فرعي" مباشرة من كارت هدف موجود (سنوي → شهري → أسبوعي → يومي).
+export const CHILD_CATEGORY_OF: Partial<Record<CategoryKey, CategoryKey>> = {
+  YEARLY: 'MONTHLY',
+  MONTHLY: 'WEEKLY',
+  WEEKLY: 'DAILY',
+};
+
+export function requiresParentGoal(category?: CategoryKey | null): boolean {
+  return !!category && !!PARENT_CATEGORY_OF[category];
+}
+
+export function goalLabelFor(category?: CategoryKey | null): string {
+  const def = categoryOf(category);
+  return def ? `الهدف ${def.label === 'يومية' ? 'اليومي' : def.label === 'أسبوعية' ? 'الأسبوعي' : def.label === 'شهرية' ? 'الشهري' : 'السنوي'}` : 'الهدف';
+}

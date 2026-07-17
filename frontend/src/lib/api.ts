@@ -213,12 +213,13 @@ export async function createList(
   targetYear?: number | null,
   lifeAreaId?: string | null,
   startTime?: string | null,
-  endTime?: string | null
+  endTime?: string | null,
+  parentGoalId?: string | null
 ) {
   const res = await fetch(`${API_URL}/api/lists`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ title, priority, category, targetYear, lifeAreaId, startTime, endTime }),
+    body: JSON.stringify({ title, priority, category, targetYear, lifeAreaId, startTime, endTime, parentGoalId }),
   });
   return handle(res);
 }
@@ -233,6 +234,7 @@ export async function updateList(
     category?: string | null;
     targetYear?: number | null;
     lifeAreaId?: string | null;
+    parentGoalId?: string | null;
   }
 ) {
   const res = await fetch(`${API_URL}/api/lists/${id}`, {
@@ -240,6 +242,25 @@ export async function updateList(
     headers: authHeaders(),
     body: JSON.stringify(data),
   });
+  return handle(res);
+}
+
+// ===== خريطة الأهداف الهرمية =====
+// بترجع الأهداف المرشحة تتربط كـ"أب" لتصنيف معيّن (مثلاً كل الأهداف
+// الشهرية النشطة لو category = 'WEEKLY') — بتُستخدم في خطوة "الهدف الأب"
+// جوه ويزارد الإنشاء/التعديل. excludeId بيمنع ظهور الهدف نفسه كخيار لأبوه
+// وقت التعديل.
+export interface GoalOption {
+  id: string;
+  title: string;
+  category: string | null;
+  targetYear: number | null;
+}
+
+export async function getGoalOptions(category: string, excludeId?: string): Promise<GoalOption[]> {
+  const params = new URLSearchParams({ category });
+  if (excludeId) params.set('excludeId', excludeId);
+  const res = await fetch(`${API_URL}/api/lists/goal-options?${params.toString()}`, { headers: authHeaders() });
   return handle(res);
 }
 

@@ -2065,6 +2065,118 @@ button:disabled {
   text-align: end;
 }
 
+/* ===== خريطة الأهداف الهرمية — شارة "الهدف الأب" + بار تقدّم الأهداف الفرعية ===== */
+.goal-parent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  max-width: 100%;
+  margin: -4px 0 10px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.goal-parent-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-parent-chip:hover {
+  color: var(--accent-soft);
+  border-color: var(--accent-soft);
+  background: var(--surface-3, var(--surface-2));
+}
+
+.goal-progress-row {
+  margin-bottom: 10px;
+}
+
+.goal-progress {
+  background: color-mix(in srgb, var(--gold, var(--accent)) 14%, var(--surface-2));
+}
+
+.goal-progress-fill {
+  background: linear-gradient(90deg, var(--gold, var(--accent)), var(--accent));
+}
+
+.goal-progress-row .list-progress-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: max-content;
+  color: var(--gold, var(--accent-soft));
+}
+
+/* ===== خطوة "الهدف الأب" جوه ويزارد الإضافة/التعديل ===== */
+.goal-parent-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.goal-parent-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  text-align: start;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease;
+}
+
+.goal-parent-option:hover {
+  border-color: var(--accent-soft);
+}
+
+.goal-parent-option.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  color: var(--accent-soft);
+  font-weight: 700;
+}
+
+.goal-parent-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.goal-parent-option-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-parent-option-year {
+  color: var(--text-muted);
+  font-family: var(--font-num);
+  font-size: 12px;
+}
+
 /* ===== Todo items ===== */
 ul {
   list-style: none;
