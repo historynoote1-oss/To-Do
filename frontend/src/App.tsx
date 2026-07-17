@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   getLists,
   createList,
@@ -666,8 +666,13 @@ export default function App() {
   // "مكتملة" هنا تاني، "نشطة" هي كل حاجة موجودة أصلًا.
   // التنظيم الجديد: بدل فلترة يدوية مستمرة، المهام بتترتب تلقائيًا حسب
   // الأولوية وتتجمّع حسب مجال الحياة.
-  const groups = groupByLifeArea(lists as any, lifeAreas);
-  const hierGroups = groupHierarchical(lists as any, lifeAreas);
+  // ملحوظة أداء: التجميع الهرمي (groupHierarchical) بيلف على كل المهام
+  // والتصنيفات والأولويات في كل مرة — عملية مش رخيصة لو عدد المهام كبير.
+  // كان بيتحسب من الصفر في *كل* re-render (حتى لو كان السبب حاجة مالهاش
+  // علاقة بالمهام زي فتح/قفل القائمة الجانبية أو كتم الصوت)، فبنكاشه بـ
+  // useMemo ومنعيدش حسابه غير لما lists أو lifeAreas فعلاً يتغيّروا.
+  const groups = useMemo(() => groupByLifeArea(lists as any, lifeAreas), [lists, lifeAreas]);
+  const hierGroups = useMemo(() => groupHierarchical(lists as any, lifeAreas), [lists, lifeAreas]);
 
   if (!statusChecked) {
     return (
@@ -917,7 +922,7 @@ export default function App() {
   return (
     <>
       <ToastContainer />
-      <div className="container view-fade">
+      <div className="container view-fade home-page">
         {isAdmin && siteStatus?.maintenanceMode && (
           <div className="maintenance-banner">
             <span><DynamicIcon name="wrench" size={16} /> وضع الصيانة مفعّل حاليًا — المستخدمين العاديين مش شايفين الموقع غيرك.</span>
@@ -926,7 +931,7 @@ export default function App() {
             </button>
           </div>
         )}
-        <div className="top-bar">
+        <header className="top-bar">
           <div className="top-bar-grid">
             <button
               className="header-user"
@@ -975,96 +980,98 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </header>
 
-        <div className="stats-col">
-          <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
-          <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
-        </div>
+        <main className="home-main">
+          <section className="stats-col" aria-label="إحصائيات سريعة">
+            <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
+            <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
+          </section>
 
-        <div className="quick-add-row quick-add-row-compact">
-          <button className="quick-add-card" onClick={() => setAddTaskOpen(true)} type="button">
-            <span className="quick-add-icon-wrap">
-              <DynamicIcon name="plus" size={18} />
-            </span>
-            <span className="quick-add-label">إضافة مهمة</span>
-          </button>
-
-          <button className="quick-add-card quick-add-card-recurring" onClick={() => setView('recurring')} type="button">
-            <span className="quick-add-icon-wrap quick-add-icon-wrap-recurring">
-              <DynamicIcon name="repeat" size={18} />
-              <span className="quick-add-badge">
-                <DynamicIcon name="plus" size={9} />
+          <div className="quick-add-row quick-add-row-compact">
+            <button className="quick-add-card" onClick={() => setAddTaskOpen(true)} type="button">
+              <span className="quick-add-icon-wrap">
+                <DynamicIcon name="plus" size={18} />
               </span>
-            </span>
-            <span className="quick-add-label">إضافة مهمة متكررة</span>
-          </button>
-        </div>
+              <span className="quick-add-label">إضافة مهمة</span>
+            </button>
 
-        <Suspense fallback={null}>
-          <AddTaskModal
-            open={addTaskOpen}
-            lifeAreas={lifeAreas}
-            onClose={() => setAddTaskOpen(false)}
-            onManageLifeAreas={() => {
-              setAddTaskOpen(false);
-              setView('lifeAreas');
-            }}
-            onCreate={handleCreate}
-            onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
-          />
-        </Suspense>
-
-        <PendingRestoreSection
-          lists={pendingRestoreLists}
-          onChange={refreshPendingRestore}
-          onFinalize={handleFinalizeRestore}
-          onDeleteList={handleDeletePendingRestore}
-          lifeAreas={lifeAreas}
-          onManageLifeAreas={() => setView('lifeAreas')}
-        />
-
-        {loading && (
-          <div className="lists-grid">
-            <div className="skeleton skeleton-card" />
-            <div className="skeleton skeleton-card" />
+            <button className="quick-add-card quick-add-card-recurring" onClick={() => setView('recurring')} type="button">
+              <span className="quick-add-icon-wrap quick-add-icon-wrap-recurring">
+                <DynamicIcon name="repeat" size={18} />
+                <span className="quick-add-badge">
+                  <DynamicIcon name="plus" size={9} />
+                </span>
+              </span>
+              <span className="quick-add-label">إضافة مهمة متكررة</span>
+            </button>
           </div>
-        )}
 
-        {!loading && lists.length === 0 && (
-          <p className="empty">
-            <DynamicIcon name="sticky-note" size={32} className="empty-icon" />
-            مفيش مهام رئيسية لسه، ابدأ بإنشاء أول مهمة
-          </p>
-        )}
+          <Suspense fallback={null}>
+            <AddTaskModal
+              open={addTaskOpen}
+              lifeAreas={lifeAreas}
+              onClose={() => setAddTaskOpen(false)}
+              onManageLifeAreas={() => {
+                setAddTaskOpen(false);
+                setView('lifeAreas');
+              }}
+              onCreate={handleCreate}
+              onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
+            />
+          </Suspense>
 
-        {!loading && lists.length > 0 && groups.length > 1 && (
-          <nav className="quick-nav" aria-label="تنقّل سريع بين الأقسام">
-            {groups.map((g) => (
-              <button
-                key={g.id}
-                className="quick-nav-chip"
-                style={{ ['--chip-color' as any]: g.color }}
-                onClick={() => scrollToSection(`section-area-${g.id}`)}
-                type="button"
-              >
-                <DynamicIcon name={(g.icon as any) || 'tag'} size={13} /> {g.name}
-                <span className="quick-nav-count">{g.lists.length}</span>
-              </button>
-            ))}
-          </nav>
-        )}
-
-        {!loading && (
-          <TaskHierarchy
-            groups={hierGroups}
-            onChange={refresh}
-            onDeleteList={handleDelete}
+          <PendingRestoreSection
+            lists={pendingRestoreLists}
+            onChange={refreshPendingRestore}
+            onFinalize={handleFinalizeRestore}
+            onDeleteList={handleDeletePendingRestore}
             lifeAreas={lifeAreas}
             onManageLifeAreas={() => setView('lifeAreas')}
-            highlightedListId={highlightedListId}
           />
-        )}
+
+          {loading && (
+            <div className="lists-grid">
+              <div className="skeleton skeleton-card" />
+              <div className="skeleton skeleton-card" />
+            </div>
+          )}
+
+          {!loading && lists.length === 0 && (
+            <p className="empty">
+              <DynamicIcon name="sticky-note" size={32} className="empty-icon" />
+              مفيش مهام رئيسية لسه، ابدأ بإنشاء أول مهمة
+            </p>
+          )}
+
+          {!loading && lists.length > 0 && groups.length > 1 && (
+            <nav className="quick-nav" aria-label="تنقّل سريع بين الأقسام">
+              {groups.map((g) => (
+                <button
+                  key={g.id}
+                  className="quick-nav-chip"
+                  style={{ ['--chip-color' as any]: g.color }}
+                  onClick={() => scrollToSection(`section-area-${g.id}`)}
+                  type="button"
+                >
+                  <DynamicIcon name={(g.icon as any) || 'tag'} size={13} /> {g.name}
+                  <span className="quick-nav-count">{g.lists.length}</span>
+                </button>
+              ))}
+            </nav>
+          )}
+
+          {!loading && (
+            <TaskHierarchy
+              groups={hierGroups}
+              onChange={refresh}
+              onDeleteList={handleDelete}
+              lifeAreas={lifeAreas}
+              onManageLifeAreas={() => setView('lifeAreas')}
+              highlightedListId={highlightedListId}
+            />
+          )}
+        </main>
       </div>
       {sideMenuAndModals}
     </>

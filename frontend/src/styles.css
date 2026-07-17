@@ -1517,22 +1517,16 @@ button:disabled {
   line-height: 1;
 }
 
-/* ===== Dashboard stats — بعد إزالة البطاقات المكرّرة، بقى عندنا بطاقتين
-   بس (توزيع المهام + نسبة الإنجاز)، فبقى منطقي إنهم ياخدوا شبكة عمودين
-   جنب بعض بدل التكديس الرأسي القديم — استغلال أفضل للمساحة وإحساس أقرب
-   للوحة تحكم (Dashboard) حقيقية بدل قائمة إحصائيات طويلة. */
+/* ===== Dashboard stats — كل بطاقة إحصائية (توزيع المهام / نسبة الإنجاز)
+   بتاخد السطر كامل لوحدها بدل ما يتكدّسوا عمودين جنب بعض. البطاقتين
+   بيحتوا تفاصيل وأرقام كتير، فمساحة عرض كاملة بتخليهم أوضح وأسهل قراءة
+   على الموبايل بدل ما يتزنقوا في نص المساحة، وبرضه بتفضل متسقة على كل
+   أحجام الشاشات من غير ما تحتاج breakpoint يبدّل شكلها. */
 .stats-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 22px;
-}
-
-@media (max-width: 420px) {
-  .stats-col {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
 }
 
 .stat-block {
@@ -6596,38 +6590,60 @@ li input[type='checkbox'] {
 
 /* بلاطتَي الإضافة في الشاشة الرئيسية بس (بدون نص وصفي تحت العنوان) — نسخة
    مصغّرة وأنيق من نفس التصميم المشترك فوق، من غير ما تأثر على شاشة "المهام
-   المتكررة" اللي لسه بتستخدم النسخة الكاملة بالنص الوصفي. */
+   المتكررة" اللي لسه بتستخدم النسخة الكاملة بالنص الوصفي.
+   اتصغّرت أكتر عشان تاخد حيّز بصري أقل فوق قائمة المهام (هي زرارَي إجراء
+   سريع مش بطاقات محتوى)، مع الحفاظ على مساحة لمس مريحة على الموبايل. */
 .quick-add-row-compact {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  gap: 8px;
 }
 
 .quick-add-row-compact .quick-add-card {
+  flex-direction: row;
+  justify-content: center;
   gap: 8px;
-  padding: 14px 10px;
+  padding: 10px 8px;
+  min-height: 44px;
 }
 
 .quick-add-row-compact .quick-add-icon-wrap {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.quick-add-row-compact .quick-add-icon-wrap svg {
+  width: 14px;
+  height: 14px;
 }
 
 .quick-add-row-compact .quick-add-badge {
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
+  bottom: -3px;
+  inset-inline-end: -3px;
+}
+
+.quick-add-row-compact .quick-add-badge svg {
+  width: 7px;
+  height: 7px;
 }
 
 .quick-add-row-compact .quick-add-label {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 @media (max-width: 360px) {
   .quick-add-row-compact .quick-add-card {
-    padding: 12px 6px;
+    padding: 8px 4px;
+    gap: 6px;
   }
   .quick-add-row-compact .quick-add-icon-wrap {
-    width: 34px;
-    height: 34px;
+    width: 24px;
+    height: 24px;
+  }
+  .quick-add-row-compact .quick-add-label {
+    font-size: 11.5px;
   }
 }
 
@@ -7844,14 +7860,15 @@ details[open] > summary .hier-caret {
   flex-shrink: 0;
 }
 
+/* شبكة كروت المهام جوه كل قسم من الشجرة — عمود واحد ثابت من أعلى لتحت
+   على كل أحجام الشاشات (مش شبكة متعدّدة الأعمدة زي كروت الأرشيف)، عشان
+   ترتيب المهام يفضل واضح وهرمي بدون ما يسيب فراغات جانبية لو عدد الكروت
+   في آخر صف مش كافي يملا الأعمدة. */
 .hier-lists-grid {
   margin-top: 6px;
-}
-
-@media (min-width: 720px) {
-  .hier-lists-grid.lists-grid {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* ---- عرض هرمي للمهام الرئيسية بنفس تصميم شجرة الأرشيف (سنة/شهر/يوم) ---- */
@@ -7921,7 +7938,9 @@ details[open] > summary .hier-caret {
 }
 
 .hier-year-body {
-  padding-inline-start: 4px;
+  padding-inline-start: 10px;
+  border-inline-start: 2px dashed var(--border-soft);
+  margin-inline-start: 4px;
 }
 
 /* ===== تحسينات إضافية على شجرة عرض المهام في الصفحة الرئيسية — كل
@@ -7967,10 +7986,27 @@ details[open] > summary .hier-caret {
   animation: taskDistributionPanelIn var(--dur) var(--ease-out);
 }
 
-@media (min-width: 720px) {
-  .task-hierarchy .hier-lists-grid.lists-grid {
-    gap: 14px;
-  }
+/* خطوط دليل رفيعة (Guide lines) بتوصل كل مستوى بالمستوى اللي جواه —
+   نفس فكرة subtask-tree بالظبط — عشان الترتيب الهرمي (مجال ← تصنيف ←
+   [سنة] ← أولوية ← مهام) يبان بوضوح كشجرة حقيقية من أول نظرة، مش مجرد
+   هيدرز متكدّسة فوق بعض. الإزاحة صغيرة ومتحسوبة (10-12px لكل مستوى) عشان
+   منضيّعش مساحة أفقية ثمينة، والكروت والمحتوى برضه بياخدوا العرض المتاح
+   بالكامل (شوف hier-lists-grid فوق). */
+.task-hierarchy .archive-year-body {
+  padding-inline-start: 12px;
+  border-inline-start: 2px dashed var(--border-soft);
+  margin-inline-start: 12px;
+  margin-top: 2px;
+}
+
+.task-hierarchy .archive-month-body {
+  padding-inline-start: 10px;
+  border-inline-start: 2px dashed var(--border-soft);
+  margin-inline-start: 9px;
+}
+
+.hier-priority-group:last-child {
+  margin-bottom: 0;
 }
 
 /* ===== زرار الرجوع الموحّد (Back Button) ===== */
@@ -9716,3 +9752,95 @@ body:has(.pomodoro-bar) .container {
 body:has(.pomodoro-bar):has(.music-player-bar) .container {
   padding-bottom: 150px;
 }
+
+/* =========================================================================
+   الصفحة الرئيسية فقط — تصميم مسطّح (Border Radius = 0) + تظبيط إضافي
+   =========================================================================
+   كل القواعد هنا محصورة تحت .home-page (الكلاس المضاف على حاوية الصفحة
+   الرئيسية في App.tsx) عشان متأثرش على أي صفحة تانية (الأرشيف، البروفايل،
+   لوحة الإدارة...) بتشارك نفس أسماء الكلاسات زي list-card و lists-grid.
+
+   الأسلوب: بنعيد تعريف متغيرات الانحناء (--radius*) بصفر جوه نطاق
+   .home-page، فأي عنصر بيستخدم var(--radius)/var(--radius-sm)/
+   var(--radius-lg)/var(--radius-pill) بيتصفّر تلقائيًا من غير ما نلمس
+   عشرات القواعد الفردية. بعد كده بنصفّر القيم الثابتة (بالبكسل) اللي
+   موجودة في مكونات الصفحة الرئيسية تحديدًا.
+
+   استثناء مقصود: العناصر الدائرية اللي شكلها "دايرة" فعليًا مش زاوية
+   منحنية زخرفية — أفاتار المستخدم، نقطة الأولوية، ودوائر تأكيد المهام
+   الفرعية (اللي بتتفرّق عمدًا عن مربع المهمة الرئيسية زي ما موضّح في
+   تعليق subtask-tree). دول سايبينهم زي ما هما لأن تربيعهم كان هيكسر
+   المعنى البصري المقصود منهم، مش بس شكل الحواف. */
+.home-page {
+  --radius: 0;
+  --radius-sm: 0;
+  --radius-lg: 0;
+  --radius-pill: 0;
+}
+
+/* عناصر بقيم بكسل ثابتة (مش متغيّرات) داخل مكوّنات الصفحة الرئيسية. */
+.home-page .list-card,
+.home-page .list-card::before,
+.home-page .list-card:hover,
+.home-page .list-card:hover::before,
+.home-page .checkbox,
+.home-page .card-icon-action,
+.home-page .quick-add-icon-wrap,
+.home-page .quick-add-badge,
+.home-page .hier-icon-chip,
+.home-page .quick-nav-chip,
+.home-page .quick-nav-count,
+.home-page .archive-year-count,
+.home-page .archive-month-count,
+.home-page .archive-day-count,
+.home-page .life-area-badge-chip,
+.home-page .pending-restore-header-icon,
+.home-page .header-streak,
+.home-page .skeleton-card,
+.home-page .empty-icon {
+  border-radius: 0 !important;
+}
+
+/* دوائر حقيقية بنحافظ عليها عمدًا (شوف الشرح فوق). */
+.home-page .header-user-avatar,
+.home-page .hier-priority-dot,
+.home-page .subtask-tree .checkbox {
+  border-radius: 50% !important;
+}
+
+/* تحسين إضافي: زر الإضافة السريعة وكروت المهام كانوا بيعتمدوا على حركة
+   "نابضة" للحواف عند الـ hover (border-radius بيتغيّر بانيميشن) — في
+   تصميم مسطّح الحركة دي بقت تناقض الشكل الحاد المقصود، فبنوقفها هنا
+   ونستبدلها برفعة خفيفة بسيطة بدون تغيير في الحواف. */
+.home-page .list-card,
+.home-page .quick-add-card,
+.home-page .stat-block {
+  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+/* =========================================================================
+   الصفحة الرئيسية — تظبيط هيكلي وتجاوبي إضافي
+   ========================================================================= */
+
+/* حاوية المحتوى الرئيسي (كل حاجة تحت الهيدر) — display:block افتراضي
+   لعنصر <main>، مفيش داعي لأي تخصيص إضافي غير التأكد إنها بتاخد نفس
+   عرض الحاوية بالظبط. */
+.home-main {
+  display: block;
+  width: 100%;
+}
+
+/* على الشاشات العريضة (تابلت/ديسktop) الحاوية بتوسّع لحد 980px، وده كان
+   بيخلّي بطاقات الإحصائيات (اللي بقت سطر كامل، بند 1) عريضة جدًا وفاضية
+   بصريًا. بنحدّها بعرض أقصى مريح للقراءة وسط الشاشة بدل ما تتمطّط لعرض
+   الحاوية بالكامل، مع فضل باقي عناصر الصفحة (البلاطات، الشجرة) بعرض
+   الحاوية الكامل زي ما هو. */
+@media (min-width: 720px) {
+  .home-page .stats-col {
+    max-width: 640px;
+    margin-inline: auto;
+    margin-bottom: 26px;
+  }
+}
+
