@@ -23,6 +23,7 @@ interface Props {
   onOpenLifeAreas: () => void;
   onOpenRecurring: () => void;
   onOpenPlayer: () => void;
+  onOpenPomodoro: () => void;
   onToggleMute: () => void;
   onTogglePush: () => void;
   onRequestLogout: () => void;
@@ -51,6 +52,7 @@ export default function SideMenu({
   onOpenLifeAreas,
   onOpenRecurring,
   onOpenPlayer,
+  onOpenPomodoro,
   onToggleMute,
   onTogglePush,
   onRequestLogout,
@@ -181,6 +183,17 @@ export default function SideMenu({
           >
             <DynamicIcon name="repeat" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">المهام المتكررة</span>
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+          </button>
+
+          <button
+            className={`side-menu-item ${currentView === 'pomodoro' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenPomodoro)}
+            aria-current={currentView === 'pomodoro' ? 'page' : undefined}
+          >
+            <DynamicIcon name="timer" size={18} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">بومودورو</span>
             <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
           </button>
 

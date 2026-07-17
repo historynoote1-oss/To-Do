@@ -53,8 +53,10 @@ import OverdueTasksCard from './components/OverdueTasksCard';
 import PendingRestoreSection from './components/PendingRestoreSection';
 import MusicPlayer from './components/MusicPlayer';
 import MusicPlayerBar from './components/MusicPlayerBar';
+import Pomodoro from './components/Pomodoro';
+import PomodoroBar from './components/PomodoroBar';
 
-type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring' | 'player';
+type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring' | 'player' | 'pomodoro';
 
 // نفس فكرة صفحة الأرشيف بتبويباتها، لكن كصفحتين مستقلتين فعليًا لهم مسار
 // خاص بكل واحدة (بدل تبويب داخلي بس) — عشان تبقى كل واحدة قابلة للمشاركة
@@ -72,6 +74,7 @@ const VIEW_PATHS: Record<ViewName, string> = {
   archive: '/archive/completed',
   recurring: '/recurring',
   player: '/player',
+  pomodoro: '/pomodoro',
 };
 
 const PATH_VIEWS: Record<string, ViewName> = Object.fromEntries(
@@ -835,6 +838,7 @@ export default function App() {
         onOpenLifeAreas={() => setView('lifeAreas')}
         onOpenRecurring={() => setView('recurring')}
         onOpenPlayer={() => setView('player')}
+        onOpenPomodoro={() => setView('pomodoro')}
         onToggleMute={handleToggleMute}
         onTogglePush={handleTogglePush}
         onRequestLogout={requestLogout}
@@ -850,6 +854,7 @@ export default function App() {
           onConfirm={confirmLogout}
         />
       )}
+      <PomodoroBar onOpenPomodoro={() => setView('pomodoro')} isOnPomodoroPage={view === 'pomodoro'} />
       <MusicPlayerBar onOpenPlayer={() => setView('player')} isOnPlayerPage={view === 'player'} />
     </>
   );
@@ -933,6 +938,16 @@ export default function App() {
       <>
         <ToastContainer />
         <MusicPlayer onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+        {sideMenuAndModals}
+      </>
+    );
+  }
+
+  if (view === 'pomodoro') {
+    return (
+      <>
+        <ToastContainer />
+        <Pomodoro onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
         {sideMenuAndModals}
       </>
     );

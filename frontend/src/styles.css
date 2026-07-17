@@ -8850,3 +8850,480 @@ details[open] > summary .hier-caret {
 body:has(.music-player-bar) .container {
   padding-bottom: 96px;
 }
+
+/* =========================================================================
+   بومودورو (Pomodoro) — صفحة المؤقّت + شريط التتبّع الثابت
+   ========================================================================= */
+
+.pomodoro-page .music-page-intro {
+  margin-bottom: 18px;
+}
+
+/* ===== كارت الدائرة والعدّاد ===== */
+.pomodoro-timer-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 18px 24px;
+  margin-bottom: 16px;
+  text-align: center;
+  overflow: visible;
+}
+
+.pomodoro-phase-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.pomodoro-phase-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 700;
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+}
+
+.pomodoro-phase-badge.phase-break {
+  background: var(--success-dim);
+  color: var(--success);
+}
+
+.pomodoro-timer-card.long-break .pomodoro-phase-badge.phase-break {
+  background: var(--streak-dim);
+  color: var(--streak);
+}
+
+.pomodoro-finished-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--success-dim);
+  color: var(--success);
+  animation: pomodoro-pop var(--dur-slow) var(--ease-spring) both;
+}
+
+@keyframes pomodoro-pop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ===== الدائرة نفسها (SVG progress ring) ===== */
+.pomodoro-ring-wrap {
+  position: relative;
+  width: min(240px, 62vw);
+  height: min(240px, 62vw);
+  margin: 6px 0;
+}
+
+.pomodoro-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.pomodoro-ring-track {
+  fill: none;
+  stroke: var(--surface-3);
+  stroke-width: 10;
+}
+
+.pomodoro-ring-progress {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke: var(--accent);
+  transition: stroke-dashoffset 0.9s linear, stroke 0.4s ease;
+}
+
+.pomodoro-ring-progress.phase-break {
+  stroke: var(--success);
+}
+
+.pomodoro-timer-card.long-break .pomodoro-ring-progress.phase-break {
+  stroke: var(--streak);
+}
+
+.pomodoro-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.pomodoro-time {
+  font-family: var(--font-num);
+  font-size: clamp(34px, 9vw, 46px);
+  font-weight: 700;
+  line-height: 1;
+  direction: ltr;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pomodoro-time-sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ===== نقاط الدورات ===== */
+.pomodoro-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pomodoro-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  border: 1.5px solid var(--border);
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-spring);
+}
+
+.pomodoro-dot.filled {
+  background: var(--gradient-brand);
+  border-color: transparent;
+  transform: scale(1.15);
+}
+
+.pomodoro-sessions-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ===== أزرار التحكم ===== */
+.pomodoro-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.pomodoro-main-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 26px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--gradient-brand);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  box-shadow: var(--shadow-glow);
+}
+
+.pomodoro-main-btn:hover {
+  filter: brightness(1.08);
+}
+
+.pomodoro-main-btn.pause {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: none;
+  border: 1.5px solid var(--border);
+}
+
+.pomodoro-main-btn.next-phase {
+  animation: pomodoro-pop var(--dur-slow) var(--ease-spring) both;
+}
+
+.pomodoro-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 18px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13.5px;
+  box-shadow: none;
+}
+
+.pomodoro-secondary-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+  filter: none;
+}
+
+/* ===== كارت الإعدادات ===== */
+.pomodoro-settings-card {
+  padding: 4px 0;
+  overflow: hidden;
+}
+
+.pomodoro-settings-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.pomodoro-settings-toggle span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pomodoro-settings-toggle:hover {
+  filter: none;
+  background: var(--surface-2);
+}
+
+.pomodoro-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 16px 18px;
+  animation: fade-up var(--dur) var(--ease-out) both;
+}
+
+.pomodoro-settings-lock-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin: 0;
+}
+
+.pomodoro-setting-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pomodoro-setting-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pomodoro-setting-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pomodoro-setting-input-row input[type='number'] {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.pomodoro-setting-suffix {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.pomodoro-setting-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ===== شريط التتبّع الثابت (زي مشغّل الصوت، لكن للمؤقّت) ===== */
+.pomodoro-bar {
+  position: fixed;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 54;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-top: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lift);
+  animation: fade-up var(--dur-slow) var(--ease-out) both;
+}
+
+/* لو شريط مشغّل الصوت ظاهر برضه، شريط البومودورو بيترفع فوقه عشان
+   ميحصلش تراكب بين الاتنين. */
+body:has(.music-player-bar) .pomodoro-bar {
+  bottom: 64px;
+}
+
+.pomodoro-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  box-shadow: none;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-align: start;
+  font-weight: 400;
+  font-size: inherit;
+}
+
+.pomodoro-bar-info::before,
+.pomodoro-bar-info::after {
+  display: none;
+}
+
+.pomodoro-bar-info:hover {
+  background: var(--surface-2);
+  filter: none;
+  box-shadow: none;
+}
+
+.pomodoro-bar-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+}
+
+.pomodoro-bar-icon.phase-break {
+  background: var(--success-dim);
+  color: var(--success);
+}
+
+.pomodoro-bar.status-finished .pomodoro-bar-icon {
+  animation: pomodoro-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pomodoro-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 var(--accent-dim);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+.pomodoro-bar-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pomodoro-bar-text strong {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40vw;
+}
+
+.pomodoro-bar-text span {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40vw;
+}
+
+.pomodoro-bar-time {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.pomodoro-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pomodoro-bar-btn {
+  background: var(--gradient-brand);
+  color: #fff;
+  border: none;
+}
+
+.pomodoro-bar-btn:hover {
+  filter: brightness(1.08);
+}
+
+.pomodoro-bar-next-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--gradient-brand);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  white-space: nowrap;
+  animation: pomodoro-pop var(--dur-slow) var(--ease-spring) both;
+}
+
+.pomodoro-bar-next-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* مساحة إضافية أسفل الصفحة عشان آخر عنصر ميختفيش وراء شريط البومودورو،
+   وزيادة إضافية لو الشريطين (صوت + بومودورو) ظاهرين مع بعض. */
+body:has(.pomodoro-bar) .container {
+  padding-bottom: 96px;
+}
+
+body:has(.pomodoro-bar):has(.music-player-bar) .container {
+  padding-bottom: 150px;
+}
