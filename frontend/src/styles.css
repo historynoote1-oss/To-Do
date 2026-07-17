@@ -6989,14 +6989,6 @@ body.modal-lock-scroll {
   cursor: default;
 }
 
-.subtask-draft-item span {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .subtask-draft-edit-input {
   flex: 1;
   min-width: 0;
