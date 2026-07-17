@@ -6334,7 +6334,7 @@ li input[type='checkbox'] {
   color: var(--text);
   background: color-mix(in srgb, var(--glass-bg) 60%, transparent);
   border-color: var(--border-soft);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
 }
 
 .archive-day-group {
@@ -6489,6 +6489,7 @@ li input[type='checkbox'] {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   position: relative;
   overflow: hidden;
@@ -7902,13 +7903,15 @@ details[open] > summary .hier-caret {
   border: 1px solid var(--border-soft);
   border-inline-start: 3px solid var(--pr-color, var(--border-soft));
   border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   text-align: right;
   font-family: var(--font-body);
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text);
-  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 }
 
 .hier-priority-header:hover {
@@ -8025,6 +8028,22 @@ details[open] > summary .hier-caret {
     width: 24px;
     height: 24px;
   }
+}
+
+/* ===== إحساس باللمس (Tap feedback) ===== */
+/* على الموبايل (اللي هو الاستخدام الأساسي فعليًا) حالة :hover مابتشتغلش
+   خالص، فأي تأثير (ظل/تحريك/تكبير) متربط بيها بس مش هيبان أبدًا للمستخدم
+   وهو بيلمس الشاشة. القاعدة دي بتدّي رجّة بصرية فورية (انكماش خفيف + تقليل
+   الظل) لحظة اللمس على كل الهيدرز والكروت القابلة للضغط، عشان الواجهة
+   تحس إنها بترد على اللمسة فعلًا مش جسم جامد. */
+.task-hierarchy .archive-year-header:active,
+.task-hierarchy .archive-month-header:active,
+.hier-priority-header:active,
+.quick-add-card:active,
+.stat-block:active:not(.disabled),
+.list-card:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ===== زرار الرجوع الموحّد (Back Button) ===== */
