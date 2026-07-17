@@ -7033,6 +7033,307 @@ body.modal-lock-scroll {
   }
 }
 
+/* ===== ستيبر إضافة سنة جديدة (+ / -) — بدون كتابة يدوية، ومقفول تحت
+   السنة الحالية عشان مينفعش تتضاف سنة منتهية. ===== */
+.goal-map-year-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--accent);
+  background: var(--surface);
+}
+
+.goal-map-year-stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
+}
+
+.goal-map-year-stepper-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.goal-map-year-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.goal-map-year-stepper-value {
+  min-width: 52px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.goal-map-year-stepper-confirm {
+  white-space: nowrap;
+}
+
+.goal-map-year-stepper-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: -6px 0 12px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ===== أقسام الصفحة (بناء الخطة / خريطة العرض الكاملة) ===== */
+.goal-map-section {
+  margin-bottom: 22px;
+}
+
+.goal-map-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.goal-map-section-toggle {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  justify-content: flex-start;
+  transition: border-color var(--dur) var(--ease-out);
+}
+
+.goal-map-section-toggle:hover {
+  border-color: var(--accent);
+}
+
+.goal-map-section-toggle span {
+  flex: 1;
+  text-align: start;
+}
+
+.goal-map-section-chevron {
+  transition: transform var(--dur) var(--ease-out);
+  transform: rotate(-90deg);
+}
+
+.goal-map-section-chevron.expanded {
+  transform: rotate(0deg);
+}
+
+.goal-map-tree-section .goal-map-tree {
+  margin-top: 14px;
+}
+
+/* ===== تبويبات المستوى (سنوية/شهرية/أسبوعية/يومية) ===== */
+.level-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.level-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.level-tab:hover:not(:disabled):not(.active) {
+  border-color: var(--accent);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.level-tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.level-tab.active {
+  border-color: color-mix(in srgb, var(--level-color, var(--accent)) 55%, transparent);
+  background: var(--level-bg, var(--gradient-brand-soft));
+  color: var(--level-color, var(--accent));
+  box-shadow: var(--shadow-sm);
+}
+
+.level-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  font-size: 11px;
+}
+
+/* ===== بريدكرمب مسار التنقل الحالي ===== */
+.level-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-alt, var(--surface));
+  border: 1px dashed var(--border);
+}
+
+.level-breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.level-breadcrumb-sep {
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin: 0 2px;
+}
+
+.level-breadcrumb-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+
+.level-breadcrumb-crumb:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.level-breadcrumb-crumb.current {
+  background: var(--gradient-brand);
+  color: #f4fbfa;
+  cursor: default;
+}
+
+.level-breadcrumb-root {
+  color: var(--accent);
+}
+
+/* ===== هيدر محتوى المستوى ===== */
+.level-content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.level-content-header-label {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.level-content-add-btn {
+  white-space: nowrap;
+}
+
+.level-empty {
+  margin-top: 4px;
+}
+
+/* ===== قائمة كروت الأهداف المسطّحة ===== */
+.level-goal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.level-goal-card {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.level-goal-card-drill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: -1px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-top: 1px dashed var(--border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease-out);
+}
+
+.level-goal-card-drill:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.level-goal-card-drill-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.level-goal-card-drill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  font-size: 11px;
+}
+
+@media (max-width: 480px) {
+  .level-breadcrumb-crumb {
+    max-width: 150px;
+  }
+}
+
 /* ----- نافذة إضافة مهمة رئيسية جديدة ----- */
 .add-task-overlay {
   align-items: flex-end;
