@@ -9790,71 +9790,12 @@ body:has(.pomodoro-bar):has(.music-player-bar) .container {
   padding-bottom: 150px;
 }
 
-/* =========================================================================
-   الصفحة الرئيسية فقط — تصميم مسطّح (Border Radius = 0) + تظبيط إضافي
-   =========================================================================
-   كل القواعد هنا محصورة تحت .home-page (الكلاس المضاف على حاوية الصفحة
-   الرئيسية في App.tsx) عشان متأثرش على أي صفحة تانية (الأرشيف، البروفايل،
-   لوحة الإدارة...) بتشارك نفس أسماء الكلاسات زي list-card و lists-grid.
-
-   الأسلوب: بنعيد تعريف متغيرات الانحناء (--radius*) بصفر جوه نطاق
-   .home-page، فأي عنصر بيستخدم var(--radius)/var(--radius-sm)/
-   var(--radius-lg)/var(--radius-pill) بيتصفّر تلقائيًا من غير ما نلمس
-   عشرات القواعد الفردية. بعد كده بنصفّر القيم الثابتة (بالبكسل) اللي
-   موجودة في مكونات الصفحة الرئيسية تحديدًا.
-
-   استثناء مقصود: العناصر الدائرية اللي شكلها "دايرة" فعليًا مش زاوية
-   منحنية زخرفية — أفاتار المستخدم، نقطة الأولوية، ودوائر تأكيد المهام
-   الفرعية (اللي بتتفرّق عمدًا عن مربع المهمة الرئيسية زي ما موضّح في
-   تعليق subtask-tree). دول سايبينهم زي ما هما لأن تربيعهم كان هيكسر
-   المعنى البصري المقصود منهم، مش بس شكل الحواف. */
-.home-page {
-  --radius: 0;
-  --radius-sm: 0;
-  --radius-lg: 0;
-  --radius-pill: 0;
-}
-
-/* عناصر بقيم بكسل ثابتة (مش متغيّرات) داخل مكوّنات الصفحة الرئيسية. */
-.home-page .list-card,
-.home-page .list-card::before,
-.home-page .list-card:hover,
-.home-page .list-card:hover::before,
-.home-page .checkbox,
-.home-page .card-icon-action,
-.home-page .quick-add-icon-wrap,
-.home-page .quick-add-badge,
-.home-page .hier-icon-chip,
-.home-page .quick-nav-chip,
-.home-page .quick-nav-count,
-.home-page .archive-year-count,
-.home-page .archive-month-count,
-.home-page .archive-day-count,
-.home-page .life-area-badge-chip,
-.home-page .pending-restore-header-icon,
-.home-page .header-streak,
-.home-page .skeleton-card,
-.home-page .empty-icon {
-  border-radius: 0 !important;
-}
-
-/* دوائر حقيقية بنحافظ عليها عمدًا (شوف الشرح فوق). */
-.home-page .header-user-avatar,
-.home-page .hier-priority-dot,
-.home-page .subtask-tree .checkbox {
-  border-radius: 50% !important;
-}
-
-/* تحسين إضافي: زر الإضافة السريعة وكروت المهام كانوا بيعتمدوا على حركة
-   "نابضة" للحواف عند الـ hover (border-radius بيتغيّر بانيميشن) — في
-   تصميم مسطّح الحركة دي بقت تناقض الشكل الحاد المقصود، فبنوقفها هنا
-   ونستبدلها برفعة خفيفة بسيطة بدون تغيير في الحواف. */
-.home-page .list-card,
-.home-page .quick-add-card,
-.home-page .stat-block {
-  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
-    transform var(--dur) var(--ease-out);
-}
+/* ملحوظة: كان هنا تعريف قديم بيصفّر كل الانحناء (border-radius) في الصفحة
+   الرئيسية عمدًا ("تصميم مسطّح") — وده كان هو السبب الحقيقي وراء إحساس
+   الصفحة بالجفاف والحدة، وكان بيلغي أي تعديل على مقياس --radius مهما
+   اتغيّر لأنه كان بيدّي !important بصفر بعده مباشرة. اتشال بالكامل عشان
+   الصفحة الرئيسية ترجع تاخد نفس شكل الانحناء والظلال المستخدمة في باقي
+   التطبيق (الأرشيف، البروفايل...). */
 
 /* =========================================================================
    الصفحة الرئيسية — تظبيط هيكلي وتجاوبي إضافي
