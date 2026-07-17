@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { usePomodoro } from '../lib/pomodoro';
 import { DynamicIcon } from '../lib/icons';
 
@@ -21,8 +22,14 @@ export default function PomodoroBar({
   isOnPomodoroPage: boolean;
 }) {
   const { phase, isLongBreak, status, remainingSeconds, nextPhaseLabel, pause, resume, startNextPhase } = usePomodoro();
+  const [dismissed, setDismissed] = useState(false);
 
-  if (status === 'idle' || isOnPomodoroPage) return null;
+  // إعادة الإظهار لما تخلص المرحلة عشان المستخدم يعرف يبدأ التالية
+  useEffect(() => {
+    if (status === 'finished') setDismissed(false);
+  }, [status]);
+
+  if (status === 'idle' || isOnPomodoroPage || dismissed) return null;
 
   const phaseLabel = phase === 'focus' ? 'مذاكرة' : isLongBreak ? 'استراحة طويلة' : 'استراحة';
   const phaseIcon = phase === 'focus' ? 'brain' : 'coffee';
@@ -64,6 +71,15 @@ export default function PomodoroBar({
             ابدأ {nextPhaseLabel}
           </button>
         )}
+        <button
+          type="button"
+          className="icon-btn pomodoro-bar-btn pomodoro-bar-dismiss"
+          onClick={() => setDismissed(true)}
+          aria-label="إخفاء الشريط"
+          title="إخفاء"
+        >
+          <DynamicIcon name="x" size={14} />
+        </button>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useMusicPlayer } from '../lib/musicPlayer';
 import { DynamicIcon } from '../lib/icons';
 
@@ -16,8 +17,14 @@ function formatTime(seconds: number): string {
 // المشغّل الحقيقي مهما اتنقّل المستخدم بين الصفحات.
 export default function MusicPlayerBar({ onOpenPlayer, isOnPlayerPage }: { onOpenPlayer: () => void; isOnPlayerPage: boolean }) {
   const { currentTrack, playing, looping, currentTime, duration, togglePlayPause, toggleLoop, seekToRatio, skip } = useMusicPlayer();
+  const [dismissed, setDismissed] = useState(false);
 
-  if (!currentTrack) return null;
+  // إعادة الإظهار لما تتغير التلاوة
+  useEffect(() => {
+    setDismissed(false);
+  }, [currentTrack?.videoId]);
+
+  if (!currentTrack || dismissed) return null;
 
   const ratio = duration > 0 ? currentTime / duration : 0;
 
@@ -93,6 +100,15 @@ export default function MusicPlayerBar({ onOpenPlayer, isOnPlayerPage }: { onOpe
           title="تقديم 10 ثواني"
         >
           <DynamicIcon name="rotate-cw" size={14} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn small music-player-bar-dismiss"
+          onClick={() => setDismissed(true)}
+          aria-label="إخفاء الشريط"
+          title="إخفاء"
+        >
+          <DynamicIcon name="x" size={14} />
         </button>
       </div>
     </div>
