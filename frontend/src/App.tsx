@@ -44,16 +44,12 @@ import {
   resolveFromPath,
 } from './lib/routes';
 import { CategoryKey } from './lib/category';
-import { PriorityKey } from './lib/priority';
 import { LifeAreaData } from './lib/lifeArea';
-import { groupByLifeArea, groupHierarchical, isListDone, isOverdue, NO_LIFE_AREA_GROUP } from './lib/organize';
+import { groupByLifeArea, groupHierarchical, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
 import TaskHierarchy from './components/TaskHierarchy';
 import { DynamicIcon } from './lib/icons';
 import TaskDistributionCard from './components/TaskDistributionCard';
 import CompletionRateCard from './components/CompletionRateCard';
-import PriorityFocusCard from './components/PriorityFocusCard';
-import StreakCard from './components/StreakCard';
-import OverdueTasksCard from './components/OverdueTasksCard';
 import PendingRestoreSection from './components/PendingRestoreSection';
 import MusicPlayerBar from './components/MusicPlayerBar';
 import PomodoroBar from './components/PomodoroBar';
@@ -663,32 +659,6 @@ export default function App() {
     highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
   }
 
-  function jumpToPriority(key: PriorityKey) {
-    const target = lists.find((l) => (l.priority || 'LOW') === key && !isListDone(l as any));
-    if (!target) {
-      sounds.error();
-      toast.info('مفيش مهمة رئيسية غير مكتملة بالأولوية دي حاليًا');
-      return;
-    }
-    sounds.click();
-    setHighlightedListId(target.id);
-    if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
-    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
-  }
-
-  function jumpToOverdue() {
-    const target = lists.find((l) => !isListDone(l as any) && isOverdue(l as any));
-    if (!target) {
-      sounds.error();
-      toast.info('مفيش مهام متأخرة حاليًا');
-      return;
-    }
-    sounds.click();
-    setHighlightedListId(target.id);
-    if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
-    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
-  }
-
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
 
   // ملاحظة: القائمة النشطة (lists) بترجع من السيرفر من غير أي مهمة اكتملت
@@ -976,7 +946,7 @@ export default function App() {
                   مرحبًا، <strong className="header-user-name">{displayName || username}</strong>
                 </span>
                 <span className="header-streak" title="أيام الإنجاز المتتالية">
-                  <DynamicIcon name="flame" size={12} className="header-streak-icon" />
+                  <DynamicIcon name="flame" size={13} className="header-streak-icon" />
                   <span className="header-streak-count">{streak}</span>
                 </span>
               </span>
@@ -1010,9 +980,6 @@ export default function App() {
         <div className="stats-col">
           <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
           <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
-          <PriorityFocusCard lists={lists} onSelectPriority={jumpToPriority} />
-          <OverdueTasksCard lists={lists} onJumpToOverdue={jumpToOverdue} />
-          <StreakCard />
         </div>
 
         <div className="quick-add-row quick-add-row-compact">
