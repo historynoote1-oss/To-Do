@@ -508,8 +508,8 @@ export default function App() {
   async function createTaskFromPayload(data: NewTaskPayload) {
     const { title, subtasks, priority, category, targetYear, lifeAreaId, startTime, endTime, reminders } = data;
     const list = await createList(title, priority, category, targetYear, lifeAreaId, startTime, endTime);
-    for (const content of subtasks) {
-      await addItem(list.id, content);
+    for (const subtask of subtasks) {
+      await addItem(list.id, subtask.content);
     }
     if (reminders.length > 0 && startTime) {
       for (const reminder of reminders) {

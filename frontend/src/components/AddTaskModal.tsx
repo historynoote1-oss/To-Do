@@ -9,15 +9,28 @@ import { LifeAreaData } from '../lib/lifeArea';
 import { DynamicIcon } from '../lib/icons';
 import { sounds } from '../lib/sounds';
 import Portal from './Portal';
+import ConfirmModal from './ConfirmModal';
 
 export interface NewTaskReminder {
+  // id فعلي لو التذكير ده كان موجود قبل كده وبيتعدّل، أو null لو تذكير
+  // جديد لسه ملوش وجود في قاعدة البيانات.
+  id?: string | null;
   offsetMinutes: number;
   message: string | null;
 }
 
+// مهمة فرعية داخل الويزارد — id فعلي لو موجودة أصلًا وبتتعدّل، أو null لو
+// مهمة فرعية جديدة لسه هتتنشئ عند الحفظ.
+export interface SubtaskDraft {
+  id: string | null;
+  content: string;
+}
+
 export interface NewTaskPayload {
   title: string;
-  subtasks: string[];
+  subtasks: SubtaskDraft[];
+  // ids للمهام الفرعية اللي كانت موجودة وانمسحت من جوه الويزارد أثناء التعديل.
+  deletedSubtaskIds: string[];
   priority: PriorityKey;
   category: CategoryKey | null;
   targetYear: number | null;
@@ -25,6 +38,8 @@ export interface NewTaskPayload {
   startTime: string | null;
   endTime: string | null;
   reminders: NewTaskReminder[];
+  // ids للتذكيرات اللي كانت موجودة وانمسحت من جوه الويزارد أثناء التعديل.
+  deletedReminderIds: string[];
 }
 
 export interface EditTaskTarget {
@@ -36,6 +51,11 @@ export interface EditTaskTarget {
   lifeAreaId: string | null;
   startTime: string | null;
   endTime: string | null;
+  // المهام الفرعية والتذكيرات الحالية للمهمة — لازم تتبعت عشان الويزارد
+  // يبدأ بيها معمورة في وضع التعديل، مش فاضية، فيقدر المستخدم يعدّل
+  // عليها أو يمسحها أو يرتبها من غير ما يفقدها.
+  subtasks?: { id: string; content: string }[];
+  reminders?: { id: string; offsetMinutes: number; message: string | null }[];
 }
 
 interface Props {
@@ -115,7 +135,14 @@ export default function AddTaskModal({
   const [stepIndex, setStepIndex] = useState(0);
 
   const [title, setTitle] = useState('');
-  const [subtasks, setSubtasks] = useState<string[]>([]);
+  const [subtasks, setSubtasks] = useState<SubtaskDraft[]>([]);
+  // ids للمهام الفرعية اللي كانت موجودة أصلًا واتشالت من جوه الويزارد —
+  // بتتبعت مع الحفظ عشان تتمسح فعليًا من قاعدة البيانات.
+  const [deletedSubtaskIds, setDeletedSubtaskIds] = useState<string[]>([]);
+  // فهرس المهمة الفرعية (الموجودة أصلًا) اللي المستخدم دوس على حذفها —
+  // بيفتح نافذة تأكيد قبل ما تتشال فعليًا من المسودة. المهام الفرعية
+  // الجديدة (لسه متضافتش في قاعدة البيانات) بتتشال على طول من غير تأكيد.
+  const [pendingDeleteSubtaskIndex, setPendingDeleteSubtaskIndex] = useState<number | null>(null);
   const [subtaskDraft, setSubtaskDraft] = useState('');
   const [priority, setPriority] = useState<PriorityKey>('MEDIUM');
   const [category, setCategory] = useState<CategoryKey | null>(null);
@@ -143,6 +170,11 @@ export default function AddTaskModal({
   const [reminderMinutes, setReminderMinutes] = useState('');
   const [reminderMessage, setReminderMessage] = useState('');
   const [reminders, setReminders] = useState<NewTaskReminder[]>([]);
+  // ids للتذكيرات اللي كانت موجودة أصلًا واتشالت من جوه الويزارد.
+  const [deletedReminderIds, setDeletedReminderIds] = useState<string[]>([]);
+  // فهرس التذكير (الموجود أصلًا) اللي المستخدم دوس على حذفه — بيفتح نافذة
+  // تأكيد قبل ما يتشال فعليًا. التذكيرات الجديدة بتتشال على طول من غير تأكيد.
+  const [pendingDeleteReminderIndex, setPendingDeleteReminderIndex] = useState<number | null>(null);
 
   const [startDraft, setStartDraft] = useState('');
   const [endDraft, setEndDraft] = useState('');
@@ -164,6 +196,10 @@ export default function AddTaskModal({
         setLifeAreaId(editTarget.lifeAreaId);
         setStartDraft(editTarget.startTime ? toDatetimeLocalValue(new Date(editTarget.startTime)) : '');
         setEndDraft(editTarget.endTime ? toDatetimeLocalValue(new Date(editTarget.endTime)) : '');
+        setSubtasks((editTarget.subtasks || []).map((s) => ({ id: s.id, content: s.content })));
+        setReminders(
+          (editTarget.reminders || []).map((r) => ({ id: r.id, offsetMinutes: r.offsetMinutes, message: r.message }))
+        );
       } else {
         setTitle('');
         setPriority('MEDIUM');
@@ -172,14 +208,18 @@ export default function AddTaskModal({
         setLifeAreaId(null);
         setStartDraft('');
         setEndDraft('');
+        setSubtasks([]);
+        setReminders([]);
       }
-      setSubtasks([]);
+      setDeletedSubtaskIds([]);
+      setPendingDeleteSubtaskIndex(null);
+      setDeletedReminderIds([]);
+      setPendingDeleteReminderIndex(null);
       setSubtaskDraft('');
       setReminderDays('');
       setReminderHours('');
       setReminderMinutes('');
       setReminderMessage('');
-      setReminders([]);
       setSubmitting(false);
       setStepError('');
       setCreatedAreas([]);
@@ -220,14 +260,35 @@ export default function AddTaskModal({
   function addSubtask() {
     const value = subtaskDraft.trim();
     if (!value) return;
-    setSubtasks((prev) => [...prev, value]);
+    setSubtasks((prev) => [...prev, { id: null, content: value }]);
     setSubtaskDraft('');
     sounds.hover();
     requestAnimationFrame(() => subtaskRef.current?.focus());
   }
 
+  // لو المهمة الفرعية دي موجودة أصلًا في قاعدة البيانات (ليها id)، بنطلب
+  // تأكيد قبل ما نشيلها؛ لو لسه مسودة جديدة (id = null) بنشيلها على طول
+  // من غير تأكيد، لأنها أصلًا مش محفوظة في أي مكان.
   function removeSubtask(index: number) {
+    const target = subtasks[index];
+    if (target?.id) {
+      setPendingDeleteSubtaskIndex(index);
+      return;
+    }
     setSubtasks((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function confirmDeleteSubtask() {
+    setSubtasks((prev) => {
+      if (pendingDeleteSubtaskIndex === null) return prev;
+      const target = prev[pendingDeleteSubtaskIndex];
+      if (target?.id) {
+        setDeletedSubtaskIds((ids) => [...ids, target.id as string]);
+      }
+      return prev.filter((_, i) => i !== pendingDeleteSubtaskIndex);
+    });
+    sounds.deleteItem();
+    setPendingDeleteSubtaskIndex(null);
   }
 
   // بيبدّل مكان مهمة فرعية مع اللي قبلها أو بعدها — عشان يقدر المستخدم
@@ -249,7 +310,7 @@ export default function AddTaskModal({
     if (!hasReminder) return;
     const msg = reminderMessage.trim();
     if (!msg) return;
-    setReminders((prev) => [...prev, { offsetMinutes: Math.round(totalReminderMinutes), message: msg }]);
+    setReminders((prev) => [...prev, { id: null, offsetMinutes: Math.round(totalReminderMinutes), message: msg }]);
     setReminderDays('');
     setReminderHours('');
     setReminderMinutes('');
@@ -258,8 +319,28 @@ export default function AddTaskModal({
     requestAnimationFrame(() => reminderMessageRef.current?.focus());
   }
 
+  // زي removeSubtask بالظبط — تذكير موجود أصلًا (ليه id) بيطلب تأكيد قبل
+  // الحذف، وتذكير جديد لسه مسودة بيتشال على طول.
   function removeReminder(index: number) {
+    const target = reminders[index];
+    if (target?.id) {
+      setPendingDeleteReminderIndex(index);
+      return;
+    }
     setReminders((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function confirmDeleteReminder() {
+    setReminders((prev) => {
+      if (pendingDeleteReminderIndex === null) return prev;
+      const target = prev[pendingDeleteReminderIndex];
+      if (target?.id) {
+        setDeletedReminderIds((ids) => [...ids, target.id as string]);
+      }
+      return prev.filter((_, i) => i !== pendingDeleteReminderIndex);
+    });
+    sounds.deleteItem();
+    setPendingDeleteReminderIndex(null);
   }
 
   // فحص صارم لكل مرحلة بالاسم (مش بس المرحلة الحالية) — بيتنادى مرتين:
@@ -269,7 +350,7 @@ export default function AddTaskModal({
   function validateStepById(id: StepId): string | null {
     if (id === 'title' && !trimmedTitle) return 'اكتب اسم المهمة الأول';
     if (id === 'subtasks') {
-      if (subtaskDraft.trim() && subtasks.every((s) => s !== subtaskDraft.trim())) {
+      if (subtaskDraft.trim() && subtasks.every((s) => s.content !== subtaskDraft.trim())) {
         return 'كتبت مهمة فرعية ولسه مضفتهاش — دوس "إضافة" أو امسح الخانة عشان تكمل';
       }
       if (!isEditing && subtasks.length === 0) {
@@ -375,7 +456,10 @@ export default function AddTaskModal({
       const endTime = endDraft ? new Date(endDraft).toISOString() : null;
       const payload: NewTaskPayload = {
         title: trimmedTitle,
-        subtasks: subtasks.map((s) => s.trim()).filter(Boolean),
+        subtasks: subtasks
+          .map((s) => ({ id: s.id, content: s.content.trim() }))
+          .filter((s) => s.content.length > 0),
+        deletedSubtaskIds,
         priority,
         category,
         targetYear,
@@ -383,6 +467,7 @@ export default function AddTaskModal({
         startTime,
         endTime,
         reminders,
+        deletedReminderIds,
       };
       if (isEditing && editTarget) {
         await onSave?.(editTarget.id, payload);
@@ -472,7 +557,7 @@ export default function AddTaskModal({
 
           {step.id === 'subtasks' && (
             <div className="add-task-field">
-              <span className="add-task-label">{isEditing ? 'إضافة مهام فرعية جديدة' : 'المهام الفرعية'}</span>
+              <span className="add-task-label">المهام الفرعية</span>
               <div className="subtask-add-row">
                 <input
                   ref={subtaskRef}
@@ -494,15 +579,23 @@ export default function AddTaskModal({
               {subtasks.length === 0 ? (
                 <p className="wizard-empty-hint">
                   {isEditing
-                    ? 'ولّة أضيف مهام فرعية جديدة هنا لو حابب، أو كمّل من غير ما تضيف حاجة'
+                    ? 'مفيش مهام فرعية دلوقتي — ضيف مهمة جديدة لو حابب، أو كمّل من غير ما تضيف حاجة'
                     : 'لسه مفيش مهام فرعية — لازم تضيف مهمة واحدة على الأقل عشان تكمل'}
                 </p>
               ) : (
                 <ul className="subtask-draft-list">
                   {subtasks.map((s, i) => (
-                    <li key={i} className="subtask-draft-item">
+                    <li key={s.id ?? `new-${i}`} className="subtask-draft-item">
                       <span className="subtask-draft-order" aria-hidden="true">{i + 1}.</span>
-                      <span>{s}</span>
+                      <input
+                        className="subtask-draft-edit-input"
+                        value={s.content}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSubtasks((prev) => prev.map((item, idx) => (idx === i ? { ...item, content: value } : item)));
+                        }}
+                        aria-label="تعديل نص المهمة الفرعية"
+                      />
                       <div className="subtask-draft-move">
                         <button
                           type="button"
@@ -601,7 +694,7 @@ export default function AddTaskModal({
               {reminders.length > 0 && (
                 <ul className="reminder-draft-list">
                   {reminders.map((r, i) => (
-                    <li key={i} className="reminder-draft-item">
+                    <li key={r.id ?? `new-${i}`} className="reminder-draft-item">
                       <DynamicIcon name="bell" size={12} />
                       <span>
                         قبل البداية بـ {formatOffsetFromMinutes(r.offsetMinutes)}
@@ -713,20 +806,18 @@ export default function AddTaskModal({
                 <span className="wizard-review-label"><DynamicIcon name="sparkles" size={14} /> الاسم</span>
                 <span className="wizard-review-value">{trimmedTitle}</span>
               </div>
-              {!isEditing && (
-                <div className="wizard-review-row wizard-review-row-subtasks">
-                  <span className="wizard-review-label"><DynamicIcon name="list-checks" size={14} /> فرعية</span>
-                  {subtasks.length > 0 ? (
-                    <ol className="wizard-review-subtask-list">
-                      {subtasks.map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <span className="wizard-review-value">مفيش</span>
-                  )}
-                </div>
-              )}
+              <div className="wizard-review-row wizard-review-row-subtasks">
+                <span className="wizard-review-label"><DynamicIcon name="list-checks" size={14} /> فرعية</span>
+                {subtasks.length > 0 ? (
+                  <ol className="wizard-review-subtask-list">
+                    {subtasks.map((s, i) => (
+                      <li key={s.id ?? `new-${i}`}>{s.content}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <span className="wizard-review-value">مفيش</span>
+                )}
+              </div>
               <div className="wizard-review-row">
                 <span className="wizard-review-label"><DynamicIcon name="flag" size={14} /> الأولوية</span>
                 <span className="wizard-review-value">{reviewPriority.label}</span>
@@ -740,11 +831,11 @@ export default function AddTaskModal({
                 <span className="wizard-review-value">{reviewLifeArea ? reviewLifeArea.name : 'مفيش'}</span>
               </div>
               <div className="wizard-review-row wizard-review-row-subtasks">
-                <span className="wizard-review-label"><DynamicIcon name="bell" size={14} /> {isEditing ? 'تذكيرات جديدة' : 'التذكيرات'}</span>
+                <span className="wizard-review-label"><DynamicIcon name="bell" size={14} /> التذكيرات</span>
                 {reminders.length > 0 ? (
                   <ul className="wizard-review-subtask-list">
                     {reminders.map((r, i) => (
-                      <li key={i}>
+                      <li key={r.id ?? `new-${i}`}>
                         قبل البداية بـ {formatOffsetFromMinutes(r.offsetMinutes)}
                         {r.message ? ` — ${r.message}` : ''}
                       </li>
@@ -796,6 +887,36 @@ export default function AddTaskModal({
         onLifeAreaCreated?.(area);
       }}
     />
+
+    {pendingDeleteSubtaskIndex !== null && (
+      <ConfirmModal
+        title="حذف المهمة الفرعية؟"
+        description={
+          <>
+            هيتم حذف "<strong>{subtasks[pendingDeleteSubtaskIndex]?.content}</strong>" نهائيًا لما تحفظ التعديلات.
+          </>
+        }
+        confirmLabel="حذف"
+        cancelLabel="إلغاء"
+        onCancel={() => setPendingDeleteSubtaskIndex(null)}
+        onConfirm={confirmDeleteSubtask}
+      />
+    )}
+
+    {pendingDeleteReminderIndex !== null && (
+      <ConfirmModal
+        title="حذف التذكير؟"
+        description={
+          <>
+            هيتم حذف تذكير "<strong>{reminders[pendingDeleteReminderIndex]?.message || 'بدون رسالة'}</strong>" نهائيًا لما تحفظ التعديلات.
+          </>
+        }
+        confirmLabel="حذف"
+        cancelLabel="إلغاء"
+        onCancel={() => setPendingDeleteReminderIndex(null)}
+        onConfirm={confirmDeleteReminder}
+      />
+    )}
     </>
     </Portal>
   );

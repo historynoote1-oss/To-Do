@@ -9,6 +9,10 @@ import {
   confirmListDone,
   unconfirmListDone,
   createReminder,
+  updateReminder,
+  deleteReminder,
+  getReminders,
+  reorderItems,
 } from '../lib/api';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
@@ -50,6 +54,11 @@ export default function TodoList({
   // بتفتح نافذة تعديل المهمة (نفس مراحل الإنشاء بالظبط بس في وضع تعديل) —
   // بتتفتح لما يدوس المستخدم على أيقونة القلم في رأس الكارت.
   const [editModalOpen, setEditModalOpen] = useState(false);
+  // تذكيرات المهمة الرئيسية الحالية — بتتجاب من السيرفر لما نافذة التعديل
+  // تتفتح، عشان تتعرض جاهزة للتعديل جوه خطوة "التذكير" بدل ما تبان فاضية.
+  const [editReminders, setEditReminders] = useState<
+    { id: string; offsetMinutes: number; message: string | null }[]
+  >([]);
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<any>(null);
   // بتتحكم في إظهار/إخفاء المهام الفرعية — مقفولة افتراضيًا عشان الكارت
   // يفضل صغير ومضغوط، وبتتفتح لما المستخدم يضغط على أيقونة المهام الفرعية
@@ -69,6 +78,31 @@ export default function TodoList({
       requestAnimationFrame(() => titleInputRef.current?.select());
     }
   }, [editingTitle]);
+
+  // لما المستخدم يدوس على أيقونة تعديل المهمة، بنجيب تذكيرات المهمة
+  // الرئيسية الحالية من السيرفر الأول (مش متضمّنة في list.items) قبل ما
+  // نفتح النافذة، عشان تتفتح وهي معمورة من الأول بدل ما تبان فاضية للحظة.
+  // التذكيرات دي بتتحفظ بوضع CUSTOM (remindAt مطلق)، فبنحسب offsetMinutes
+  // من الفرق بين remindAt ووقت بداية المهمة عشان نعرضها في نفس صيغة الويزارد.
+  async function openEditModal() {
+    try {
+      const reminders = await getReminders({ listId: list.id });
+      const startMs = list.startTime ? new Date(list.startTime).getTime() : null;
+      setEditReminders(
+        reminders
+          .filter((r: any) => !r.itemId)
+          .map((r: any) => ({
+            id: r.id,
+            offsetMinutes:
+              startMs !== null ? Math.max(0, Math.round((startMs - new Date(r.remindAt).getTime()) / 60000)) : 0,
+            message: r.message ?? null,
+          }))
+      );
+    } catch {
+      setEditReminders([]);
+    }
+    setEditModalOpen(true);
+  }
 
   const total = list.items.length;
   const sortedItems = useMemo(() => sortItems(list.items), [list.items]);
@@ -213,8 +247,9 @@ export default function TodoList({
   }
 
   // بيتنادى من نافذة تعديل المهمة (نفس ويزارد الإنشاء، بس في وضع تعديل).
-  // بيحدّث بيانات المهمة الرئيسية، وبعدين لو المستخدم ضاف تذكيرات جديدة
-  // من خطوة "التذكير" بيتم إنشاؤها فعليًا (التذكيرات القديمة متتلمسش).
+  // بيحدّث بيانات المهمة الرئيسية، وبعدين بيطبّق كل التغييرات اللي حصلت
+  // على المهام الفرعية والتذكيرات جوه الويزارد: إضافة الجديد، تحديث نص
+  // اللي اتعدّل، حذف اللي المستخدم شاله (وأكّد حذفه)، وحفظ أي إعادة ترتيب.
   async function handleEditSave(id: string, data: NewTaskPayload) {
     const previousFields = {
       title: list.title,
@@ -236,47 +271,64 @@ export default function TodoList({
     };
     try {
       await updateList(id, nextFields);
-      let createdItemIds: string[] = [];
-      if (data.subtasks.length > 0) {
-        createdItemIds = await handleEditSaveNewSubtasks(data.subtasks);
+
+      // 1) المهام الفرعية اللي اتشالت من الويزارد (وأكّد المستخدم حذفها).
+      for (const itemId of data.deletedSubtaskIds) {
+        await deleteItem(itemId);
       }
+
+      // 2) المهام الفرعية الموجودة أصلًا (ليها id) — بنحدّث نصها لو اتغيّر.
+      const existingBeforeById = new Map((list.items || []).map((it: any) => [it.id, it.content]));
+      for (const s of data.subtasks) {
+        if (s.id && existingBeforeById.get(s.id) !== s.content) {
+          await updateItemContent(s.id, s.content);
+        }
+      }
+
+      // 3) المهام الفرعية الجديدة (id = null) — بتتنشئ وبناخد الـ ids بتاعتها.
+      const newSubtaskContents = data.subtasks.filter((s) => !s.id).map((s) => s.content);
+      const createdItemIds = newSubtaskContents.length > 0 ? await handleEditSaveNewSubtasks(newSubtaskContents) : [];
+
+      // 4) حفظ الترتيب النهائي زي ما ظهر في الويزارد (بما فيه الجديد اللي
+      // اتنشأ لسه)، عشان أي إعادة ترتيب يدوية تتحفظ فعليًا.
+      let createdIdx = 0;
+      const finalOrderIds = data.subtasks.map((s) => (s.id ? s.id : createdItemIds[createdIdx++]));
+      if (finalOrderIds.length > 0) {
+        await reorderItems(finalOrderIds.map((itemId, index) => ({ id: itemId, position: index })));
+      }
+
+      // 5) التذكيرات اللي اتشالت من الويزارد (وأكّد المستخدم حذفها).
+      for (const reminderId of data.deletedReminderIds) {
+        await deleteReminder(reminderId);
+      }
+
       // مهم: المهام الرئيسية معندهاش "موعد استحقاق" (dueDate) زي المهام
       // الفرعية — عندها بس startTime/endTime، فالسيرفر بيرفض mode
       // 'BEFORE_DUE' للمهام الرئيسية دايمًا. لازم نحسب remindAt بنفسنا
-      // من وقت بداية المهمة ونبعته كـ 'CUSTOM'، بالظبط زي ما بيحصل في
-      // مسار الإنشاء الأول (createTaskFromPayload في App.tsx).
-      if (data.reminders.length > 0 && data.startTime) {
+      // من وقت بداية المهمة ونبعته كـ 'CUSTOM'.
+      if (data.startTime) {
         for (const r of data.reminders) {
           const remindAt = new Date(new Date(data.startTime).getTime() - r.offsetMinutes * 60 * 1000).toISOString();
-          await createReminder({
-            listId: id,
-            mode: 'CUSTOM',
-            remindAt,
-            message: r.message || undefined,
-          });
+          if (r.id) {
+            // 6) تذكير موجود أصلًا — بنحدّث موعده/رسالته لو اتغيّروا.
+            await updateReminder(r.id, { remindAt, message: r.message || undefined });
+          } else {
+            // 7) تذكير جديد.
+            await createReminder({ listId: id, mode: 'CUSTOM', remindAt, message: r.message || undefined });
+          }
         }
       }
+
       sounds.click();
       toast.success('اتحدّثت المهمة');
-      // ref بتتبع الـ ids الحالية للمهام الفرعية اللي اتضافت من نافذة
-      // التعديل — بتتغيّر بعد أي Undo/Redo لاحق لأنها بتاخد id جديد من
-      // السيرفر كل مرة تتعمل فيها.
-      const itemIdsRef = { ids: createdItemIds };
       pushCommand({
         label: `تعديل "${data.title}"`,
         undo: async () => {
           await updateList(id, previousFields);
-          for (const itemId of itemIdsRef.ids) {
-            await deleteItem(itemId);
-          }
-          itemIdsRef.ids = [];
           onChange();
         },
         redo: async () => {
           await updateList(id, nextFields);
-          if (data.subtasks.length > 0) {
-            itemIdsRef.ids = await handleEditSaveNewSubtasks(data.subtasks);
-          }
           onChange();
         },
       });
@@ -576,7 +628,7 @@ export default function TodoList({
 
         <div className="row-actions card-actions">
           {!editingTitle && (
-            <button className="card-icon-action" onClick={() => setEditModalOpen(true)} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
+            <button className="card-icon-action" onClick={openEditModal} aria-label="تعديل المهمة الرئيسية" type="button" title="تعديل">
               <DynamicIcon name="pencil" size={17} />
             </button>
           )}
@@ -729,6 +781,10 @@ export default function TodoList({
             lifeAreaId: list.lifeArea?.id ?? list.lifeAreaId ?? null,
             startTime: list.startTime ?? null,
             endTime: list.endTime ?? null,
+            subtasks: [...(list.items || [])]
+              .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
+              .map((it: any) => ({ id: it.id, content: it.content })),
+            reminders: editReminders,
           }}
           onSave={handleEditSave}
         />

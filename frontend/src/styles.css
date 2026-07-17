@@ -6997,6 +6997,23 @@ body.modal-lock-scroll {
   white-space: nowrap;
 }
 
+.subtask-draft-edit-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+
+.subtask-draft-edit-input:hover,
+.subtask-draft-edit-input:focus {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
 .subtask-draft-item .icon-btn {
   flex-shrink: 0;
 }

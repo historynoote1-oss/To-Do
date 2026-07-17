@@ -449,6 +449,17 @@ export async function deleteItem(id: string) {
   return handle(res);
 }
 
+// بيحدّث ترتيب أكتر من مهمة فرعية دفعة واحدة (بعد إعادة ترتيب من نافذة
+// تعديل المهمة مثلًا) — كل عنصر بياخد position جديد حسب مكانه في المصفوفة.
+export async function reorderItems(items: { id: string; position: number }[]) {
+  const res = await fetch(`${API_URL}/api/items-reorder`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ items }),
+  });
+  return handle(res);
+}
+
 // ===== التذكيرات =====
 
 export interface Reminder {
