@@ -23,7 +23,12 @@ const PARENT_CATEGORY_OF: Record<string, string> = {
 const GOAL_INCLUDE = {
   parentGoal: { select: { id: true, title: true, category: true, targetYear: true } },
   subGoals: {
-    select: { id: true, title: true, category: true, archivedAt: true, archiveReason: true },
+    // confirmedDone مضافة من المرحلة 7: هدف/مهمة خريطة الأهداف بقى "خلص"
+    // معناه confirmedDone = true (مش الأرشفة زي قبل كده — شوف lib/archive.ts)،
+    // فمحتاجينها هنا عشان حساب نسب الإنجاز (شوف TodoList.tsx وGoalMap.tsx).
+    // archivedAt/archiveReason فاضلين لأغراض تانية (مثلًا لو المستخدم أرشف
+    // هدف يدويًا) بس مبقوش هم مصدر "الخلاص" الأساسي لأهداف الخريطة.
+    select: { id: true, title: true, category: true, archivedAt: true, archiveReason: true, confirmedDone: true },
     orderBy: { createdAt: 'asc' as const },
   },
 };
@@ -34,7 +39,7 @@ const GOAL_INCLUDE = {
 // GET /api/lists/pending-restore بدالها.
 router.get('/', async (req: AuthRequest, res) => {
   const lists = await prisma.todoList.findMany({
-    where: { userId: req.userId!, archivedAt: null, pendingRestoreAt: null },
+    where: { userId: req.userId!, archivedAt: null, pendingRestoreAt: null, trashedAt: null },
     include: {
       items: { orderBy: { position: 'asc' }, include: { _count: { select: { reminders: true } } } },
       _count: { select: { reminders: true } },
@@ -52,7 +57,7 @@ router.get('/', async (req: AuthRequest, res) => {
 // الواجهة من غير أي تحويل إضافي.
 router.get('/pending-restore', async (req: AuthRequest, res) => {
   const lists = await prisma.todoList.findMany({
-    where: { userId: req.userId!, archivedAt: null, pendingRestoreAt: { not: null } },
+    where: { userId: req.userId!, archivedAt: null, pendingRestoreAt: { not: null }, trashedAt: null },
     include: {
       items: { orderBy: { position: 'asc' }, include: { _count: { select: { reminders: true } } } },
       _count: { select: { reminders: true } },
@@ -80,6 +85,7 @@ router.get('/goal-options', async (req: AuthRequest, res) => {
       userId: req.userId!,
       category: parentCategory as any,
       archivedAt: null,
+      trashedAt: null,
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
     select: { id: true, title: true, category: true, targetYear: true },
@@ -156,7 +162,13 @@ router.post('/:id/confirm-done', async (req: AuthRequest, res) => {
     return res.status(400).json({ error: 'لازم تخلّص كل المهام الفرعية الأول قبل ما تأكّد إنهاء المهمة' });
   }
 
-  await prisma.todoList.update({ where: { id: list.id }, data: { confirmedDone: true } });
+  await prisma.todoList.update({
+    where: { id: list.id },
+    // لو الهدف كان معلّم "متأخر" (overduePenalizedAt، شوف lib/overdueScheduler.ts)
+    // وخلّصه المستخدم فعلًا دلوقتي، العلامة بقت مالهاش لازمة — بتتشال هنا،
+    // بس يوم الاستريك اللي اتخصم فضل مخصوم عمدًا (خصم دائم على التأخير).
+    data: { confirmedDone: true, overduePenalizedAt: null },
+  });
 
   // بيسجّل النهاردة (بتوقيت المستخدم المحلي، مش السيرفر) كـ"يوم نشط" لحساب
   // الاستريك (شوف routes/streak.ts) — upsert عشان لو المستخدم أكّد أكتر من
@@ -265,7 +277,7 @@ async function parseParentGoalId(
     throw new Error('التصنيف الحالي مالوش هدف أب في الهرم');
   }
 
-  const parent = await prisma.todoList.findFirst({ where: { id: value, userId, archivedAt: null } });
+  const parent = await prisma.todoList.findFirst({ where: { id: value, userId, archivedAt: null, trashedAt: null } });
   if (!parent) throw new Error('الهدف الأب غير موجود');
   if (parent.category !== requiredParentCategory) {
     throw new Error('الهدف الأب لازم يكون من التصنيف الأعلى مباشرة في الهرم');
@@ -409,6 +421,10 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       targetYear,
       lifeAreaId: lifeAreaId === undefined ? undefined : lifeAreaId,
       parentGoalId: parentGoalId === undefined ? undefined : parentGoalId,
+      // تعديل هدف خريطة أهداف اتعلّم "متأخر" (شوف lib/overdueScheduler.ts)
+      // يعتبر "راجعته وحطيته تاني" — العلامة بتتشال تلقائيًا، بس يوم
+      // الاستريك اللي اتخصم فضل مخصوم عمدًا (خصم دائم على التأخير نفسه).
+      overduePenalizedAt: list.overduePenalizedAt ? null : undefined,
     },
     include: {
       lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },

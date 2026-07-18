@@ -1599,6 +1599,12 @@ button:disabled {
   color: var(--streak);
 }
 
+/* استريك اتخصم منه بسبب أهداف خريطة الأهداف اللي فاتت (المرحلة 7) —
+   شوف lib/overdueScheduler.ts وStreakCard.tsx. */
+.streak-block-penalized .streak-block-value {
+  color: var(--danger);
+}
+
 .stat-block-label {
   font-size: 11.5px;
   color: var(--text-muted);
@@ -5613,6 +5619,76 @@ li input[type='checkbox'] {
   line-height: 1.6;
 }
 
+/* ===== شريط الأهداف/المهام المتأخرة (المرحلة 7) =====
+   لافت للنظر عمدًا (لون تحذيري + أعلى الصفحة) عشان المستخدم يراجع
+   ويعدّل الأهداف اللي فاتت من غير إنجاز — شوف lib/overdueScheduler.ts. */
+.goal-map-overdue-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 16px 0;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: color-mix(in srgb, var(--danger) 7%, var(--glass-bg, var(--surface)));
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
+  animation: goal-map-overdue-banner-in var(--dur) var(--ease-out);
+}
+
+@keyframes goal-map-overdue-banner-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.goal-map-overdue-banner-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--danger);
+}
+
+.goal-map-overdue-banner-head strong {
+  display: block;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.goal-map-overdue-banner-head p {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.goal-map-overdue-banner-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.goal-map-overdue-item {
+  position: relative;
+}
+
+.goal-map-overdue-item-category {
+  position: absolute;
+  top: -9px;
+  inset-inline-start: 18px;
+  z-index: 1;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.goal-map-overdue-item .goal-compact-card {
+  border-right-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--glass-bg, var(--surface)));
+}
+
 .life-area-create-panel .settings-field {
   margin-bottom: 14px;
 }
@@ -6939,97 +7015,243 @@ body.modal-lock-scroll {
   padding-bottom: 24px;
 }
 
-/* ===== عقدة هدف واحدة في الشجرة =====
-   goal-node-card-row: زرار الطي جنب الكارت نفسه. goal-node-children: كل
-   الأبناء متزحزحين لجهة البداية (padding-inline-start) بخط رأسي واضح
-   بلون العلامة، بنفس فكرة الخط الجانبي في شجرة الأرشيف لكن بتصميم أوضح
-   عشان العمق هنا ممكن يوصل لـ4 مستويات (سنة/شهر/أسبوع/يوم). */
-.goal-node {
-  position: relative;
-}
-
-.goal-node-card-row {
+/* ===== خريطة العرض الكاملة — Zoom Navigation =====
+   بريدكرمب متسلسل فوق (زي level-breadcrumb بالظبط بس بمساره الخاص)، وتحته
+   إما شبكة "مجلدات" (zoom-map-grid) أو كارت المهمة النهائي (zoom-map-final-goal)
+   لما نوصل لهدف يومي. */
+.zoom-map-breadcrumb {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
 }
 
-.goal-node-toggle {
-  flex-shrink: 0;
+.zoom-map-crumb-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-top: 10px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  gap: 4px;
+}
+
+.zoom-map-crumb-sep {
   color: var(--text-muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.zoom-map-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 999px;
   cursor: pointer;
-  transition: transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
 }
 
-.goal-node-toggle:hover {
-  border-color: var(--accent);
+.zoom-map-crumb:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.zoom-map-crumb.current {
   color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  cursor: default;
 }
 
-.goal-node-toggle svg {
-  transition: transform var(--dur) var(--ease-out);
+.zoom-map-crumb:disabled {
+  cursor: default;
 }
 
-.goal-node-toggle:not(.expanded) svg {
-  transform: rotate(-90deg);
+.zoom-map-crumb-root {
+  font-weight: 700;
 }
 
-.goal-node-card {
-  flex: 1;
-  min-width: 0;
-}
-
-.goal-node-children {
-  position: relative;
-  margin-top: 12px;
-  padding-inline-start: 34px;
-  display: flex;
-  flex-direction: column;
+/* شبكة كروت "المجلدات" — أي مستوى قبل الوصول للهدف اليومي (مجال حياة/
+   سنة/هدف سنوي/شهري/أسبوعي). كل كارت بلون العلامة الخاص بيه (لون المجال
+   أو لون التصنيف)، بشريط تقدّم لو ليه أبناء. */
+.zoom-map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 12px;
 }
 
-/* الخط الرأسي اللي بيربط كل الأبناء ببعض وبأبوهم بصريًا. */
-.goal-node-children::before {
-  content: '';
-  position: absolute;
-  inset-inline-start: 13px;
-  top: -2px;
-  bottom: 12px;
-  width: 2px;
-  background: linear-gradient(to bottom, var(--accent) 0%, color-mix(in srgb, var(--accent) 25%, transparent) 100%);
-  opacity: 0.55;
-  border-radius: 2px;
+.zoom-folder-card {
+  --zoom-color: var(--accent);
+  --zoom-bg: var(--surface-2);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px 16px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  text-align: start;
+  overflow: hidden;
+  transition: transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
 
-.goal-node-empty-hint {
+.zoom-folder-card::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--zoom-color);
+  opacity: 0.75;
+}
+
+.zoom-folder-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--zoom-color) 45%, var(--border));
+  box-shadow: var(--shadow-sm);
+}
+
+.zoom-folder-card-icon {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--zoom-bg);
+  color: var(--zoom-color);
+}
+
+.zoom-folder-card-title {
+  width: 100%;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zoom-folder-card-progress {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zoom-folder-card-progress-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.zoom-folder-card-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--zoom-color);
+  transition: width var(--dur) var(--ease-out);
+}
+
+.zoom-folder-card-progress-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.zoom-folder-card-chevron {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 14px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* ===== دائرة/شارة الإنجاز الكاملة لمجلد الزوم (المرحلة 7) =====
+   لما كل أبناء المجلد (سنة/شهر/أسبوع/يوم) يخلصوا، بنستبدل شريط التقدّم
+   بشارة "مكتمل" واضحة بلون النجاح، مع حلقة توهج خفيفة حوالين الكارت كله. */
+.zoom-folder-card-complete {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--success) 25%, transparent);
+}
+
+.zoom-folder-card-complete::before {
+  background: var(--success);
+  opacity: 1;
+}
+
+.zoom-folder-card-complete-ring {
+  display: inline-flex;
+  align-items: center;
   gap: 5px;
-  margin-top: 8px;
-  padding-inline-start: 42px;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.zoom-folder-card-complete-ring svg {
+  flex-shrink: 0;
+}
+
+.zoom-map-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 34px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
+  background: var(--surface);
   color: var(--text-muted);
 }
 
+.zoom-map-empty p {
+  max-width: 380px;
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+.zoom-map-final-goal {
+  animation: goal-map-fade-in var(--dur) var(--ease-out);
+}
+
+@keyframes goal-map-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 480px) {
-  .goal-node-children {
-    padding-inline-start: 22px;
+  .zoom-map-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
-  .goal-node-children::before {
-    inset-inline-start: 9px;
-  }
-  .goal-node-empty-hint {
-    padding-inline-start: 30px;
+  .zoom-map-crumb {
+    max-width: 140px;
+    font-size: 12px;
   }
 }
 
@@ -7038,25 +7260,36 @@ body.modal-lock-scroll {
 .goal-map-year-stepper {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
+  gap: 6px;
+  height: 40px;
+  padding: 4px 6px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--accent);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
-.goal-map-year-stepper-btn {
+.goal-map-year-stepper-btn,
+.goal-map-year-stepper-confirm,
+.goal-map-year-stepper-cancel {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out),
+    opacity var(--dur) var(--ease-out), filter var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.goal-map-year-stepper-btn {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
-  cursor: pointer;
-  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
+  box-shadow: none;
 }
 
 .goal-map-year-stepper-btn:hover:not(:disabled) {
@@ -7070,24 +7303,198 @@ body.modal-lock-scroll {
 }
 
 .goal-map-year-stepper-value {
-  min-width: 52px;
+  min-width: 54px;
   text-align: center;
   font-weight: 800;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text);
 }
 
 .goal-map-year-stepper-confirm {
+  width: auto;
+  min-width: 32px;
+  padding: 0 14px;
+  border: none;
+  background: var(--gradient-brand);
+  color: #f4fbfa;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  gap: 5px;
+  border-radius: var(--radius-pill);
+}
+
+.goal-map-year-stepper-confirm:hover {
+  filter: brightness(1.08);
+}
+
+.goal-map-year-stepper-cancel {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.goal-map-year-stepper-cancel:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ===== سلة المحذوفات المؤقتة (Trash) ===== */
+
+.goal-map-trash-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: auto;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  margin-inline-start: auto;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+
+.goal-map-trash-toggle:hover,
+.goal-map-trash-toggle.has-items {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.goal-map-trash-toggle-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.goal-map-trash-panel {
+  margin: -4px 0 16px;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--glass-bg, var(--surface));
+  backdrop-filter: var(--glass-blur, none);
+  animation: goal-map-trash-in var(--dur) var(--ease-out);
+}
+
+@keyframes goal-map-trash-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.goal-map-trash-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger);
+  font-weight: 800;
+  font-size: 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.goal-map-trash-panel-hint {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 11.5px;
+}
+
+.goal-map-trash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.goal-map-trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.goal-map-trash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm, 10px);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+
+.goal-map-trash-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.goal-map-trash-item-year {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.goal-map-trash-item-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.goal-map-trash-item-days {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-2, var(--surface));
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.goal-map-trash-item-days.urgent {
+  color: var(--danger);
+  background: var(--danger-dim);
+}
+
+.goal-map-trash-item-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   white-space: nowrap;
 }
 
-.goal-map-year-stepper-hint {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin: -6px 0 12px;
-  font-size: 11.5px;
+.goal-map-section-title-year {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  margin-inline-start: -4px;
+}
+
+.goal-map-section-title-count {
+  font-size: 12px;
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 /* ===== أقسام الصفحة (بناء الخطة / خريطة العرض الكاملة) ===== */
@@ -7106,7 +7513,8 @@ body.modal-lock-scroll {
 }
 
 .goal-map-section-toggle {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 12px 14px;
   margin-bottom: 0;
   border-radius: var(--radius-lg);
@@ -7126,6 +7534,13 @@ body.modal-lock-scroll {
   text-align: start;
 }
 
+.goal-map-section-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .goal-map-section-chevron {
   transition: transform var(--dur) var(--ease-out);
   transform: rotate(-90deg);
@@ -7133,6 +7548,222 @@ body.modal-lock-scroll {
 
 .goal-map-section-chevron.expanded {
   transform: rotate(0deg);
+}
+
+/* ===== صفّ هيدر قسم "خريطة العرض الكاملة" — زرار الطي + زرار الفلاتر
+   (المرحلة 8) جنب بعض. ===== */
+.goal-map-section-header-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.goal-map-zoom-filter-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.goal-map-zoom-filter-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  min-height: 46px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out),
+    background var(--dur) var(--ease-out);
+}
+
+.goal-map-zoom-filter-btn:hover,
+.goal-map-zoom-filter-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--gradient-brand-soft, color-mix(in srgb, var(--accent) 12%, var(--surface)));
+}
+
+.goal-map-zoom-filter-badge {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.goal-map-zoom-filter-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  inset-inline-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(300px, 86vw);
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--glass-bg, var(--surface));
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
+  box-shadow: var(--shadow-lift);
+  animation: goal-compact-popover-in 0.15s var(--ease-out);
+}
+
+.goal-map-zoom-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.goal-map-zoom-filter-field label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.goal-map-zoom-filter-field select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.goal-map-zoom-filter-field select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.goal-map-zoom-filter-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+
+.goal-map-zoom-filter-clear:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.goal-map-zoom-filter-clear:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ===== إحصائية تقدّم السنة (المرحلة 8) ===== */
+.goal-map-year-stats {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 16px 0;
+  padding: 18px 22px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
+  background: var(--gradient-brand-soft, var(--surface));
+  overflow: hidden;
+}
+
+.goal-map-year-stats-ring {
+  position: relative;
+  flex-shrink: 0;
+  width: 76px;
+  height: 76px;
+}
+
+.goal-map-year-stats-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.goal-map-year-stats-track {
+  fill: none;
+  stroke: var(--surface-3);
+  stroke-width: 8;
+}
+
+.goal-map-year-stats-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.5s var(--ease-out);
+}
+
+.goal-map-year-stats-percent {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-num);
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.goal-map-year-stats-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.goal-map-year-stats-info strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.goal-map-year-stats-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.goal-map-year-stats-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.goal-map-year-stats-chip-danger {
+  background: var(--danger-dim);
+  color: var(--danger);
 }
 
 .goal-map-tree-section .goal-map-tree {
@@ -7255,16 +7886,10 @@ body.modal-lock-scroll {
 .level-content-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
-}
-
-.level-content-header-label {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text-muted);
 }
 
 .level-content-add-btn {
@@ -7285,6 +7910,192 @@ body.modal-lock-scroll {
 .level-goal-card {
   border-radius: var(--radius-lg);
   overflow: hidden;
+}
+
+/* ===== الكارت المبسّط (اسم + أيقونة ترابط + أيقونة تعديل) ===== */
+.goal-compact-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 16px;
+  border: 1px solid var(--border);
+  background: var(--glass-bg, var(--surface));
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
+  border-right: 3px solid var(--accent);
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+}
+
+/* ===== صح أخضر بدل النقل للأرشيف (المرحلة 7) =====
+   هدف/مهمة خريطة الأهداف بيفضل في مكانه لما يخلص — الكارت المبسّط بياخد
+   خط جانبي وخلفية خفيفة بلون النجاح بدل ما يختفي. */
+.goal-compact-card-complete {
+  border-right-color: var(--success);
+  background: color-mix(in srgb, var(--success) 6%, var(--glass-bg, var(--surface)));
+}
+
+/* ===== هدف/مهمة اتعلّمت "متأخرة" (المرحلة 7) — شوف lib/overdueScheduler.ts */
+.goal-compact-card-overdue {
+  border-right-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--glass-bg, var(--surface)));
+}
+
+.goal-compact-card-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  color: transparent;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+
+.goal-compact-card-check:hover:not(.disabled):not(:disabled) {
+  border-color: var(--success);
+}
+
+.goal-compact-card-check.checked {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.goal-compact-card-check.disabled,
+.goal-compact-card-check:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.goal-compact-card-overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+
+.goal-compact-card-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.goal-compact-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.goal-compact-card-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+
+.goal-compact-card-btn:hover,
+.goal-compact-card-btn.active {
+  background: var(--gradient-brand-soft, color-mix(in srgb, var(--accent) 14%, var(--surface)));
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.goal-compact-card-btn-danger:hover {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.goal-compact-link-wrap {
+  position: relative;
+}
+
+.goal-compact-link-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  max-width: 240px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--glass-bg, var(--surface));
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
+  box-shadow: var(--shadow-lift);
+  text-align: center;
+  animation: goal-compact-popover-in 0.15s var(--ease-out);
+}
+
+@keyframes goal-compact-popover-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.goal-compact-card-highlight {
+  animation: goal-compact-highlight-pulse 1.2s var(--ease-out) 2;
+  border-color: var(--accent);
+}
+
+@keyframes goal-compact-highlight-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 20%, transparent); }
+}
+
+.goal-compact-link-popover-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.goal-compact-link-popover-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-compact-link-popover-title:hover {
+  text-decoration: underline;
 }
 
 .level-goal-card-drill {

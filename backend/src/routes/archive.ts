@@ -10,7 +10,7 @@ const router = Router();
 // التصنيف بيتم في الواجهة نفسها من archivedAt وcategory بتاعة كل مهمة.
 router.get('/', async (req: AuthRequest, res) => {
   const archived = await prisma.todoList.findMany({
-    where: { userId: req.userId!, archivedAt: { not: null } },
+    where: { userId: req.userId!, archivedAt: { not: null }, trashedAt: null },
     include: {
       items: { orderBy: { position: 'asc' } },
       lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },

@@ -25,23 +25,30 @@ export default function StreakCard() {
   if (current === null) return null;
 
   const hasStreak = current > 0;
-  const message = !hasStreak
-    ? 'خلّص مهمة النهاردة وابدأ سلسلتك'
-    : current === 1
-      ? 'يوم واحد لحد دلوقتي — كمّل بكرة!'
-      : `${current} أيام متتالية — استمر!`;
+  // خصم الاستريك (خريطة الأهداف، المرحلة 7): current ممكن يبقى سالب لو
+  // المستخدم اتخصم منه أيام أكتر من اللي كسبها (أهداف اتأخرت — شوف
+  // routes/streak.ts). بنميّز الحالة دي برسالة وألوان مختلفة عن "مفيش
+  // استريك لسه" العادية.
+  const isPenalized = current < 0;
+  const message = isPenalized
+    ? `اتخصم منك ${Math.abs(current)} يوم بسبب أهداف فاتت من غير إنجاز`
+    : !hasStreak
+      ? 'خلّص مهمة النهاردة وابدأ سلسلتك'
+      : current === 1
+        ? 'يوم واحد لحد دلوقتي — كمّل بكرة!'
+        : `${current} أيام متتالية — استمر!`;
 
   return (
-    <div className={`stat-block streak-block ${!hasStreak ? 'disabled' : ''}`}>
+    <div className={`stat-block streak-block ${!hasStreak ? 'disabled' : ''} ${isPenalized ? 'streak-block-penalized' : ''}`}>
       <div className="stat-block-head">
         <span
           className="stat-block-icon streak-block-icon"
           style={{
-            color: hasStreak ? 'var(--streak)' : 'var(--text-muted)',
-            background: hasStreak ? 'var(--streak-dim)' : 'var(--surface-2)',
+            color: isPenalized ? 'var(--danger)' : hasStreak ? 'var(--streak)' : 'var(--text-muted)',
+            background: isPenalized ? 'var(--danger-dim, var(--surface-2))' : hasStreak ? 'var(--streak-dim)' : 'var(--surface-2)',
           }}
         >
-          <DynamicIcon name="flame" size={16} />
+          <DynamicIcon name={isPenalized ? 'alert' : 'flame'} size={16} />
         </span>
         <div className="stat-block-main">
           <span className={`stat-block-value ${hasStreak ? 'streak-block-value' : ''}`} dir="ltr">

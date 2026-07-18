@@ -15,6 +15,14 @@ function dayKey(d: Date) {
 // الفعلية ومفيش داعي لأي جدولة يومية تصفّره — لو يوم اتفوّت، هو ببساطة
 // مش موجود في السلسلة وبيوقف العد.
 router.get('/', async (req: AuthRequest, res) => {
+  // خصم الاستريك (المرحلة 7 — خريطة الأهداف): مرة كل ما يتأخر هدف/مهمة من
+  // خريطة الأهداف (endTime + 10 دقايق من غير إنجاز) بيتزوّد streakPenalty
+  // بواحد (شوف lib/overdueScheduler.ts). الخصم دائم ومش بيترجع حتى لو
+  // المستخدم استرجع/عدّل الهدف المتأخر — شوف تعليق overduePenalizedAt في
+  // schema.prisma.
+  const user = await prisma.user.findUnique({ where: { id: req.userId! }, select: { streakPenalty: true } });
+  const penalty = user?.streakPenalty ?? 0;
+
   const days = await prisma.userActivityDay.findMany({
     where: { userId: req.userId! },
     select: { date: true },
@@ -41,7 +49,10 @@ router.get('/', async (req: AuthRequest, res) => {
     cursor.setUTCDate(cursor.getUTCDate() - 1);
   }
 
-  res.json({ current });
+  // الخصم بيتطبّق آخر حاجة، وممكن يودّي بالنتيجة للسالب عمدًا (شوف تعليق
+  // streakPenalty في schema.prisma) — الواجهة (StreakCard.tsx) بتتعامل مع
+  // القيمة السالبة دي بعرض مختلف بدل ما تفترض إنها دايمًا صفر أو أكتر.
+  res.json({ current: current - penalty });
 });
 
 export default router;

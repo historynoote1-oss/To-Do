@@ -46,6 +46,8 @@ export default function TodoList({
   pendingRestore = false,
   onFinalizeRestore,
   onCreateSubGoal,
+  compact = false,
+  onGoToParent,
 }: any) {
   const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [burstKey, setBurstKey] = useState(0);
@@ -110,28 +112,177 @@ export default function TodoList({
     setEditModalOpen(true);
   }
 
-  const total = list.items.length;
+  // ===== كارت مبسّط لقسم "بناء الخطة" في خريطة الأهداف =====
+  // بدل ما يتعرض الكارت الكامل (تشيك بوكس + بادجات + مهام فرعية + تايم
+  // لاين...) جوه تبويبات بناء الخطة، بنعرض سطر واحد بس: اسم الهدف/المهمة،
+  // أيقونة ترابط (لو ليها هدف أب) بتفتح popover صغير بيوريك الأب، وأيقونة
+  // قلم بتفتح نفس ويزارد التعديل الكامل (المراحل) اللي بيفتحه الكارت
+  // الكامل بالظبط. الحذف بقى من جوه نفس الويزارد (خطوة الحذف) عشان
+  // الكارت هنا يفضل نضيف زي ما اتطلب بالظبط.
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+
+  // بقت لازمة هنا (قبل فرع compact) عشان الكارت المبسّط بقى محتاج يعرض
+  // صح أخضر عند الإنجاز بنفس منطق الكارت الكامل تحت (المرحلة 7).
+  const compactTotal = list.items.length;
+  const compactDone = list.items.filter((i: any) => i.isDone).length;
+  const compactAllSubtasksDone = compactTotal > 0 && compactDone === compactTotal;
+  const compactIsComplete = !!list.confirmedDone && compactAllSubtasksDone;
+  // هدف/مهمة اتعلّمت "متأخرة" (المرحلة 7 — شوف lib/overdueScheduler.ts) —
+  // بتاخد حدّ تحذيري واضح حتى في مكانها العادي جوه تبويبات "بناء الخطة"،
+  // مش بس في الشريط اللافت أعلى الصفحة.
+  const compactOverdue = !!list.overduePenalizedAt;
+
+  if (compact) {
+    const parent = list.parentGoal;
+    return (
+      <div
+        className={`goal-compact-card ${highlighted ? 'goal-compact-card-highlight' : ''} ${
+          compactIsComplete ? 'goal-compact-card-complete' : ''
+        } ${compactOverdue ? 'goal-compact-card-overdue' : ''}`}
+        id={`list-${list.id}`}
+      >
+        <button
+          type="button"
+          className={`goal-compact-card-check ${compactIsComplete ? 'checked' : ''} ${
+            compactTotal === 0 || (!compactAllSubtasksDone && !list.confirmedDone) ? 'disabled' : ''
+          }`}
+          onClick={handleToggleWholeList}
+          disabled={confirmingDone || (compactTotal === 0 && !list.confirmedDone)}
+          aria-label={compactIsComplete ? 'إلغاء تأكيد الإنجاز' : 'تأكيد الإنجاز'}
+          title={compactIsComplete ? 'إلغاء تأكيد الإنجاز' : 'تأكيد الإنجاز'}
+        >
+          {compactIsComplete && <DynamicIcon name="check" size={13} />}
+        </button>
+        <span className="goal-compact-card-title" title={list.title}>
+          {list.title}
+        </span>
+        {compactOverdue && (
+          <span className="goal-compact-card-overdue-badge" title="فاتت من غير إنجاز — اتخصم يوم استريك">
+            <DynamicIcon name="alert" size={12} />
+          </span>
+        )}
+        <div className="goal-compact-card-actions">
+          {parent && (
+            <div className="goal-compact-link-wrap">
+              <button
+                type="button"
+                className={`goal-compact-card-btn goal-compact-link-btn ${linkPopoverOpen ? 'active' : ''}`}
+                onClick={() => setLinkPopoverOpen((v) => !v)}
+                aria-label="عرض الهدف الأب المرتبط"
+                title="مرتبط بهدف أب"
+              >
+                <DynamicIcon name="link-2" size={14} />
+              </button>
+              {linkPopoverOpen && (
+                <div className="goal-compact-link-popover" role="dialog">
+                  <span className="goal-compact-link-popover-label">مرتبط بـ</span>
+                  <button
+                    type="button"
+                    className="goal-compact-link-popover-title"
+                    onClick={() => {
+                      setLinkPopoverOpen(false);
+                      onGoToParent?.(parent);
+                    }}
+                  >
+                    {parent.title}
+                    <DynamicIcon name="chevron-left" size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            className="goal-compact-card-btn"
+            onClick={openEditModal}
+            aria-label="تعديل"
+            title="تعديل"
+          >
+            <DynamicIcon name="pencil" size={14} />
+          </button>
+          <button
+            type="button"
+            className="goal-compact-card-btn goal-compact-card-btn-danger"
+            onClick={handleDeleteList}
+            aria-label="حذف"
+            title="حذف"
+          >
+            <DynamicIcon name="trash" size={14} />
+          </button>
+        </div>
+
+        {editModalOpen && (
+          <AddTaskModal
+            open={editModalOpen}
+            lifeAreas={lifeAreas}
+            onClose={() => setEditModalOpen(false)}
+            onManageLifeAreas={() => {
+              setEditModalOpen(false);
+              onManageLifeAreas?.();
+            }}
+            editTarget={{
+              id: list.id,
+              title: list.title,
+              priority: list.priority || 'MEDIUM',
+              category: list.category ?? null,
+              targetYear: list.targetYear ?? null,
+              lifeAreaId: list.lifeArea?.id ?? list.lifeAreaId ?? null,
+              parentGoalId: list.parentGoal?.id ?? list.parentGoalId ?? null,
+              startTime: list.startTime ?? null,
+              endTime: list.endTime ?? null,
+              subtasks: [...(list.items || [])]
+                .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
+                .map((it: any) => ({ id: it.id, content: it.content })),
+              reminders: editReminders,
+            }}
+            onSave={handleEditSave}
+          />
+        )}
+
+        {confirmDeleteList && (
+          <ConfirmModal
+            title={`متأكد من حذف "${list.title}"؟`}
+            description="هيتشال هو وكل المهام الفرعية بتاعته. الإجراء ده مينفعش يترجع."
+            confirmLabel="حذف"
+            cancelLabel="إلغاء"
+            danger
+            onCancel={() => setConfirmDeleteList(false)}
+            onConfirm={confirmDeleteListNow}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // بنستخدم نفس القيم اللي اتحسبت فوق قبل فرع compact (compactTotal...)
+  // بدل ما نعيد حسابها تاني — عشان handleToggleWholeList (اللي بقى
+  // مستخدم من زرار الصح في الكارت المبسّط كمان) يفضل شغال صح في الحالتين
+  // من غير ما يحاول يقرأ متغيرات لسه معملتلهاش initialize في نسخة الكارت
+  // المبسّط (اللي بترجع (return) قبل ما توصل للسطر ده أصلًا).
+  const total = compactTotal;
   const sortedItems = useMemo(() => sortItems(list.items), [list.items]);
-  const done = list.items.filter((i: any) => i.isDone).length;
+  const done = compactDone;
   const progress = total === 0 ? 0 : Math.round((done / total) * 100);
 
   // ===== خريطة الأهداف الهرمية =====
   // نسبة إنجاز الأهداف الفرعية المربوطة بالهدف ده (سنوي/شهري/أسبوعي) —
-  // "خلص" هنا معناها اتؤرشف فعليًا بسبب COMPLETED (شوف archiveReason)،
-  // مش بس اتعلّم Done، عشان يتماشى مع نفس معنى "الإنجاز" في باقي الموقع.
+  // من المرحلة 7: "خلص" هنا معناها confirmedDone = true بس (مش
+  // الأرشفة/archivedAt زي قبل كده) لأن أهداف خريطة الأهداف بقت بتفضل في
+  // مكانها بصح أخضر بدل النقل للأرشيف عند الإنجاز — شوف lib/archive.ts.
   const subGoals: any[] = list.subGoals || [];
   const subGoalsTotal = subGoals.length;
-  const subGoalsDone = subGoals.filter((g) => g.archivedAt && g.archiveReason === 'COMPLETED').length;
+  const subGoalsDone = subGoals.filter((g) => g.confirmedDone).length;
   const subGoalsProgress = subGoalsTotal === 0 ? 0 : Math.round((subGoalsDone / subGoalsTotal) * 100);
   // زرار "إضافة هدف فرعي" بيظهر بس على الأهداف اللي أصلًا ليها تصنيف
   // بينقسم لتصنيف أصغر منه في الهرم (سنوي/شهري/أسبوعي، مش يومي).
   const subGoalChildCategory = list.category ? CHILD_CATEGORY_OF[list.category as CategoryKey] : null;
   // كل المهام الفرعية خلصت — شرط ضروري (بس مش كافي لوحده) عشان مربع
-  // التأكيد النهائي يتفعّل. لسه محتاج المستخدم يعلّم عليه بنفسه.
-  const allSubtasksDone = total > 0 && done === total;
+  // التأكيد النهائي يتفعّل. لسه محتاج المستخدم يعلّم عليه بنفسه. (متحسوبة
+  // فوق قبل فرع compact كـ compactAllSubtasksDone — هنا مجرد alias.)
+  const allSubtasksDone = compactAllSubtasksDone;
   // المهمة الرئيسية "خلصت فعلًا" بس لو المستخدم أكّد بنفسه على مربع
   // الإنجاز النهائي — مش مجرد إن كل المهام الفرعية اتعلّمت.
-  const isComplete = !!list.confirmedDone && allSubtasksDone;
+  const isComplete = compactIsComplete;
   const priorityColor = priorityOf(list.priority).color;
 
   const confettiPieces = useMemo(
@@ -196,7 +347,11 @@ export default function TodoList({
         setBurstKey((k) => k + 1);
         sounds.celebrate();
         window.setTimeout(() => setConfettiOn(false), 900);
-        toast.success(`أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف`);
+        // من المرحلة 7: هدف/مهمة خريطة الأهداف (category محدد) بتفضل في
+        // مكانها بصح أخضر بدل ما تتنقل للأرشيف — الرسالة لازم تعكس ده.
+        toast.success(
+          list.category ? `أحسنت! "${list.title}" اكتملت 🎯` : `أحسنت! "${list.title}" اكتملت وانتقلت للأرشيف`
+        );
         pushCommand({
           label: `تأكيد إنهاء "${list.title}"`,
           undo: async () => {

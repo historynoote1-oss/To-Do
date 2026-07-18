@@ -45,20 +45,29 @@ export async function syncListArchiveState(listId: string, localDay?: Date) {
   const allSubtasksDone = total > 0 && done === total;
   const isComplete = allSubtasksDone && list.confirmedDone;
 
+  // هدف/مهمة من خريطة الأهداف (category محدد) — منطق إنجاز مختلف تمامًا
+  // عن باقي الموقع (شوف تعليق category في schema.prisma): الإنجاز هنا
+  // معناه صح أخضر (confirmedDone = true) وهو فاضل في مكانه، مش نقل
+  // للأرشيف. المهمة العادية (category = null) لسه بتتؤرشف زي ما هي دايمًا.
+  const isGoalHierarchyItem = !!list.category;
+
   const data: { archivedAt?: Date | null; confirmedDone?: boolean; archiveReason?: 'COMPLETED' } = {};
 
   // التأكيد النهائي مالوش معنى غير لو كل المهام الفرعية منجزة فعلاً. أي
   // رجوع لمهمة فرعية غير منجزة (أو إضافة واحدة جديدة) بيصفّر التأكيد
-  // تلقائيًا عشان المستخدم يضطر يأكّد تاني بعد ما يخلص فعلاً.
+  // تلقائيًا عشان المستخدم يضطر يأكّد تاني بعد ما يخلص فعلاً. ده سلوك
+  // موحّد لكل المهام (عادية وأهداف).
   if (!allSubtasksDone && list.confirmedDone) {
     data.confirmedDone = false;
   }
 
-  if (isComplete && !list.archivedAt) {
-    data.archivedAt = new Date();
-    data.archiveReason = 'COMPLETED';
-  } else if (!isComplete && list.archivedAt) {
-    data.archivedAt = null;
+  if (!isGoalHierarchyItem) {
+    if (isComplete && !list.archivedAt) {
+      data.archivedAt = new Date();
+      data.archiveReason = 'COMPLETED';
+    } else if (!isComplete && list.archivedAt) {
+      data.archivedAt = null;
+    }
   }
 
   if (Object.keys(data).length === 0) return null;

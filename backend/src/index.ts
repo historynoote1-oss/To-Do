@@ -7,6 +7,7 @@ import 'dotenv/config';
 import authRoutes from './routes/auth';
 import listsRoutes from './routes/lists';
 import archiveRoutes from './routes/archive';
+import trashRoutes from './routes/trash';
 import lifeAreasRoutes from './routes/lifeAreas';
 import itemsRoutes from './routes/items';
 import adminRoutes from './routes/admin';
@@ -29,6 +30,7 @@ import { rehabilitationGate } from './middleware/rehabilitationGate';
 import { startReminderScheduler } from './lib/reminderScheduler';
 import { startRecurringTaskScheduler } from './lib/recurringTaskScheduler';
 import { startOverdueScheduler } from './lib/overdueScheduler';
+import { startTrashScheduler } from './lib/trashScheduler';
 
 const app = express();
 
@@ -143,6 +145,7 @@ app.use('/api/site', siteStatusLimiter, siteRoutes);
 
 app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRoutes);
 app.use('/api/archive', verifyUser, rehabilitationGate, maintenanceGate, archiveRoutes);
+app.use('/api/trash', verifyUser, rehabilitationGate, maintenanceGate, trashRoutes);
 app.use('/api/life-areas', verifyUser, rehabilitationGate, maintenanceGate, lifeAreasRoutes);
 app.use('/api/recurring-tasks', verifyUser, rehabilitationGate, maintenanceGate, recurringTasksRoutes);
 app.use('/api/youtube', verifyUser, rehabilitationGate, maintenanceGate, youtubeLimiter, youtubeRoutes);
@@ -168,3 +171,4 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 startReminderScheduler();
 startRecurringTaskScheduler();
 startOverdueScheduler();
+startTrashScheduler();
