@@ -7035,9 +7035,11 @@ body.modal-lock-scroll {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 14px 16px;
+  padding: 16px 20px;
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  background: var(--glass-bg, var(--surface));
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   margin-bottom: 18px;
@@ -7167,6 +7169,118 @@ body.modal-lock-scroll {
   gap: 12px;
 }
 
+/* ===== شبكات الخانات التقويمية (شهور/أسابيع/أيام) — من مراجعة التصميم:
+   عدد ثابت ومعروف مسبقًا (12/5/7)، فبتاخد تخطيط مضغوط بأعمدة ثابتة بدل
+   auto-fill الحر بتاع شبكة المجلدات العادية، عشان تبان "تقويم" منظّم
+   بصريًا بدل قائمة كروت عشوائية العرض. ===== */
+.zoom-map-grid-months {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.zoom-map-grid-weeks {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.zoom-map-grid-days {
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+@media (max-width: 560px) {
+  .zoom-map-grid-months { grid-template-columns: repeat(3, 1fr); }
+  .zoom-map-grid-weeks { grid-template-columns: repeat(5, 1fr); }
+  .zoom-map-grid-days { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ===== كارت "خانة تقويمية" (شهر/أسبوع/يوم) — شكل مصغّر ومحايد اللون
+   عمدًا، متمايز بوضوح عن `.zoom-folder-card` (كارت الهدف الحقيقي). رقم
+   كبير واضح (badge) بدل أيقونة ملوّنة بحجم الهدف، واسم صغير تحته، ونقطة
+   عدد صغيرة في الزاوية لو فيه أهداف مرتبطة — بدل شريط تقدّم كامل مبالغ
+   فيه لعنصر تقويمي ثابت مش هدف بعنوان اختاره المستخدم. ===== */
+.zoom-cal-chip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 1;
+  min-height: 58px;
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft, var(--border));
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm, none);
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+.zoom-cal-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+}
+
+/* خانة فيها أهداف فعليًا (بخلاف الفاضية) بتاخد حدّ أوضح شوية عشان تتفرّق
+   بصريًا عن الخانات الفاضية اللي المستخدم لسه محطّش فيها حاجة. */
+.zoom-cal-chip.has-goals {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-2));
+  color: var(--text);
+}
+
+.zoom-cal-chip-complete {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+  background: color-mix(in srgb, var(--success) 8%, var(--surface-2));
+  color: var(--text);
+}
+
+.zoom-cal-chip-num {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
+  color: inherit;
+}
+
+.zoom-cal-chip-icon {
+  opacity: 0.85;
+}
+
+.zoom-cal-chip-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.zoom-cal-chip-dot {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.zoom-cal-chip-complete .zoom-cal-chip-dot {
+  background: var(--success);
+}
+
 .zoom-folder-card {
   --zoom-color: var(--accent);
   --zoom-bg: var(--surface-2);
@@ -7175,10 +7289,12 @@ body.modal-lock-scroll {
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
-  padding: 14px 16px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  padding: 15px 17px 17px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-soft);
+  background: var(--glass-bg, var(--surface));
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
   cursor: pointer;
   text-align: start;
   overflow: hidden;
@@ -7200,17 +7316,17 @@ body.modal-lock-scroll {
 .zoom-folder-card:hover {
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--zoom-color) 45%, var(--border));
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-lift);
 }
 
 .zoom-folder-card-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--zoom-bg);
   color: var(--zoom-color);
 }
@@ -7595,14 +7711,17 @@ body.modal-lock-scroll {
 .goal-map-section-toggle {
   flex: 1;
   min-width: 0;
-  padding: 12px 14px;
+  padding: 13px 16px;
   margin-bottom: 0;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--glass-bg, var(--surface));
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   justify-content: flex-start;
-  transition: border-color var(--dur) var(--ease-out);
+  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
 }
 
 /* مسافة تحت هيدر أي قسم (بناء الخطة / خريطة العرض الكاملة) قبل محتواه —
@@ -7617,6 +7736,8 @@ body.modal-lock-scroll {
 
 .goal-map-section-toggle:hover {
   border-color: var(--accent);
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-1px);
 }
 
 .goal-map-section-toggle span {
@@ -7775,10 +7896,11 @@ body.modal-lock-scroll {
   align-items: center;
   gap: 18px;
   margin: 16px 0;
-  padding: 18px 22px;
+  padding: 20px 24px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-soft);
   background: var(--gradient-brand-soft, var(--surface));
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -7975,16 +8097,19 @@ body.modal-lock-scroll {
 /* ===== حاوية عرض محتوى المستوى — كل أهداف المستوى الحالي (أو رسالة
    الحالة الفاضية) جوّه مربع واحد واضح، بدل ما تكون طايرة على الصفحة. ===== */
 .level-content-box {
-  padding: 14px;
-  border-radius: 10px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-soft);
-  background: var(--surface-2);
+  background: var(--glass-bg, var(--surface-2));
+  backdrop-filter: var(--glass-blur, none);
+  -webkit-backdrop-filter: var(--glass-blur, none);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 12px;
 }
 
 .level-empty {
   margin: 0;
-  padding: 28px 16px;
+  padding: 32px 16px;
   border: none;
   background: transparent;
 }
@@ -7997,19 +8122,20 @@ body.modal-lock-scroll {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px dashed var(--accent);
+  padding: 13px 14px;
+  border-radius: var(--radius);
+  border: 1.5px dashed var(--accent);
   background: color-mix(in srgb, var(--accent) 7%, var(--surface));
   color: var(--accent);
   font-size: 13.5px;
   font-weight: 800;
   cursor: pointer;
-  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
 }
 
 .level-content-add-btn-bottom:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  transform: translateY(-1px);
 }
 
 .level-content-add-btn-bottom:disabled {
@@ -8021,13 +8147,20 @@ body.modal-lock-scroll {
 .level-goal-grid {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .level-goal-card {
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow: hidden;
+  border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-sm, none);
+  transition: box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+
+.level-goal-card:hover {
+  box-shadow: var(--shadow-lift);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
 }
 
 /* ===== الكارت المبسّط (اسم + أيقونة ترابط + أيقونة تعديل) ===== */
@@ -8036,12 +8169,12 @@ body.modal-lock-scroll {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 13px 16px;
-  border: 1px solid var(--border);
+  padding: 14px 18px;
+  border: none;
   background: var(--glass-bg, var(--surface));
   backdrop-filter: var(--glass-blur, none);
   -webkit-backdrop-filter: var(--glass-blur, none);
-  border-right: 3px solid var(--accent);
+  border-right: 4px solid var(--accent);
   transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
 }
 
@@ -8064,14 +8197,18 @@ body.modal-lock-scroll {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 27px;
+  height: 27px;
+  border-radius: var(--radius-sm);
   border: 2px solid var(--border);
   background: var(--surface-2);
   color: transparent;
   cursor: pointer;
-  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.goal-compact-card-check:active:not(.disabled):not(:disabled) {
+  transform: scale(0.9);
 }
 
 .goal-compact-card-check:hover:not(.disabled):not(:disabled) {
@@ -8111,6 +8248,7 @@ body.modal-lock-scroll {
   font-size: 14.5px;
   font-weight: 700;
   color: var(--text);
+  letter-spacing: -0.1px;
 }
 
 .goal-compact-card-actions {
@@ -8132,7 +8270,7 @@ body.modal-lock-scroll {
   color: var(--text-muted);
   cursor: pointer;
   transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out),
-    border-color var(--dur) var(--ease-out);
+    border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
 }
 
 .goal-compact-card-btn:hover,
@@ -8140,6 +8278,7 @@ body.modal-lock-scroll {
   background: var(--gradient-brand-soft, color-mix(in srgb, var(--accent) 14%, var(--surface)));
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  transform: translateY(-1px);
 }
 
 .goal-compact-card-btn-danger:hover {
@@ -8223,10 +8362,9 @@ body.modal-lock-scroll {
   gap: 8px;
   width: 100%;
   margin-top: -1px;
-  padding: 10px 16px;
-  border: 1px solid var(--border);
-  border-top: 1px dashed var(--border);
-  border-radius: 0 0 8px 8px;
+  padding: 11px 18px;
+  border: none;
+  border-top: 1px dashed var(--border-soft);
   background: color-mix(in srgb, var(--accent) 5%, var(--surface));
   color: var(--accent);
   font-size: 12.5px;

@@ -110,9 +110,31 @@ interface ZoomFolderItem {
   doneCount: number;
   totalCount: number;
   onOpen: () => void;
+  // ===== تمييز بصري: خانة تقويمية (شهر/أسبوع/يوم) مقابل هدف حقيقي =====
+  // من مراجعة التصميم: قبل كده كل مستويات الزوم (مجال حياة، سنة، هدف
+  // سنوي، شهر التقويم، هدف شهري، أسبوع التقويم...) كانت بتتعرض بنفس
+  // الكارت بالظبط، فكان صعب تفرّق بصريًا بين "خانة تقويمية ثابتة" (شهر 7
+  // مثلًا، مش هدف اسمه حد اختاره) و"هدف حقيقي" (بعنوان كتبه المستخدم).
+  // `calendar: true` بيفعّل شكل مصغّر ومحايد اللون (رقم كبير + اسم صغير)
+  // بدل الشكل الملوّن الكامل، عشان شبكة الشهور/الأسابيع/الأيام تبان
+  // "تقويم" واضح تحت عينك مش قائمة أهداف تانية.
+  calendar?: boolean;
+  badge?: string;
 }
 
-function ZoomFolderGrid({ items, emptyLabel }: { items: ZoomFolderItem[]; emptyLabel: string }) {
+// شبكة شهور/أسابيع/أيام (variant="calendar") بتحتاج تخطيط مختلف عن شبكة
+// المجلدات العادية: عناصر أصغر وثابتة العدد (12/5/7) بدل بطاقات بعرض حر.
+type ZoomGridDensity = 'folders' | 'months' | 'weeks' | 'days';
+
+function ZoomFolderGrid({
+  items,
+  emptyLabel,
+  density = 'folders',
+}: {
+  items: ZoomFolderItem[];
+  emptyLabel: string;
+  density?: ZoomGridDensity;
+}) {
   if (items.length === 0) {
     return (
       <div className="zoom-map-empty">
@@ -122,13 +144,40 @@ function ZoomFolderGrid({ items, emptyLabel }: { items: ZoomFolderItem[]; emptyL
     );
   }
   return (
-    <div className="zoom-map-grid">
+    <div className={`zoom-map-grid ${density !== 'folders' ? `zoom-map-grid-${density}` : ''}`}>
       {items.map((it) => {
         const percent = it.totalCount === 0 ? 0 : Math.round((it.doneCount / it.totalCount) * 100);
         // دائرة إنجاز (المرحلة 7): لما كل أبناء المجلد ده يخلصوا، بنستبدل
         // شريط التقدّم بحلقة/شارة "خلص" واضحة بدل النسبة — نفس فكرة الصح
         // الأخضر على مستوى الكارت المنفرد بس على مستوى المجلد كله.
         const isFullyComplete = it.totalCount > 0 && it.doneCount === it.totalCount;
+        if (it.calendar) {
+          // ===== كارت خانة تقويمية (شهر/أسبوع/يوم) — شكل مصغّر ومحايد
+          // اللون عمدًا (مفيش --zoom-color هنا)، رقم كبير بدل أيقونة، ونقطة
+          // إنجاز صغيرة بدل شريط تقدّم كامل — عشان يفضل واضح إنه "خانة
+          // تقويمية ثابتة" مش هدف حقيقي كتبه المستخدم. =====
+          return (
+            <button
+              key={it.key}
+              type="button"
+              className={`zoom-cal-chip ${it.totalCount > 0 ? 'has-goals' : ''} ${isFullyComplete ? 'zoom-cal-chip-complete' : ''}`}
+              onClick={it.onOpen}
+              title={it.title}
+            >
+              {it.badge ? (
+                <span className="zoom-cal-chip-num" dir="ltr">{it.badge}</span>
+              ) : (
+                <DynamicIcon name={it.icon} size={15} className="zoom-cal-chip-icon" />
+              )}
+              <span className="zoom-cal-chip-label">{it.title}</span>
+              {it.totalCount > 0 && (
+                <span className="zoom-cal-chip-dot" title={`${it.doneCount}/${it.totalCount}`}>
+                  {isFullyComplete ? <DynamicIcon name="check" size={10} /> : <span>{it.totalCount}</span>}
+                </span>
+              )}
+            </button>
+          );
+        }
         return (
           <button
             key={it.key}
@@ -574,10 +623,16 @@ export default function GoalMap({
   }
 
   // ===== طيّ/فتح قسم "بناء الخطة" بالكامل (تبويبات + بريدكرمب + محتوى) =====
+  // ===== حالة فتح/طي القسمين الرئيسيين =====
+  // "بناء الخطة" هو المسار الأساسي للتعديل السريع، فبيفضل مفتوح افتراضيًا.
+  // "خريطة العرض الكاملة" أثقل بكتير (بريدكرمب + فلاتر + شبكات متداخلة)
+  // وبتكرر جزء كبير من نفس المعلومات، فبتفضل مقفولة افتراضيًا عشان الصفحة
+  // متبقاش مزدحمة من أول لحظة — المستخدم بيفتحها بنفسه لما يحتاج يتصفّح
+  // بالتقويم الكامل (تحسين UX من مراجعة التصميم).
   const [planBuilderOpen, setPlanBuilderOpen] = useState(true);
 
   // ===== قسم "خريطة العرض الكاملة" (Zoom Navigation) — قابل للطي/الفتح. =====
-  const [treeOpen, setTreeOpen] = useState(true);
+  const [treeOpen, setTreeOpen] = useState(false);
 
   // ===== مسار التنقل بالزوم: مجال حياة ← سنة ← سلسلة الأهداف المُختارة =====
   // بنخزّن الأهداف بمعرّفاتها (IDs) بس، مش الكائن نفسه، عشان لو `lists`
@@ -1476,20 +1531,23 @@ export default function GoalMap({
                 // ===== شبكة شهور السنة (12 شهر بأرقامهم) تحت الهدف السنوي
                 // المختار — كل شهر بيعرض الأهداف الشهرية المرتبطة بيه. =====
                 <ZoomFolderGrid
-                  emptyLabel="اختر شهر عشان تشوف/تضيف أهدافه."
+                  density="months"
+                  emptyLabel="لسه مفيش أهداف شهرية مضافة في أي شهر — أضفها من قسم بناء الخطة فوق."
                   items={MONTH_NAMES.map((name, idx) => {
                     const m = idx + 1;
                     const monthGoals = zoomMonthlyGoalsInYear.filter((g) => (g.targetMonth || null) === m);
                     const ratio = goalsDoneRatio(monthGoals);
                     return {
                       key: String(m),
-                      title: `${m} — ${name}`,
+                      title: name,
+                      badge: String(m),
                       icon: 'calendar-range',
+                      calendar: true,
                       doneCount: ratio.done,
                       totalCount: ratio.total,
                       onOpen: () => zoomSelectMonth(m),
                     };
-                  })}
+                  }).filter((it) => it.totalCount > 0)}
                 />
               ) : zoomGoalChain.length === 1 ? (
                 // ===== الأهداف الشهرية المرتبطة بالهدف السنوي المحدد في
@@ -1518,20 +1576,23 @@ export default function GoalMap({
                 // الشهري المحدد (5 أسابيع ثابتة)، كل أسبوع بيعرض الأهداف
                 // الأسبوعية المرتبطة بيه. =====
                 <ZoomFolderGrid
-                  emptyLabel="اختر أسبوع عشان تشوف/تضيف أهدافه."
+                  density="weeks"
+                  emptyLabel="لسه مفيش أهداف أسبوعية مضافة في أي أسبوع من الشهر ده — أضفها من قسم بناء الخطة فوق."
                   items={WEEK_LABELS.map((label, idx) => {
                     const w = idx + 1;
                     const weekGoals = zoomWeeklyGoalsInMonth.filter((g) => (g.targetWeek || null) === w);
                     const ratio = goalsDoneRatio(weekGoals);
                     return {
                       key: String(w),
-                      title: `${w} — ${label}`,
+                      title: label,
+                      badge: String(w),
                       icon: 'calendar-days',
+                      calendar: true,
                       doneCount: ratio.done,
                       totalCount: ratio.total,
                       onOpen: () => zoomSelectWeek(w),
                     };
-                  })}
+                  }).filter((it) => it.totalCount > 0)}
                 />
               ) : zoomGoalChain.length === 2 ? (
                 // ===== الأهداف الأسبوعية المرتبطة بالهدف الشهري المحدد في
@@ -1559,7 +1620,8 @@ export default function GoalMap({
                 // ===== جميع أيام الأسبوع المختار (7 أيام ثابتة) — كل يوم
                 // بيعرض الأهداف اليومية المرتبطة بالهدف الأسبوعي المحدد. =====
                 <ZoomFolderGrid
-                  emptyLabel="اختر يوم عشان تشوف/تضيف أهدافه."
+                  density="days"
+                  emptyLabel="لسه مفيش أهداف يومية مضافة في أي يوم من الأسبوع ده — أضفها من قسم بناء الخطة فوق."
                   items={DAY_OF_WEEK_NAMES.map((name, d) => {
                     const dayGoals = zoomDailyGoalsInWeek.filter((g) => (g.targetDayOfWeek ?? null) === d);
                     const ratio = goalsDoneRatio(dayGoals);
@@ -1567,11 +1629,12 @@ export default function GoalMap({
                       key: String(d),
                       title: name,
                       icon: 'calendar',
+                      calendar: true,
                       doneCount: ratio.done,
                       totalCount: ratio.total,
                       onOpen: () => zoomSelectDay(d),
                     };
-                  })}
+                  }).filter((it) => it.totalCount > 0)}
                 />
               ) : zoomGoalChain.length === 3 ? (
                 // ===== الأهداف اليومية المرتبطة بالهدف الأسبوعي المحدد في
