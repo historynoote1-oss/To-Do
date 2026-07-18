@@ -5762,7 +5762,7 @@ li input[type='checkbox'] {
 }
 
 .goal-map-overdue-item .goal-compact-card {
-  border-right-color: var(--danger);
+  border-inline-start-color: var(--danger);
   background: color-mix(in srgb, var(--danger) 8%, var(--glass-bg, var(--surface)));
 }
 
@@ -8143,14 +8143,25 @@ body.modal-lock-scroll {
   cursor: not-allowed;
 }
 
-/* ===== قائمة كروت الأهداف المسطّحة ===== */
+/* ===== قائمة كروت الأهداف — شبكة متجاوبة (مش عمود واحد ضيّق) عشان
+   القسم ياخد نفس عرض الصفحة اللي بتاخده "خريطة العرض الكاملة" تحت،
+   وكل كارت يبقى وحدة بصرية مكتملة (زي زوم-فولدر-كارد بالظبط). ===== */
 .level-goal-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 
+@media (max-width: 480px) {
+  .level-goal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .level-goal-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--border-soft);
@@ -8163,32 +8174,101 @@ body.modal-lock-scroll {
   border-color: color-mix(in srgb, var(--accent) 30%, var(--border-soft));
 }
 
-/* ===== الكارت المبسّط (اسم + أيقونة ترابط + أيقونة تعديل) ===== */
+/* ===== الكارت المبسّط لقسم "بناء الخطة" =====
+   بُني كصف واحد مرن (goal-compact-card-row) بدل ما كل عنصر يبقى شقيق
+   مباشر للكارت نفسه، عشان يبقى فيه "جسم" (body) واضح للعنوان + شريط
+   تقدّم المهام الفرعية (لو موجودة) في عمود، بينما الأيقونة والتشيك
+   والإجراءات تفضل ثابتة الحجم على الجانبين. ده بيدّي هيكلة أوضح
+   للمعلومة من الكارت القديم اللي كان كل حاجة فيه سطر واحد مضغوط. */
 .goal-compact-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 18px;
+  flex-direction: column;
   border: none;
   background: var(--glass-bg, var(--surface));
   backdrop-filter: var(--glass-blur, none);
   -webkit-backdrop-filter: var(--glass-blur, none);
-  border-right: 4px solid var(--accent);
-  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+  border-inline-start: 4px solid var(--cat-color, var(--accent));
+  border-radius: var(--radius-sm);
+  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.goal-compact-card:hover {
+  background: color-mix(in srgb, var(--cat-color, var(--accent)) 5%, var(--glass-bg, var(--surface)));
+  box-shadow: var(--shadow-sm);
+}
+
+.goal-compact-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 12px 16px;
+  min-width: 0;
+}
+
+.goal-compact-card-cat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--cat-bg, var(--accent-dim));
+  color: var(--cat-color, var(--accent));
+}
+
+.goal-compact-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ===== شريط تقدّم المهام الفرعية — مش موجود قبل كده في الكارت المبسّط
+   خالص، وبيوضّح حالة الهدف من نظرة واحدة (X من Y مهمة فرعية خلصت) من
+   غير الحاجة لفتح ويزارد التعديل أو نافذة المهام الفرعية. ===== */
+.goal-compact-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.goal-compact-card-progress-track {
+  flex: 1;
+  max-width: 120px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.goal-compact-card-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--cat-color, var(--accent));
+  transition: width var(--dur) var(--ease-out);
+}
+
+.goal-compact-card-progress-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 /* ===== صح أخضر بدل النقل للأرشيف (المرحلة 7) =====
    هدف/مهمة خريطة الأهداف بيفضل في مكانه لما يخلص — الكارت المبسّط بياخد
    خط جانبي وخلفية خفيفة بلون النجاح بدل ما يختفي. */
 .goal-compact-card-complete {
-  border-right-color: var(--success);
+  border-inline-start-color: var(--success);
   background: color-mix(in srgb, var(--success) 6%, var(--glass-bg, var(--surface)));
 }
 
 /* ===== هدف/مهمة اتعلّمت "متأخرة" (المرحلة 7) — شوف lib/overdueScheduler.ts */
 .goal-compact-card-overdue {
-  border-right-color: var(--danger);
+  border-inline-start-color: var(--danger);
   background: color-mix(in srgb, var(--danger) 8%, var(--glass-bg, var(--surface)));
 }
 
@@ -8197,8 +8277,8 @@ body.modal-lock-scroll {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 27px;
-  height: 27px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   border: 2px solid var(--border);
   background: var(--surface-2);
@@ -8240,7 +8320,6 @@ body.modal-lock-scroll {
 }
 
 .goal-compact-card-title {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -8254,16 +8333,19 @@ body.modal-lock-scroll {
 .goal-compact-card-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
+/* ===== توحيد كل أيقونات أزرار الإجراءات في الصفحة على مقياس واحد:
+   حاوية 32×32 (هدف لمس مريح على الموبايل) وأيقونة 16px جواها، بدل
+   التفاوت القديم بين 27/30px وأحجام أيقونة 14/15px مختلفة حسب الزرار. ===== */
 .goal-compact-card-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface-2);
@@ -8287,35 +8369,139 @@ body.modal-lock-scroll {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
 }
 
-.goal-compact-link-wrap {
-  position: relative;
+/* ===== مودال "الترابط الهرمي" — بيفتح فوق الصفحة كلها زي أي ويزارد تاني
+   في الموقع (نفس .modal-overlay/.modal-box)، بدل popover صغير كان بيتقطع
+   عند حواف الكارت. بيوضّح الهدف الحالي وهدفه الأب بشكل بصري متسلسل. ===== */
+.goal-link-modal-overlay {
+  /* أعلى من أي عنصر fixed تاني في الموقع (القائمة الجانبية 60/61،
+     شريط التشغيل 55، مؤقت البومودورو 54، زرار الوضع الليلي العائم 65)
+     عشان يضمن إنه دايمًا فوق أي حاجة تانية وميظهرش مقطوع أو محجوب. */
+  z-index: 90;
 }
 
-.goal-compact-link-popover {
+.goal-link-modal {
+  max-width: 360px;
+  text-align: center;
+}
+
+.goal-link-modal-close {
   position: absolute;
-  z-index: 20;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  top: 14px;
+  inset-inline-end: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+
+.goal-link-modal-close:hover {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+
+.goal-link-modal-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: -4px 0 16px;
+  line-height: 1.6;
+}
+
+.goal-link-modal-chain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.goal-link-modal-node {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-2);
+  text-align: start;
+}
+
+.goal-link-modal-node-parent {
+  border-color: color-mix(in srgb, var(--node-color, var(--accent)) 35%, var(--border-soft));
+}
+
+.goal-link-modal-node-current {
+  background: var(--gradient-brand-soft, var(--surface-2));
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border-soft));
+}
+
+.goal-link-modal-node-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--node-bg, var(--accent-dim));
+  color: var(--node-color, var(--accent));
+}
+
+.goal-link-modal-node-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 160px;
-  max-width: 240px;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--glass-bg, var(--surface));
-  backdrop-filter: var(--glass-blur, none);
-  -webkit-backdrop-filter: var(--glass-blur, none);
-  box-shadow: var(--shadow-lift);
-  text-align: center;
-  animation: goal-compact-popover-in 0.15s var(--ease-out);
+  min-width: 0;
 }
 
-@keyframes goal-compact-popover-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
-  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+.goal-link-modal-node-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.goal-link-modal-node-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-link-modal-arrow {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.goal-link-modal-goto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--gradient-brand);
+  color: #f4fbfa;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+.goal-link-modal-goto:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift);
 }
 
 .goal-compact-card-highlight {
@@ -8328,40 +8514,13 @@ body.modal-lock-scroll {
   50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 20%, transparent); }
 }
 
-.goal-compact-link-popover-label {
-  font-size: 10.5px;
-  color: var(--text-muted);
-}
-
-.goal-compact-link-popover-title {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  border: none;
-  background: none;
-  padding: 2px 0;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.goal-compact-link-popover-title:hover {
-  text-decoration: underline;
-}
-
 .level-goal-card-drill {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  margin-top: -1px;
+  margin-top: auto;
   padding: 11px 18px;
   border: none;
   border-top: 1px dashed var(--border-soft);

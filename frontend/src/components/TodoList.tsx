@@ -27,7 +27,7 @@ import { PriorityBadge } from './Priority';
 import { CategoryBadge } from './Category';
 import { LifeAreaBadge } from './LifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
-import { CategoryKey, CHILD_CATEGORY_OF, goalLabelFor } from '../lib/category';
+import { CategoryKey, CHILD_CATEGORY_OF, categoryOf, goalLabelFor } from '../lib/category';
 import { LifeAreaData } from '../lib/lifeArea';
 import { GoalOption } from '../lib/api';
 import { DynamicIcon } from '../lib/icons';
@@ -134,82 +134,165 @@ export default function TodoList({
 
   if (compact) {
     const parent = list.parentGoal;
+    const catDef = categoryOf(list.category);
+    // هل الهدف/المهمة دي ليها مهام فرعية تتعرض كنسبة تقدّم صغيرة جوه
+    // الكارت المبسّط؟ قبل كده الكارت المبسّط ماكانش بيوريها خالص (بس
+    // الكارت الكامل كان بيعرضها)، فكان صعب تعرف حالة الهدف من نظرة واحدة
+    // جوه "بناء الخطة" من غير ما تفتح ويزارد التعديل.
+    const compactHasSubtasks = compactTotal > 0;
     return (
       <div
         className={`goal-compact-card ${highlighted ? 'goal-compact-card-highlight' : ''} ${
           compactIsComplete ? 'goal-compact-card-complete' : ''
         } ${compactOverdue ? 'goal-compact-card-overdue' : ''}`}
+        style={catDef ? ({ ['--cat-color' as any]: catDef.color, ['--cat-bg' as any]: catDef.bg } as any) : undefined}
         id={`list-${list.id}`}
       >
-        <button
-          type="button"
-          className={`goal-compact-card-check ${compactIsComplete ? 'checked' : ''} ${
-            compactTotal === 0 || (!compactAllSubtasksDone && !list.confirmedDone) ? 'disabled' : ''
-          }`}
-          onClick={handleToggleWholeList}
-          disabled={confirmingDone || (compactTotal === 0 && !list.confirmedDone)}
-          aria-label={compactIsComplete ? 'إلغاء تأكيد الإنجاز' : 'تأكيد الإنجاز'}
-          title={compactIsComplete ? 'إلغاء تأكيد الإنجاز' : 'تأكيد الإنجاز'}
-        >
-          {compactIsComplete && <DynamicIcon name="check" size={13} />}
-        </button>
-        <span className="goal-compact-card-title" title={list.title}>
-          {list.title}
-        </span>
-        {compactOverdue && (
-          <span className="goal-compact-card-overdue-badge" title="فاتت من غير إنجاز — اتخصم يوم استريك">
-            <DynamicIcon name="alert" size={12} />
+        <div className="goal-compact-card-row">
+          <span className="goal-compact-card-cat-icon" title={catDef?.label}>
+            <DynamicIcon name={catDef?.icon || 'target'} size={16} />
           </span>
-        )}
-        <div className="goal-compact-card-actions">
-          {parent && (
-            <div className="goal-compact-link-wrap">
+          <button
+            type="button"
+            className={`goal-compact-card-check ${compactIsComplete ? 'checked' : ''} ${
+              compactTotal === 0 || (!compactAllSubtasksDone && !list.confirmedDone) ? 'disabled' : ''
+            }`}
+            onClick={handleToggleWholeList}
+            disabled={confirmingDone || (compactTotal === 0 && !list.confirmedDone)}
+            aria-label={compactIsComplete ? 'إلغاء تأكيد الإنجاز' : 'تأكيد الإنجاز'}
+            title={compactIsComplete ? 'إلغاء تأكيد الإنجاز' : 'تأكيد الإنجاز'}
+          >
+            {compactIsComplete && <DynamicIcon name="check" size={14} />}
+          </button>
+
+          <div className="goal-compact-card-body">
+            <span className="goal-compact-card-title" title={list.title}>
+              {list.title}
+            </span>
+            {compactHasSubtasks && (
+              <span className="goal-compact-card-progress" title={`${compactDone}/${compactTotal} مهام فرعية`}>
+                <span className="goal-compact-card-progress-track">
+                  <span
+                    className="goal-compact-card-progress-fill"
+                    style={{ width: `${Math.round((compactDone / compactTotal) * 100)}%` }}
+                  />
+                </span>
+                <span className="goal-compact-card-progress-label" dir="ltr">
+                  {compactDone}/{compactTotal}
+                </span>
+              </span>
+            )}
+          </div>
+
+          {compactOverdue && (
+            <span className="goal-compact-card-overdue-badge" title="فاتت من غير إنجاز — اتخصم يوم استريك">
+              <DynamicIcon name="alert" size={13} />
+            </span>
+          )}
+
+          <div className="goal-compact-card-actions">
+            {parent && (
               <button
                 type="button"
                 className={`goal-compact-card-btn goal-compact-link-btn ${linkPopoverOpen ? 'active' : ''}`}
-                onClick={() => setLinkPopoverOpen((v) => !v)}
+                onClick={() => setLinkPopoverOpen(true)}
                 aria-label="عرض الهدف الأب المرتبط"
                 title="مرتبط بهدف أب"
               >
-                <DynamicIcon name="link-2" size={14} />
+                <DynamicIcon name="link-2" size={16} />
               </button>
-              {linkPopoverOpen && (
-                <div className="goal-compact-link-popover" role="dialog">
-                  <span className="goal-compact-link-popover-label">مرتبط بـ</span>
-                  <button
-                    type="button"
-                    className="goal-compact-link-popover-title"
-                    onClick={() => {
-                      setLinkPopoverOpen(false);
-                      onGoToParent?.(parent);
-                    }}
-                  >
-                    {parent.title}
-                    <DynamicIcon name="chevron-left" size={12} />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-          <button
-            type="button"
-            className="goal-compact-card-btn"
-            onClick={openEditModal}
-            aria-label="تعديل"
-            title="تعديل"
-          >
-            <DynamicIcon name="pencil" size={14} />
-          </button>
-          <button
-            type="button"
-            className="goal-compact-card-btn goal-compact-card-btn-danger"
-            onClick={handleDeleteList}
-            aria-label="حذف"
-            title="حذف"
-          >
-            <DynamicIcon name="trash" size={14} />
-          </button>
+            )}
+            <button
+              type="button"
+              className="goal-compact-card-btn"
+              onClick={openEditModal}
+              aria-label="تعديل"
+              title="تعديل"
+            >
+              <DynamicIcon name="pencil" size={16} />
+            </button>
+            <button
+              type="button"
+              className="goal-compact-card-btn goal-compact-card-btn-danger"
+              onClick={handleDeleteList}
+              aria-label="حذف"
+              title="حذف"
+            >
+              <DynamicIcon name="trash" size={16} />
+            </button>
+          </div>
         </div>
+
+        {linkPopoverOpen && parent && (
+          <Portal>
+            <div className="modal-overlay goal-link-modal-overlay" onClick={() => setLinkPopoverOpen(false)}>
+              <div className="modal-box goal-link-modal" role="dialog" aria-label="الهدف المرتبط" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="goal-link-modal-close"
+                  onClick={() => setLinkPopoverOpen(false)}
+                  aria-label="إغلاق"
+                >
+                  <DynamicIcon name="x" size={16} />
+                </button>
+                <h2>الترابط الهرمي</h2>
+                <p className="goal-link-modal-sub">الهدف ده جزء من الهدف الأب التالي:</p>
+                <div className="goal-link-modal-chain">
+                  <div className="goal-link-modal-node goal-link-modal-node-parent">
+                    <span
+                      className="goal-link-modal-node-icon"
+                      style={
+                        {
+                          ['--node-color' as any]: categoryOf(parent.category)?.color,
+                          ['--node-bg' as any]: categoryOf(parent.category)?.bg,
+                        } as any
+                      }
+                    >
+                      <DynamicIcon name={categoryOf(parent.category)?.icon || 'flag'} size={18} />
+                    </span>
+                    <span className="goal-link-modal-node-text">
+                      <span className="goal-link-modal-node-label">{goalLabelFor(parent.category)}</span>
+                      <span className="goal-link-modal-node-title">{parent.title}</span>
+                    </span>
+                  </div>
+                  <DynamicIcon name="chevron-down" size={16} className="goal-link-modal-arrow" />
+                  <div className="goal-link-modal-node goal-link-modal-node-current">
+                    <span
+                      className="goal-link-modal-node-icon"
+                      style={
+                        {
+                          ['--node-color' as any]: categoryOf(list.category)?.color,
+                          ['--node-bg' as any]: categoryOf(list.category)?.bg,
+                        } as any
+                      }
+                    >
+                      <DynamicIcon name={categoryOf(list.category)?.icon || 'target'} size={18} />
+                    </span>
+                    <span className="goal-link-modal-node-text">
+                      <span className="goal-link-modal-node-label">{goalLabelFor(list.category)} (الهدف الحالي)</span>
+                      <span className="goal-link-modal-node-title">{list.title}</span>
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="goal-link-modal-goto"
+                  onClick={() => {
+                    setLinkPopoverOpen(false);
+                    if (onGoToParent) {
+                      onGoToParent(parent);
+                    } else {
+                      document.getElementById(`list-${parent.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }}
+                >
+                  <DynamicIcon name="external-link" size={15} />
+                  الذهاب للهدف الأب
+                </button>
+              </div>
+            </div>
+          </Portal>
+        )}
 
         {editModalOpen && (
           <AddTaskModal
