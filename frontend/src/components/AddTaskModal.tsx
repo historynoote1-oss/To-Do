@@ -4,7 +4,7 @@ import { CategoryPicker } from './Category';
 import { LifeAreaPicker } from './LifeArea';
 import QuickCreateLifeArea from './QuickCreateLifeArea';
 import { PriorityKey, priorityOf } from '../lib/priority';
-import { CategoryKey, categoryOf, requiresParentGoal, goalLabelFor, CHILD_CATEGORY_OF, PARENT_CATEGORY_OF } from '../lib/category';
+import { CategoryKey, categoryOf, requiresParentGoal, goalLabelFor, CHILD_CATEGORY_OF, PARENT_CATEGORY_OF, MONTH_NAMES, WEEK_LABELS, DAY_OF_WEEK_NAMES } from '../lib/category';
 import { LifeAreaData } from '../lib/lifeArea';
 import { DynamicIcon } from '../lib/icons';
 import { sounds } from '../lib/sounds';
@@ -35,6 +35,14 @@ export interface NewTaskPayload {
   priority: PriorityKey;
   category: CategoryKey | null;
   targetYear: number | null;
+  // ===== خانات التقويم الهرمي (شهر/أسبوع/يوم) =====
+  // بتُستخدم في "خريطة العرض الكاملة" عشان توزّع الهدف على شبكة تقويمية
+  // حقيقية بدل قائمة أسماء بس. كل واحدة بتتفعّل مع تصنيفها المقابل بس —
+  // targetMonth (1-12) لهدف شهري، targetWeek (1-5) لهدف أسبوعي،
+  // targetDayOfWeek (0-6، السبت=0) لهدف يومي. شوف lib/category.ts.
+  targetMonth: number | null;
+  targetWeek: number | null;
+  targetDayOfWeek: number | null;
   lifeAreaId: string | null;
   // ===== خريطة الأهداف الهرمية =====
   // ID الهدف الأب المباشر (سنوي/شهري/أسبوعي حسب تصنيف المهمة دي) — null لو
@@ -53,6 +61,9 @@ export interface EditTaskTarget {
   priority: PriorityKey;
   category: CategoryKey | null;
   targetYear: number | null;
+  targetMonth: number | null;
+  targetWeek: number | null;
+  targetDayOfWeek: number | null;
   lifeAreaId: string | null;
   parentGoalId: string | null;
   startTime: string | null;
@@ -113,7 +124,7 @@ function formatOffsetFromMinutes(totalMinutes: number): string {
   return formatOffsetParts(days, hours, minutes);
 }
 
-type StepId = 'title' | 'subtasks' | 'priority' | 'category' | 'goal' | 'lifeArea' | 'reminder' | 'timeline' | 'review';
+type StepId = 'title' | 'subtasks' | 'priority' | 'category' | 'calendarSlot' | 'goal' | 'lifeArea' | 'reminder' | 'timeline' | 'review';
 
 interface StepDef {
   id: StepId;
@@ -126,6 +137,10 @@ const ALL_STEPS: StepDef[] = [
   { id: 'subtasks', label: 'المهام الفرعية', icon: 'list-checks' },
   { id: 'priority', label: 'الأولوية', icon: 'flag' },
   { id: 'category', label: 'التصنيف', icon: 'tag' },
+  // بتظهر بس للتصنيفات المحتاجة موضع تقويمي (شهري/أسبوعي/يومي) — شوف
+  // فلترة STEPS جوه الكومبوننت. لازم تكون بعد "التصنيف" مباشرة عشان نعرف
+  // الأول أنهي حقل (شهر/أسبوع/يوم) هو المطلوب.
+  { id: 'calendarSlot', label: 'الموعد', icon: 'calendar-days' },
   // بتظهر بس للتصنيفات المحتاجة "هدف أب" (شهري/أسبوعي/يومي) — شوف فلترة
   // STEPS جوه الكومبوننت. عن قصد بعد "التصنيف" مباشرة عشان نعرف الأول
   // التصنيف قبل ما نجيب خيارات الأب المناسبة له.
@@ -135,6 +150,9 @@ const ALL_STEPS: StepDef[] = [
   { id: 'reminder', label: 'التذكير', icon: 'bell' },
   { id: 'review', label: 'المراجعة', icon: 'check' },
 ];
+
+// ملحوظة: MONTH_NAMES / WEEK_LABELS / DAY_OF_WEEK_NAMES بقوا مستوردين من
+// lib/category.ts (مصدر مشترك مع GoalMap.tsx) بدل ما يتعرّفوا هنا محليًا.
 
 // نافذة إضافة مهمة رئيسية جديدة — بديل النموذج الواحد الطويل. دلوقتي كل
 // حاجة على مراحل مرتبة (اسم → فرعية → أولوية → تصنيف → مجال حياة → جدول
@@ -171,6 +189,10 @@ export default function AddTaskModal({
   const [priority, setPriority] = useState<PriorityKey>('MEDIUM');
   const [category, setCategory] = useState<CategoryKey | null>(null);
   const [targetYear, setTargetYear] = useState<number | null>(null);
+  // ===== خانات التقويم الهرمي (شهر/أسبوع/يوم) — شوف NewTaskPayload فوق. =====
+  const [targetMonth, setTargetMonth] = useState<number | null>(null);
+  const [targetWeek, setTargetWeek] = useState<number | null>(null);
+  const [targetDayOfWeek, setTargetDayOfWeek] = useState<number | null>(null);
   const [lifeAreaId, setLifeAreaId] = useState<string | null>(null);
   // ===== خريطة الأهداف الهرمية =====
   // parentGoalId: الهدف الأب المختار حاليًا (أو null لو المستخدم مش عاوز
@@ -225,6 +247,9 @@ export default function AddTaskModal({
         setPriority(editTarget.priority);
         setCategory(editTarget.category);
         setTargetYear(editTarget.targetYear);
+        setTargetMonth(editTarget.targetMonth);
+        setTargetWeek(editTarget.targetWeek);
+        setTargetDayOfWeek(editTarget.targetDayOfWeek);
         setLifeAreaId(editTarget.lifeAreaId);
         setParentGoalId(editTarget.parentGoalId ?? null);
         setStartDraft(editTarget.startTime ? toDatetimeLocalValue(new Date(editTarget.startTime)) : '');
@@ -243,6 +268,9 @@ export default function AddTaskModal({
           : presetCategory;
         setCategory(initialCategory);
         setTargetYear(initialCategory === 'YEARLY' ? presetTargetYear ?? new Date().getFullYear() : null);
+        setTargetMonth(null);
+        setTargetWeek(null);
+        setTargetDayOfWeek(null);
         setLifeAreaId(null);
         setParentGoalId(presetParentGoal ? presetParentGoal.id : null);
         setStartDraft('');
@@ -314,11 +342,19 @@ export default function AddTaskModal({
     };
   }, [open, category, editTarget?.id]);
 
+  // خطوة "الموعد" بتظهر بس للتصنيفات المحتاجة موضع تقويمي (شهري/أسبوعي/
+  // يومي) — مالهاش معنى مع السنوي (السنة نفسها كفاية) أو من غير تصنيف.
   // خطوة "الهدف الأب" بتظهر بس لو التصنيف الحالي محتاج أب في الهرم — مفيش
   // معنى ليها مع السنوي (قمة الهرم) أو من غير تصنيف أصلًا.
   const STEPS = useMemo(() => {
-    if (!requiresParentGoal(category)) return ALL_STEPS.filter((s) => s.id !== 'goal');
-    return ALL_STEPS;
+    let steps = ALL_STEPS;
+    if (category !== 'MONTHLY' && category !== 'WEEKLY' && category !== 'DAILY') {
+      steps = steps.filter((s) => s.id !== 'calendarSlot');
+    }
+    if (!requiresParentGoal(category)) {
+      steps = steps.filter((s) => s.id !== 'goal');
+    }
+    return steps;
   }, [category]);
 
   const step = STEPS[stepIndex];
@@ -435,6 +471,11 @@ export default function AddTaskModal({
     if (id === 'category' && !category) {
       return 'لازم تختار تصنيف للمهمة';
     }
+    if (id === 'calendarSlot') {
+      if (category === 'MONTHLY' && !targetMonth) return 'لازم تختار شهر الهدف ده';
+      if (category === 'WEEKLY' && !targetWeek) return 'لازم تختار أسبوع الهدف ده';
+      if (category === 'DAILY' && targetDayOfWeek === null) return 'لازم تختار يوم الهدف ده';
+    }
     if (id === 'lifeArea' && !lifeAreaId) {
       return 'لازم تختار مجال حياة للمهمة';
     }
@@ -541,6 +582,9 @@ export default function AddTaskModal({
         priority,
         category,
         targetYear,
+        targetMonth: category === 'MONTHLY' ? targetMonth : null,
+        targetWeek: category === 'WEEKLY' ? targetWeek : null,
+        targetDayOfWeek: category === 'DAILY' ? targetDayOfWeek : null,
         lifeAreaId,
         parentGoalId: requiresParentGoal(category) ? parentGoalId : null,
         startTime,
@@ -725,8 +769,89 @@ export default function AddTaskModal({
                 onChange={(key, year) => {
                   setCategory(key);
                   setTargetYear(key === 'YEARLY' ? year ?? new Date().getFullYear() : null);
+                  if (key !== 'MONTHLY') setTargetMonth(null);
+                  if (key !== 'WEEKLY') setTargetWeek(null);
+                  if (key !== 'DAILY') setTargetDayOfWeek(null);
                 }}
               />
+            </div>
+          )}
+
+          {step.id === 'calendarSlot' && (
+            <div className="add-task-field">
+              <span className="add-task-label">الموعد</span>
+              <p className="wizard-empty-hint">
+                <DynamicIcon name="calendar-days" size={12} /> ده اللي هيحدّد مكان الهدف ده في "خريطة العرض الكاملة" —
+                رقمه هيبان واضح جوه الكارت.
+              </p>
+              {category === 'MONTHLY' && (
+                <div className="calendar-slot-grid calendar-slot-grid-month">
+                  {MONTH_NAMES.map((name, i) => {
+                    const monthNum = i + 1;
+                    return (
+                      <button
+                        key={monthNum}
+                        type="button"
+                        className={`calendar-slot-option ${targetMonth === monthNum ? 'selected' : ''}`}
+                        onClick={() => {
+                          sounds.hover();
+                          setTargetMonth(monthNum);
+                        }}
+                      >
+                        <span className="calendar-slot-option-num" dir="ltr">{monthNum}</span>
+                        <span className="calendar-slot-option-name">{name}</span>
+                        {targetMonth === monthNum && (
+                          <span className="priority-check"><DynamicIcon name="check" size={13} /></span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {category === 'WEEKLY' && (
+                <div className="calendar-slot-grid calendar-slot-grid-week">
+                  {WEEK_LABELS.map((label, i) => {
+                    const weekNum = i + 1;
+                    return (
+                      <button
+                        key={weekNum}
+                        type="button"
+                        className={`calendar-slot-option ${targetWeek === weekNum ? 'selected' : ''}`}
+                        onClick={() => {
+                          sounds.hover();
+                          setTargetWeek(weekNum);
+                        }}
+                      >
+                        <span className="calendar-slot-option-num" dir="ltr">{weekNum}</span>
+                        <span className="calendar-slot-option-name">{label}</span>
+                        {targetWeek === weekNum && (
+                          <span className="priority-check"><DynamicIcon name="check" size={13} /></span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {category === 'DAILY' && (
+                <div className="calendar-slot-grid calendar-slot-grid-day">
+                  {DAY_OF_WEEK_NAMES.map((name, dayIndex) => (
+                    <button
+                      key={dayIndex}
+                      type="button"
+                      className={`calendar-slot-option ${targetDayOfWeek === dayIndex ? 'selected' : ''}`}
+                      onClick={() => {
+                        sounds.hover();
+                        setTargetDayOfWeek(dayIndex);
+                      }}
+                    >
+                      <span className="calendar-slot-option-name">{name}</span>
+                      {targetDayOfWeek === dayIndex && (
+                        <span className="priority-check"><DynamicIcon name="check" size={13} /></span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -762,6 +887,8 @@ export default function AddTaskModal({
                         <span className="goal-parent-option-text">
                           {opt.title}
                           {opt.targetYear ? <span className="goal-parent-option-year" dir="ltr"> · {opt.targetYear}</span> : null}
+                          {opt.targetMonth ? <span className="goal-parent-option-year"> · شهر {opt.targetMonth}</span> : null}
+                          {opt.targetWeek ? <span className="goal-parent-option-year"> · {WEEK_LABELS[opt.targetWeek - 1]}</span> : null}
                         </span>
                         {parentGoalId === opt.id && (
                           <span className="priority-check">
@@ -955,6 +1082,19 @@ export default function AddTaskModal({
                 <span className="wizard-review-label"><DynamicIcon name="tag" size={14} /> التصنيف</span>
                 <span className="wizard-review-value">{reviewCategory ? reviewCategory.label : 'مفيش'}</span>
               </div>
+              {(category === 'MONTHLY' || category === 'WEEKLY' || category === 'DAILY') && (
+                <div className="wizard-review-row">
+                  <span className="wizard-review-label"><DynamicIcon name="calendar-days" size={14} /> الموعد</span>
+                  <span className="wizard-review-value">
+                    {category === 'MONTHLY' && targetMonth ? `${targetMonth} — ${MONTH_NAMES[targetMonth - 1]}` : null}
+                    {category === 'WEEKLY' && targetWeek ? WEEK_LABELS[targetWeek - 1] : null}
+                    {category === 'DAILY' && targetDayOfWeek !== null ? DAY_OF_WEEK_NAMES[targetDayOfWeek] : null}
+                    {category === 'MONTHLY' && !targetMonth ? 'لسه ما اتحددش' : null}
+                    {category === 'WEEKLY' && !targetWeek ? 'لسه ما اتحددش' : null}
+                    {category === 'DAILY' && targetDayOfWeek === null ? 'لسه ما اتحددش' : null}
+                  </span>
+                </div>
+              )}
               {requiresParentGoal(category) && (
                 <div className="wizard-review-row">
                   <span className="wizard-review-label"><DynamicIcon name="route" size={14} /> {goalLabelFor(category)} الأب</span>

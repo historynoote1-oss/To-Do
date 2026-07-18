@@ -2183,6 +2183,83 @@ button:disabled {
   font-size: 12px;
 }
 
+/* ===== خطوة "الموعد" في ويزارد الإنشاء/التعديل — شبكة اختيار شهر/أسبوع/
+   يوم (المرحلة 9). نفس منطق goal-parent-option بصريًا، بس شبكة بدل عمود
+   واحد عشان تتناسب مع أرقام قصيرة (شهر/أسبوع) أو أسماء أيام. ===== */
+.calendar-slot-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.calendar-slot-grid-month {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.calendar-slot-grid-week,
+.calendar-slot-grid-day {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 420px) {
+  .calendar-slot-grid-day {
+    grid-template-columns: repeat(1, 1fr);
+  }
+}
+
+.calendar-slot-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-body);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-fast) ease;
+}
+
+.calendar-slot-option:hover {
+  border-color: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.calendar-slot-option.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  color: var(--accent-soft);
+  font-weight: 700;
+}
+
+.calendar-slot-option-num {
+  font-family: var(--font-num);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.calendar-slot-option-name {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.calendar-slot-option.selected .calendar-slot-option-name {
+  color: inherit;
+}
+
+.calendar-slot-option .priority-check {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  color: var(--accent);
+}
+
 /* ===== Todo items ===== */
 ul {
   list-style: none;

@@ -21,14 +21,24 @@ const PARENT_CATEGORY_OF: Record<string, string> = {
 // بيه من غير طلب إضافي. subGoals بيرجّع بس الحقول اللازمة لحساب التقدّم
 // (خلص/لسه)، مش المهمة كاملة، عشان الحمولة تفضل خفيفة.
 const GOAL_INCLUDE = {
-  parentGoal: { select: { id: true, title: true, category: true, targetYear: true } },
+  parentGoal: { select: { id: true, title: true, category: true, targetYear: true, targetMonth: true, targetWeek: true, targetDayOfWeek: true } },
   subGoals: {
     // confirmedDone مضافة من المرحلة 7: هدف/مهمة خريطة الأهداف بقى "خلص"
     // معناه confirmedDone = true (مش الأرشفة زي قبل كده — شوف lib/archive.ts)،
     // فمحتاجينها هنا عشان حساب نسب الإنجاز (شوف TodoList.tsx وGoalMap.tsx).
     // archivedAt/archiveReason فاضلين لأغراض تانية (مثلًا لو المستخدم أرشف
     // هدف يدويًا) بس مبقوش هم مصدر "الخلاص" الأساسي لأهداف الخريطة.
-    select: { id: true, title: true, category: true, archivedAt: true, archiveReason: true, confirmedDone: true },
+    select: {
+      id: true,
+      title: true,
+      category: true,
+      archivedAt: true,
+      archiveReason: true,
+      confirmedDone: true,
+      targetMonth: true,
+      targetWeek: true,
+      targetDayOfWeek: true,
+    },
     orderBy: { createdAt: 'asc' as const },
   },
 };
@@ -88,7 +98,7 @@ router.get('/goal-options', async (req: AuthRequest, res) => {
       trashedAt: null,
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
-    select: { id: true, title: true, category: true, targetYear: true },
+    select: { id: true, title: true, category: true, targetYear: true, targetMonth: true, targetWeek: true, targetDayOfWeek: true },
     orderBy: { createdAt: 'asc' },
   });
   res.json(options);
@@ -232,6 +242,19 @@ function parseTargetYear(value: unknown): number | null | undefined {
   return n;
 }
 
+// بتقبل: undefined (معدلش)، null (مسح القيمة)، أو رقم صحيح داخل مدى معيّن
+// (min/max) — نفس شكل parseTargetYear بالظبط بس عام لأي حقل تقويمي
+// (targetMonth 1-12 / targetWeek 1-5 / targetDayOfWeek 0-6).
+function parseBoundedInt(value: unknown, min: number, max: number, label: string): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < min || n > max) {
+    throw new Error(`${label} غير صحيح`);
+  }
+  return n;
+}
+
 // بتقبل: undefined (معدلش)، null (مسح القيمة)، أو نص ISO صحيح. أي حاجة تانية
 // (نص فاضي، تاريخ مش صحيح) بترفض الطلب كله عشان منسيبش startTime/endTime في
 // حالة نص فاسد يكسر حساب الشريط الزمني في الواجهة.
@@ -295,6 +318,9 @@ router.post('/', async (req: AuthRequest, res) => {
   let endTime: Date | null | undefined;
   let category: string | null | undefined;
   let targetYear: number | null | undefined;
+  let targetMonth: number | null | undefined;
+  let targetWeek: number | null | undefined;
+  let targetDayOfWeek: number | null | undefined;
   let lifeAreaId: string | null | undefined;
   let parentGoalId: string | null | undefined;
   try {
@@ -302,6 +328,9 @@ router.post('/', async (req: AuthRequest, res) => {
     endTime = parseNullableDate(req.body.endTime, 'وقت النهاية');
     category = parseCategory(req.body.category);
     targetYear = parseTargetYear(req.body.targetYear);
+    targetMonth = parseBoundedInt(req.body.targetMonth, 1, 12, 'الشهر المستهدف');
+    targetWeek = parseBoundedInt(req.body.targetWeek, 1, 5, 'الأسبوع المستهدف');
+    targetDayOfWeek = parseBoundedInt(req.body.targetDayOfWeek, 0, 6, 'يوم الأسبوع المستهدف');
     lifeAreaId = await parseLifeAreaId(req.body.lifeAreaId, req.userId!);
     parentGoalId =
       req.body.parentGoalId === undefined
@@ -313,9 +342,14 @@ router.post('/', async (req: AuthRequest, res) => {
   if (startTime && endTime && startTime.getTime() >= endTime.getTime()) {
     return res.status(400).json({ error: 'وقت البداية لازم يكون قبل وقت النهاية' });
   }
-  // targetYear مالوش معنى غير مع تصنيف YEARLY.
+  // targetYear مالوش معنى غير مع تصنيف YEARLY. وبالمثل، targetMonth بس
+  // للشهري، targetWeek بس للأسبوعي، targetDayOfWeek بس لليومي — أي حقل
+  // من دول بيتصفّر تلقائيًا لو تصنيفه المقابل مش هو التصنيف الحالي.
   if (category !== 'YEARLY') targetYear = null;
   else if (!targetYear) targetYear = new Date().getFullYear();
+  if (category !== 'MONTHLY') targetMonth = null;
+  if (category !== 'WEEKLY') targetWeek = null;
+  if (category !== 'DAILY') targetDayOfWeek = null;
   // الهدف السنوي قمة الهرم — مالوش أب أبدًا حتى لو اتبعت parentGoalId بالغلط.
   if (category === 'YEARLY') parentGoalId = null;
 
@@ -329,6 +363,9 @@ router.post('/', async (req: AuthRequest, res) => {
         endTime: endTime ?? undefined,
         category: (category ?? undefined) as any,
         targetYear: targetYear ?? undefined,
+        targetMonth: targetMonth ?? undefined,
+        targetWeek: targetWeek ?? undefined,
+        targetDayOfWeek: targetDayOfWeek ?? undefined,
         lifeAreaId: lifeAreaId ?? undefined,
         parentGoalId: parentGoalId ?? undefined,
       },
@@ -358,6 +395,9 @@ router.patch('/:id', async (req: AuthRequest, res) => {
   let endTime: Date | null | undefined;
   let category: string | null | undefined;
   let targetYear: number | null | undefined;
+  let targetMonth: number | null | undefined;
+  let targetWeek: number | null | undefined;
+  let targetDayOfWeek: number | null | undefined;
   let lifeAreaId: string | null | undefined;
   let parentGoalId: string | null | undefined;
   try {
@@ -365,6 +405,9 @@ router.patch('/:id', async (req: AuthRequest, res) => {
     endTime = parseNullableDate(req.body.endTime, 'وقت النهاية');
     category = parseCategory(req.body.category);
     targetYear = parseTargetYear(req.body.targetYear);
+    targetMonth = parseBoundedInt(req.body.targetMonth, 1, 12, 'الشهر المستهدف');
+    targetWeek = parseBoundedInt(req.body.targetWeek, 1, 5, 'الأسبوع المستهدف');
+    targetDayOfWeek = parseBoundedInt(req.body.targetDayOfWeek, 0, 6, 'يوم الأسبوع المستهدف');
     lifeAreaId = await parseLifeAreaId(req.body.lifeAreaId, req.userId!);
   } catch (err) {
     return res.status(400).json({ error: err instanceof Error ? err.message : 'بيانات غير صحيحة' });
@@ -390,6 +433,12 @@ router.patch('/:id', async (req: AuthRequest, res) => {
   } else if (targetYear === null) {
     targetYear = new Date().getFullYear();
   }
+  // نفس منطق targetYear بالظبط، لكل حقل تقويمي مع تصنيفه المقابل بس —
+  // لو التصنيف النهائي مش هو المطلوب، بنصفّر الحقل بغض النظر عمّا اتبعت.
+  targetMonth = finalCategory !== 'MONTHLY' ? null : targetMonth === undefined ? list.targetMonth : targetMonth;
+  targetWeek = finalCategory !== 'WEEKLY' ? null : targetWeek === undefined ? list.targetWeek : targetWeek;
+  targetDayOfWeek =
+    finalCategory !== 'DAILY' ? null : targetDayOfWeek === undefined ? list.targetDayOfWeek : targetDayOfWeek;
 
   // مهمة ليها أهداف فرعية مربوطة بيها ومعنى الهرم بتاعها هيتكسر لو تصنيفها
   // اتغيّر فجأة (مثلاً هدف شهري ليه أهداف أسبوعية بيتحول لتصنيف يومي) —
@@ -419,6 +468,9 @@ router.patch('/:id', async (req: AuthRequest, res) => {
       endTime,
       category: category === undefined ? undefined : ((category as any) ?? null),
       targetYear,
+      targetMonth,
+      targetWeek,
+      targetDayOfWeek,
       lifeAreaId: lifeAreaId === undefined ? undefined : lifeAreaId,
       parentGoalId: parentGoalId === undefined ? undefined : parentGoalId,
       // تعديل هدف خريطة أهداف اتعلّم "متأخر" (شوف lib/overdueScheduler.ts)

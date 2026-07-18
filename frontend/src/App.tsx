@@ -511,8 +511,34 @@ export default function App() {
   // (Undo) عن الإضافة وحب يرجّعها. بترجع الـ list الناتج عشان نعرف الـ id
   // الجديد (بيتغيّر كل مرة لأن كل إنشاء بياخد id مختلف من السيرفر).
   async function createTaskFromPayload(data: NewTaskPayload) {
-    const { title, subtasks, priority, category, targetYear, lifeAreaId, parentGoalId, startTime, endTime, reminders } = data;
-    const list = await createList(title, priority, category, targetYear, lifeAreaId, startTime, endTime, parentGoalId);
+    const {
+      title,
+      subtasks,
+      priority,
+      category,
+      targetYear,
+      lifeAreaId,
+      parentGoalId,
+      startTime,
+      endTime,
+      reminders,
+      targetMonth,
+      targetWeek,
+      targetDayOfWeek,
+    } = data;
+    const list = await createList(
+      title,
+      priority,
+      category,
+      targetYear,
+      lifeAreaId,
+      startTime,
+      endTime,
+      parentGoalId,
+      targetMonth,
+      targetWeek,
+      targetDayOfWeek
+    );
     for (const subtask of subtasks) {
       await addItem(list.id, subtask.content);
     }
@@ -577,7 +603,10 @@ export default function App() {
       snapshot.lifeAreaId,
       snapshot.startTime,
       snapshot.endTime,
-      snapshot.parentGoalId
+      snapshot.parentGoalId,
+      (snapshot as any).targetMonth,
+      (snapshot as any).targetWeek,
+      (snapshot as any).targetDayOfWeek
     );
     for (const item of snapshot.items || []) {
       const newItem = await addItem(recreated.id, item.content, item.priority);

@@ -214,12 +214,27 @@ export async function createList(
   lifeAreaId?: string | null,
   startTime?: string | null,
   endTime?: string | null,
-  parentGoalId?: string | null
+  parentGoalId?: string | null,
+  targetMonth?: number | null,
+  targetWeek?: number | null,
+  targetDayOfWeek?: number | null
 ) {
   const res = await fetch(`${API_URL}/api/lists`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ title, priority, category, targetYear, lifeAreaId, startTime, endTime, parentGoalId }),
+    body: JSON.stringify({
+      title,
+      priority,
+      category,
+      targetYear,
+      lifeAreaId,
+      startTime,
+      endTime,
+      parentGoalId,
+      targetMonth,
+      targetWeek,
+      targetDayOfWeek,
+    }),
   });
   return handle(res);
 }
@@ -233,6 +248,9 @@ export async function updateList(
     endTime?: string | null;
     category?: string | null;
     targetYear?: number | null;
+    targetMonth?: number | null;
+    targetWeek?: number | null;
+    targetDayOfWeek?: number | null;
     lifeAreaId?: string | null;
     parentGoalId?: string | null;
   }
@@ -255,6 +273,9 @@ export interface GoalOption {
   title: string;
   category: string | null;
   targetYear: number | null;
+  targetMonth?: number | null;
+  targetWeek?: number | null;
+  targetDayOfWeek?: number | null;
 }
 
 export async function getGoalOptions(category: string, excludeId?: string): Promise<GoalOption[]> {

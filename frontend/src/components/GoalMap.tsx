@@ -24,7 +24,7 @@ import BackButton from './BackButton';
 import ConfirmModal from './ConfirmModal';
 import { DynamicIcon } from '../lib/icons';
 import { sounds } from '../lib/sounds';
-import { CategoryKey, CHILD_CATEGORY_OF, categoryOf } from '../lib/category';
+import { CategoryKey, CHILD_CATEGORY_OF, categoryOf, MONTH_NAMES, WEEK_LABELS, DAY_OF_WEEK_NAMES } from '../lib/category';
 import { LifeAreaData, hexToSoftBg } from '../lib/lifeArea';
 import type { NewTaskPayload } from './AddTaskModal';
 import type { GoalOption, TrashedYear } from '../lib/api';
@@ -42,6 +42,9 @@ interface GoalList {
   title: string;
   category?: string | null;
   targetYear?: number | null;
+  targetMonth?: number | null;
+  targetWeek?: number | null;
+  targetDayOfWeek?: number | null;
   parentGoalId?: string | null;
   parentGoal?: { id: string; title: string; category: string | null; targetYear: number | null } | null;
   subGoals?: { id: string; title: string; category: string | null; archivedAt: string | null; archiveReason: string | null }[];
@@ -583,6 +586,19 @@ export default function GoalMap({
   const [zoomLifeAreaId, setZoomLifeAreaId] = useState<string | null>(null);
   const [zoomYear, setZoomYear] = useState<number | null>(null);
   const [zoomGoalChainIds, setZoomGoalChainIds] = useState<string[]>([]);
+  // ===== خانات التقويم الحقيقي (شهر/أسبوع/يوم) — المرحلة 9 =====
+  // بعد ما هدف سنوي يتفتح، بنعرض شبكة تقويمية حقيقية (12 شهر بأرقامهم)
+  // بدل قائمة أسماء أهداف مباشرة. زوم داخل شهر معيّن بيعرض الأهداف الشهرية
+  // (targetMonth) المرتبطة بيه؛ زوم داخل هدف شهري بيعرض شبكة أسابيع
+  // الشهر (5 أسابيع ثابتة)؛ زوم داخل أسبوع بيعرض الأهداف الأسبوعية
+  // (targetWeek) المرتبطة بيه؛ زوم داخل هدف أسبوعي بيعرض شبكة أيام
+  // الأسبوع (7 أيام ثابتة)؛ وزوم داخل يوم بيعرض الأهداف اليومية
+  // (targetDayOfWeek) المرتبطة بيه — وهي دي المستوى النهائي (المهمة نفسها).
+  // كل خانة بتتصفّر تلقائيًا لما نفتح هدف من المستوى بتاعها (شوف
+  // zoomOpenGoal) أو لما نرجع لمستوى أعلى (شوف zoomGoToStage).
+  const [zoomMonth, setZoomMonth] = useState<number | null>(null);
+  const [zoomWeek, setZoomWeek] = useState<number | null>(null);
+  const [zoomDay, setZoomDay] = useState<number | null>(null);
 
   // ===== فلاتر خريطة العرض الكاملة (المرحلة 8) =====
   // بتخص قسم "خريطة العرض الكاملة" بس (مش بناء الخطة فوق). مجال الحياة
@@ -650,35 +666,18 @@ export default function GoalMap({
     }
   }
 
-  // قفزة مباشرة لأي هدف (شهري/أسبوعي/يومي) بإعادة بناء المسار كامل من
-  // الجذر (الهدف السنوي) بالطلوع بـ parentGoalId — مستخدمة في فلاتر
-  // "الشهر"/"الأسبوع" (اختيار اسم هدف بعينه بدل التصفّح كارت بكارت).
-  function zoomJumpToGoal(goal: GoalList) {
-    sounds.click();
-    const chain: GoalList[] = [];
-    let current: GoalList | undefined = goal;
-    while (current) {
-      chain.unshift(current);
-      current = current.parentGoalId ? lists.find((l) => l.id === current!.parentGoalId) : undefined;
-    }
-    const root = chain[0];
-    if (!root) return;
-    setTreeOpen(true);
-    setZoomLifeAreaId(root.lifeAreaId || 'none');
-    setZoomYear(root.targetYear || CURRENT_YEAR);
-    setZoomGoalChainIds(chain.map((g) => g.id));
-  }
-
   const zoomGoalChain = useMemo(
     () => zoomGoalChainIds.map((id) => lists.find((l) => l.id === id)).filter(Boolean) as GoalList[],
     [zoomGoalChainIds, lists]
   );
-  const zoomCurrentGoal = zoomGoalChain.length > 0 ? zoomGoalChain[zoomGoalChain.length - 1] : null;
+  // أهداف المستوى الهرمي الأربعة الحالية جوه سلسلة الزوم (undefined لو
+  // لسه معملتش زوم لحد المستوى ده) — استخدامها بيبسّط شرط عرض شبكة كل
+  // مرحلة تقويمية (شهور/أسابيع/أيام) بدل ما نكرر zoomGoalChain[i] كل مرة.
+  const zoomAnnualGoal = zoomGoalChain[0] as GoalList | undefined;
+  const zoomMonthlyGoal = zoomGoalChain[1] as GoalList | undefined;
+  const zoomWeeklyGoal = zoomGoalChain[2] as GoalList | undefined;
+  const zoomDailyGoal = zoomGoalChain[3] as GoalList | undefined;
 
-  // كل الأهداف السنوية مجمّعة حسب مجال الحياة بتاعها ('none' = بدون مجال) —
-  // ده أول مستوى في الزوم. مبنية على النسخة المفلترة (حالة/أولوية) فقط —
-  // فلتر مجال الحياة/السنة بيشتغل كقفزة تنقّل مباشرة (شوف
-  // onZoomFilterLifeAreaChange)، مش تصفية على مستوى الجذر نفسه.
   const zoomFilteredYearlyGoals = useMemo(
     () => yearlyGoals.filter(matchesZoomStatusPriority),
     [yearlyGoals, zoomFilterStatus, zoomFilterPriority]
@@ -707,37 +706,40 @@ export default function GoalMap({
     return (zoomLifeAreaBuckets.get(zoomLifeAreaId) || []).filter((g) => (g.targetYear || CURRENT_YEAR) === zoomYear);
   }, [zoomLifeAreaBuckets, zoomLifeAreaId, zoomYear]);
 
-  const zoomChildGoals = useMemo(() => {
-    if (!zoomCurrentGoal) return [] as GoalList[];
-    return lists.filter((l) => l.parentGoalId === zoomCurrentGoal.id).filter(matchesZoomStatusPriority);
-  }, [lists, zoomCurrentGoal, zoomFilterStatus, zoomFilterPriority]);
+  // ===== شبكات المستويات التقويمية (المرحلة 9) =====
+  // مجموعات الأهداف الشهرية/الأسبوعية/اليومية تحت الهدف/الخانة الحالية،
+  // مفلترة كمان بالحالة/الأولوية زي أي مستوى تاني. كل واحدة بتُستخدم مرتين:
+  // مرة لحساب عدد كل خانة تقويمية (شهر/أسبوع/يوم) في شبكة الاختيار، ومرة
+  // تانية لعرض قائمة الأهداف الفعلية بعد ما المستخدم يختار الخانة.
+  const zoomMonthlyGoalsInYear = useMemo(() => {
+    if (!zoomAnnualGoal) return [] as GoalList[];
+    return lists.filter((l) => l.parentGoalId === zoomAnnualGoal.id).filter(matchesZoomStatusPriority);
+  }, [lists, zoomAnnualGoal, zoomFilterStatus, zoomFilterPriority]);
 
-  // خيارات فلتر "الشهر"/"الأسبوع" — عناوين الأهداف الفعلية بدل أرقام، لأنه
-  // مفيش رقم شهر/أسبوع مخزّن في قاعدة البيانات أصلًا (شوف schema.prisma:
-  // targetYear بس هو المخزّن، وده حصري للأهداف السنوية). بتتحدّد حسب فلتر
-  // مجال الحياة/السنة الحاليين لو مفعّلين، وإلا بتعرض كل الأهداف من النوع ده.
-  const zoomFilterMonthOptions = useMemo(() => {
-    return lists
-      .filter((l) => l.category === 'MONTHLY')
-      .filter((l) => {
-        const yearly = lists.find((y) => y.id === l.parentGoalId);
-        if (zoomFilterLifeArea !== 'all' && (yearly?.lifeAreaId || 'none') !== zoomFilterLifeArea) return false;
-        if (zoomFilterYear !== 'all' && String(yearly?.targetYear || CURRENT_YEAR) !== zoomFilterYear) return false;
-        return true;
-      });
-  }, [lists, zoomFilterLifeArea, zoomFilterYear]);
+  const zoomMonthlyGoalsForSelectedMonth = useMemo(() => {
+    if (zoomMonth == null) return [] as GoalList[];
+    return zoomMonthlyGoalsInYear.filter((g) => (g.targetMonth || null) === zoomMonth);
+  }, [zoomMonthlyGoalsInYear, zoomMonth]);
 
-  const zoomFilterWeekOptions = useMemo(() => {
-    return lists
-      .filter((l) => l.category === 'WEEKLY')
-      .filter((l) => {
-        const monthly = lists.find((m) => m.id === l.parentGoalId);
-        const yearly = monthly ? lists.find((y) => y.id === monthly.parentGoalId) : undefined;
-        if (zoomFilterLifeArea !== 'all' && (yearly?.lifeAreaId || 'none') !== zoomFilterLifeArea) return false;
-        if (zoomFilterYear !== 'all' && String(yearly?.targetYear || CURRENT_YEAR) !== zoomFilterYear) return false;
-        return true;
-      });
-  }, [lists, zoomFilterLifeArea, zoomFilterYear]);
+  const zoomWeeklyGoalsInMonth = useMemo(() => {
+    if (!zoomMonthlyGoal) return [] as GoalList[];
+    return lists.filter((l) => l.parentGoalId === zoomMonthlyGoal.id).filter(matchesZoomStatusPriority);
+  }, [lists, zoomMonthlyGoal, zoomFilterStatus, zoomFilterPriority]);
+
+  const zoomWeeklyGoalsForSelectedWeek = useMemo(() => {
+    if (zoomWeek == null) return [] as GoalList[];
+    return zoomWeeklyGoalsInMonth.filter((g) => (g.targetWeek || null) === zoomWeek);
+  }, [zoomWeeklyGoalsInMonth, zoomWeek]);
+
+  const zoomDailyGoalsInWeek = useMemo(() => {
+    if (!zoomWeeklyGoal) return [] as GoalList[];
+    return lists.filter((l) => l.parentGoalId === zoomWeeklyGoal.id).filter(matchesZoomStatusPriority);
+  }, [lists, zoomWeeklyGoal, zoomFilterStatus, zoomFilterPriority]);
+
+  const zoomDailyGoalsForSelectedDay = useMemo(() => {
+    if (zoomDay == null) return [] as GoalList[];
+    return zoomDailyGoalsInWeek.filter((g) => (g.targetDayOfWeek ?? null) === zoomDay);
+  }, [zoomDailyGoalsInWeek, zoomDay]);
 
   // نسبة إنجاز مجموعة أهداف — من المرحلة 7: "خلص" هنا معناها confirmedDone
   // = true بس (مش الأرشفة زي قبل كده)، لأن أهداف خريطة الأهداف بقت بتفضل
@@ -760,6 +762,9 @@ export default function GoalMap({
     setZoomLifeAreaId(null);
     setZoomYear(null);
     setZoomGoalChainIds([]);
+    setZoomMonth(null);
+    setZoomWeek(null);
+    setZoomDay(null);
   }
 
   function zoomOpenLifeArea(key: string) {
@@ -767,27 +772,72 @@ export default function GoalMap({
     setZoomLifeAreaId(key);
     setZoomYear(null);
     setZoomGoalChainIds([]);
+    setZoomMonth(null);
+    setZoomWeek(null);
+    setZoomDay(null);
   }
 
   function zoomOpenYear(y: number) {
     sounds.click();
     setZoomYear(y);
     setZoomGoalChainIds([]);
+    setZoomMonth(null);
+    setZoomWeek(null);
+    setZoomDay(null);
   }
 
+  // فتح هدف (سنوي/شهري/أسبوعي/يومي) بيضيفه لسلسلة الزوم، وبيصفّر أي خانة
+  // تقويمية (شهر/أسبوع/يوم) خاصة بالمستوى اللي *تحت* الهدف ده مباشرة —
+  // عشان نبدأ اختيار جديد لها من غير ما نسيب قيمة قديمة من مسار سابق.
+  // الخانات الخاصة بمستويات *فوقه* (لو موجودة) بتفضل زي ما هي عمدًا عشان
+  // تفضل ظاهرة في البريدكرمب.
   function zoomOpenGoal(goal: GoalList) {
     sounds.click();
     setZoomGoalChainIds((chain) => [...chain, goal.id]);
+    if (goal.category === 'YEARLY') {
+      setZoomMonth(null);
+      setZoomWeek(null);
+      setZoomDay(null);
+    } else if (goal.category === 'MONTHLY') {
+      setZoomWeek(null);
+      setZoomDay(null);
+    } else if (goal.category === 'WEEKLY') {
+      setZoomDay(null);
+    }
+  }
+
+  // اختيار خانة تقويمية (رقم شهر/أسبوع/يوم) من شبكتها الثابتة — من غير ما
+  // يتغيّر مسار الأهداف نفسه (السلسلة زي ما هي، بس بنعرض محتوى الخانة دي).
+  function zoomSelectMonth(m: number) {
+    sounds.click();
+    setZoomMonth(m);
+  }
+  function zoomSelectWeek(w: number) {
+    sounds.click();
+    setZoomWeek(w);
+  }
+  function zoomSelectDay(d: number) {
+    sounds.click();
+    setZoomDay(d);
   }
 
   function zoomGoToYearLevel() {
     sounds.click();
     setZoomGoalChainIds([]);
+    setZoomMonth(null);
+    setZoomWeek(null);
+    setZoomDay(null);
   }
 
-  function zoomGoToChainIndex(i: number) {
+  // رجوع عام لأي "مرحلة" في المسار — بيقصّ سلسلة الأهداف لطول معيّن،
+  // ويسيب/يصفّر كل خانة تقويمية حسب اللي المفروض يفضل ظاهر في البريدكرمب
+  // في المرحلة المطلوبة. مستخدمة من كل أزرار البريدكرمب (شوف الاستخدام تحت).
+  function zoomGoToStage(chainLen: number, opts: { keepMonth?: boolean; keepWeek?: boolean; keepDay?: boolean } = {}) {
     sounds.click();
-    setZoomGoalChainIds((chain) => chain.slice(0, i + 1));
+    setZoomGoalChainIds((chain) => chain.slice(0, chainLen));
+    if (!opts.keepMonth) setZoomMonth(null);
+    if (!opts.keepWeek) setZoomWeek(null);
+    if (!opts.keepDay) setZoomDay(null);
   }
 
   // عدد إجمالي للأهداف على كل المستويات تحت أهداف السنة المختارة — بيبان
@@ -1179,41 +1229,9 @@ export default function GoalMap({
                       </select>
                     </div>
 
-                    <div className="goal-map-zoom-filter-field">
-                      <label>الشهر</label>
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          const goal = zoomFilterMonthOptions.find((g) => g.id === e.target.value);
-                          if (goal) zoomJumpToGoal(goal);
-                        }}
-                      >
-                        <option value="">اختر هدف شهري…</option>
-                        {zoomFilterMonthOptions.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="goal-map-zoom-filter-field">
-                      <label>الأسبوع</label>
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          const goal = zoomFilterWeekOptions.find((g) => g.id === e.target.value);
-                          if (goal) zoomJumpToGoal(goal);
-                        }}
-                      >
-                        <option value="">اختر هدف أسبوعي…</option>
-                        {zoomFilterWeekOptions.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* فلاتر "الشهر"/"الأسبوع" اتشالت من هنا بعد المرحلة 9 —
+                        بقى في تصفّح تقويمي حقيقي (شهر ← أسبوع ← يوم) جوه
+                        الخريطة نفسها بدل قفزة عبر قائمة أسماء، شوف تحت. */}
 
                     <div className="goal-map-zoom-filter-field">
                       <label>الحالة</label>
@@ -1274,6 +1292,9 @@ export default function GoalMap({
                         sounds.click();
                         setZoomYear(null);
                         setZoomGoalChainIds([]);
+                        setZoomMonth(null);
+                        setZoomWeek(null);
+                        setZoomDay(null);
                       }}
                       disabled={zoomYear == null}
                     >
@@ -1296,20 +1317,103 @@ export default function GoalMap({
                     </button>
                   </span>
                 )}
-                {zoomGoalChain.map((g, i) => (
-                  <span key={g.id} className="zoom-map-crumb-item">
+                {/* هدف سنوي — أول عنصر في السلسلة. الدوسة عليه بترجّعنا
+                    لشبكة الأشهر (بتصفّر الشهر/الأسبوع/اليوم كمان). */}
+                {zoomAnnualGoal && (
+                  <span className="zoom-map-crumb-item">
                     <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
                     <button
                       type="button"
-                      className={`zoom-map-crumb ${i === zoomGoalChain.length - 1 ? 'current' : ''}`}
-                      onClick={() => zoomGoToChainIndex(i)}
-                      disabled={i === zoomGoalChain.length - 1}
-                      title={g.title}
+                      className={`zoom-map-crumb ${zoomGoalChain.length === 1 && zoomMonth == null ? 'current' : ''}`}
+                      onClick={() => zoomGoToStage(1)}
+                      disabled={zoomGoalChain.length === 1 && zoomMonth == null}
+                      title={zoomAnnualGoal.title}
                     >
-                      {g.title}
+                      {zoomAnnualGoal.title}
                     </button>
                   </span>
-                ))}
+                )}
+                {/* الشهر المختار (رقمه واسمه) — بترجّع لقائمة الأهداف
+                    الشهرية في الشهر ده (بتصفّر الأسبوع/اليوم). */}
+                {zoomMonth != null && (
+                  <span className="zoom-map-crumb-item">
+                    <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
+                    <button
+                      type="button"
+                      className={`zoom-map-crumb ${zoomGoalChain.length === 1 ? 'current' : ''}`}
+                      onClick={() => zoomGoToStage(1, { keepMonth: true })}
+                      disabled={zoomGoalChain.length === 1}
+                    >
+                      <span dir="ltr">{zoomMonth}</span> — {MONTH_NAMES[zoomMonth - 1]}
+                    </button>
+                  </span>
+                )}
+                {zoomMonthlyGoal && (
+                  <span className="zoom-map-crumb-item">
+                    <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
+                    <button
+                      type="button"
+                      className={`zoom-map-crumb ${zoomGoalChain.length === 2 && zoomWeek == null ? 'current' : ''}`}
+                      onClick={() => zoomGoToStage(2, { keepMonth: true })}
+                      disabled={zoomGoalChain.length === 2 && zoomWeek == null}
+                      title={zoomMonthlyGoal.title}
+                    >
+                      {zoomMonthlyGoal.title}
+                    </button>
+                  </span>
+                )}
+                {/* الأسبوع المختار جوه الشهر — بترجّع لقائمة الأهداف
+                    الأسبوعية في الأسبوع ده (بتصفّر اليوم). */}
+                {zoomWeek != null && (
+                  <span className="zoom-map-crumb-item">
+                    <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
+                    <button
+                      type="button"
+                      className={`zoom-map-crumb ${zoomGoalChain.length === 2 ? 'current' : ''}`}
+                      onClick={() => zoomGoToStage(2, { keepMonth: true, keepWeek: true })}
+                      disabled={zoomGoalChain.length === 2}
+                    >
+                      {WEEK_LABELS[zoomWeek - 1]}
+                    </button>
+                  </span>
+                )}
+                {zoomWeeklyGoal && (
+                  <span className="zoom-map-crumb-item">
+                    <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
+                    <button
+                      type="button"
+                      className={`zoom-map-crumb ${zoomGoalChain.length === 3 && zoomDay == null ? 'current' : ''}`}
+                      onClick={() => zoomGoToStage(3, { keepMonth: true, keepWeek: true })}
+                      disabled={zoomGoalChain.length === 3 && zoomDay == null}
+                      title={zoomWeeklyGoal.title}
+                    >
+                      {zoomWeeklyGoal.title}
+                    </button>
+                  </span>
+                )}
+                {/* يوم الأسبوع المختار — بترجّع لقائمة الأهداف اليومية في
+                    اليوم ده. */}
+                {zoomDay != null && (
+                  <span className="zoom-map-crumb-item">
+                    <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
+                    <button
+                      type="button"
+                      className={`zoom-map-crumb ${zoomGoalChain.length === 3 ? 'current' : ''}`}
+                      onClick={() => zoomGoToStage(3, { keepMonth: true, keepWeek: true, keepDay: true })}
+                      disabled={zoomGoalChain.length === 3}
+                    >
+                      {DAY_OF_WEEK_NAMES[zoomDay]}
+                    </button>
+                  </span>
+                )}
+                {zoomDailyGoal && (
+                  <span className="zoom-map-crumb-item">
+                    <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
+                    <button type="button" className="zoom-map-crumb current" disabled title={zoomDailyGoal.title}>
+                      {zoomDailyGoal.title}
+                    </button>
+                  </span>
+                )}
               </div>
 
               {/* محتوى المستوى الحالي: مجلدات (كل مستوى قبل المهمة) أو كارت
@@ -1368,30 +1472,35 @@ export default function GoalMap({
                     };
                   })}
                 />
-              ) : zoomCurrentGoal!.category === 'DAILY' ? (
-                <div className="zoom-map-final-goal">
-                  <TodoList
-                    list={zoomCurrentGoal!}
-                    onChange={onChange}
-                    onDeleteList={onDeleteList}
-                    lifeAreas={lifeAreas}
-                    onManageLifeAreas={onManageLifeAreas}
-                    onCreateSubGoal={onCreateGoal}
-                  />
-                </div>
-              ) : (
+              ) : zoomGoalChain.length === 1 && zoomMonth == null ? (
+                // ===== شبكة شهور السنة (12 شهر بأرقامهم) تحت الهدف السنوي
+                // المختار — كل شهر بيعرض الأهداف الشهرية المرتبطة بيه. =====
                 <ZoomFolderGrid
-                  emptyLabel={`لسه مفيش أهداف ${
-                    categoryOf(CHILD_CATEGORY_OF[zoomCurrentGoal!.category as CategoryKey]!)!.label
-                  } تحت "${zoomCurrentGoal!.title}".`}
-                  items={zoomChildGoals.map((g) => {
-                    const isLeafLevel = g.category === 'DAILY';
-                    const children = lists.filter((l) => l.parentGoalId === g.id);
-                    const ratio = isLeafLevel
-                      ? { done: g.items.filter((i: any) => i.isDone).length, total: g.items.length }
-                      : goalsDoneRatio(children);
-                    const def = categoryOf(g.category as CategoryKey)!;
+                  emptyLabel="اختر شهر عشان تشوف/تضيف أهدافه."
+                  items={MONTH_NAMES.map((name, idx) => {
+                    const m = idx + 1;
+                    const monthGoals = zoomMonthlyGoalsInYear.filter((g) => (g.targetMonth || null) === m);
+                    const ratio = goalsDoneRatio(monthGoals);
+                    return {
+                      key: String(m),
+                      title: `${m} — ${name}`,
+                      icon: 'calendar-range',
+                      doneCount: ratio.done,
+                      totalCount: ratio.total,
+                      onOpen: () => zoomSelectMonth(m),
+                    };
+                  })}
+                />
+              ) : zoomGoalChain.length === 1 ? (
+                // ===== الأهداف الشهرية المرتبطة بالهدف السنوي المحدد في
+                // الشهر المختار. =====
+                <ZoomFolderGrid
+                  emptyLabel={`لسه مفيش أهداف شهرية في شهر ${zoomMonth} — ${MONTH_NAMES[(zoomMonth || 1) - 1]}.`}
+                  items={zoomMonthlyGoalsForSelectedMonth.map((g) => {
+                    const def = categoryOf('MONTHLY')!;
                     const isDone = !!g.confirmedDone;
+                    const children = lists.filter((l) => l.parentGoalId === g.id);
+                    const ratio = goalsDoneRatio(children);
                     return {
                       key: g.id,
                       title: g.title,
@@ -1404,6 +1513,100 @@ export default function GoalMap({
                     };
                   })}
                 />
+              ) : zoomGoalChain.length === 2 && zoomWeek == null ? (
+                // ===== "مربع الأسابيع" جوه الشهر المختار — أسابيع الهدف
+                // الشهري المحدد (5 أسابيع ثابتة)، كل أسبوع بيعرض الأهداف
+                // الأسبوعية المرتبطة بيه. =====
+                <ZoomFolderGrid
+                  emptyLabel="اختر أسبوع عشان تشوف/تضيف أهدافه."
+                  items={WEEK_LABELS.map((label, idx) => {
+                    const w = idx + 1;
+                    const weekGoals = zoomWeeklyGoalsInMonth.filter((g) => (g.targetWeek || null) === w);
+                    const ratio = goalsDoneRatio(weekGoals);
+                    return {
+                      key: String(w),
+                      title: `${w} — ${label}`,
+                      icon: 'calendar-days',
+                      doneCount: ratio.done,
+                      totalCount: ratio.total,
+                      onOpen: () => zoomSelectWeek(w),
+                    };
+                  })}
+                />
+              ) : zoomGoalChain.length === 2 ? (
+                // ===== الأهداف الأسبوعية المرتبطة بالهدف الشهري المحدد في
+                // الأسبوع المختار. =====
+                <ZoomFolderGrid
+                  emptyLabel={`لسه مفيش أهداف أسبوعية في ${WEEK_LABELS[(zoomWeek || 1) - 1]}.`}
+                  items={zoomWeeklyGoalsForSelectedWeek.map((g) => {
+                    const def = categoryOf('WEEKLY')!;
+                    const isDone = !!g.confirmedDone;
+                    const children = lists.filter((l) => l.parentGoalId === g.id);
+                    const ratio = goalsDoneRatio(children);
+                    return {
+                      key: g.id,
+                      title: g.title,
+                      icon: isDone ? 'check-circle' : def.icon,
+                      color: def.color,
+                      bg: def.bg,
+                      doneCount: ratio.done,
+                      totalCount: ratio.total,
+                      onOpen: () => zoomOpenGoal(g),
+                    };
+                  })}
+                />
+              ) : zoomGoalChain.length === 3 && zoomDay == null ? (
+                // ===== جميع أيام الأسبوع المختار (7 أيام ثابتة) — كل يوم
+                // بيعرض الأهداف اليومية المرتبطة بالهدف الأسبوعي المحدد. =====
+                <ZoomFolderGrid
+                  emptyLabel="اختر يوم عشان تشوف/تضيف أهدافه."
+                  items={DAY_OF_WEEK_NAMES.map((name, d) => {
+                    const dayGoals = zoomDailyGoalsInWeek.filter((g) => (g.targetDayOfWeek ?? null) === d);
+                    const ratio = goalsDoneRatio(dayGoals);
+                    return {
+                      key: String(d),
+                      title: name,
+                      icon: 'calendar',
+                      doneCount: ratio.done,
+                      totalCount: ratio.total,
+                      onOpen: () => zoomSelectDay(d),
+                    };
+                  })}
+                />
+              ) : zoomGoalChain.length === 3 ? (
+                // ===== الأهداف اليومية المرتبطة بالهدف الأسبوعي المحدد في
+                // اليوم المختار — الدوسة على أي هدف بيفتح كارت المهمة الكامل. =====
+                <ZoomFolderGrid
+                  emptyLabel={`لسه مفيش أهداف يومية يوم ${DAY_OF_WEEK_NAMES[zoomDay || 0]}.`}
+                  items={zoomDailyGoalsForSelectedDay.map((g) => {
+                    const def = categoryOf('DAILY')!;
+                    const isDone = !!g.confirmedDone;
+                    const ratio = { done: g.items.filter((i: any) => i.isDone).length, total: g.items.length };
+                    return {
+                      key: g.id,
+                      title: g.title,
+                      icon: isDone ? 'check-circle' : def.icon,
+                      color: def.color,
+                      bg: def.bg,
+                      doneCount: ratio.done,
+                      totalCount: ratio.total,
+                      onOpen: () => zoomOpenGoal(g),
+                    };
+                  })}
+                />
+              ) : (
+                // ===== المستوى النهائي: كارت المهمة اليومية الكاملة، زي
+                // الصفحة الرئيسية بالظبط. =====
+                <div className="zoom-map-final-goal">
+                  <TodoList
+                    list={zoomDailyGoal!}
+                    onChange={onChange}
+                    onDeleteList={onDeleteList}
+                    lifeAreas={lifeAreas}
+                    onManageLifeAreas={onManageLifeAreas}
+                    onCreateSubGoal={onCreateGoal}
+                  />
+                </div>
               )}
             </>
           )}
