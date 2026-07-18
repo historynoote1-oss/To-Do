@@ -438,6 +438,9 @@ export default function AddTaskModal({
     if (id === 'lifeArea' && !lifeAreaId) {
       return 'لازم تختار مجال حياة للمهمة';
     }
+    if (id === 'goal' && parentGoalOptions.length > 0 && !parentGoalId) {
+      return 'لازم تختار الهدف الأب من القائمة';
+    }
     if (id === 'timeline') {
       if (!startDraft || !endDraft) {
         return 'لازم تحدد وقت البداية والنهاية للمهمة';
@@ -731,8 +734,7 @@ export default function AddTaskModal({
             <div className="add-task-field">
               <span className="add-task-label">{goalLabelFor(category)} الأب</span>
               <p className="wizard-empty-hint">
-                <DynamicIcon name="route" size={12} /> اربط الهدف ده بهدف أعلى منه في الهرم عشان يتحسب ضمن تقدّمه —
-                الربط اختياري، تقدر تكمّله بعدين من تعديل المهمة.
+                <DynamicIcon name="route" size={12} /> اربط الهدف ده بهدف أعلى منه في الهرم عشان يتحسب ضمن تقدّمه.
               </p>
 
               {parentGoalOptionsLoading ? (
@@ -744,26 +746,6 @@ export default function AddTaskModal({
                 </p>
               ) : (
                 <ul className="goal-parent-option-list">
-                  <li>
-                    <button
-                      type="button"
-                      className={`goal-parent-option ${parentGoalId === null ? 'selected' : ''}`}
-                      onClick={() => {
-                        sounds.hover();
-                        setParentGoalId(null);
-                      }}
-                    >
-                      <span className="goal-parent-option-icon">
-                        <DynamicIcon name="unlink" size={14} />
-                      </span>
-                      <span className="goal-parent-option-text">بدون ربط</span>
-                      {parentGoalId === null && (
-                        <span className="priority-check">
-                          <DynamicIcon name="check" size={14} />
-                        </span>
-                      )}
-                    </button>
-                  </li>
                   {parentGoalOptions.map((opt) => (
                     <li key={opt.id}>
                       <button

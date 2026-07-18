@@ -967,65 +967,7 @@ export default function GoalMap({
             </button>
           </div>
         )}
-
-        <button
-          type="button"
-          className={`goal-map-trash-toggle ${trashedYears.length > 0 ? 'has-items' : ''}`}
-          onClick={() => {
-            sounds.click();
-            setTrashPanelOpen((v) => !v);
-          }}
-          aria-expanded={trashPanelOpen}
-          title="سلة المحذوفات"
-        >
-          <DynamicIcon name="trash" size={14} />
-          {trashedYears.length > 0 && <span className="goal-map-trash-toggle-count">{trashedYears.length}</span>}
-        </button>
       </div>
-
-      {/* ===== سلة المحذوفات المؤقتة: سنوات محذوفة قابلة للاسترجاع خلال 5 أيام ===== */}
-      {trashPanelOpen && (
-        <div className="goal-map-trash-panel">
-          <div className="goal-map-trash-panel-title">
-            <DynamicIcon name="trash" size={15} />
-            <span>سلة المحذوفات</span>
-            <span className="goal-map-trash-panel-hint">بيتم الحذف النهائي تلقائيًا بعد 5 أيام من الحذف</span>
-          </div>
-
-          {trashLoading ? (
-            <div className="goal-map-trash-empty">جاري التحميل...</div>
-          ) : trashedYears.length === 0 ? (
-            <div className="goal-map-trash-empty">
-              <DynamicIcon name="trash" size={22} />
-              <p>سلة المحذوفات فاضية دلوقتي.</p>
-            </div>
-          ) : (
-            <div className="goal-map-trash-list">
-              {trashedYears.map((t) => (
-                <div key={t.year} className="goal-map-trash-item">
-                  <div className="goal-map-trash-item-info">
-                    <span className="goal-map-trash-item-year" dir="ltr">{t.year}</span>
-                    <span className="goal-map-trash-item-count">{t.totalGoals} هدف</span>
-                    <span className={`goal-map-trash-item-days ${t.daysLeft <= 1 ? 'urgent' : ''}`}>
-                      <DynamicIcon name="clock" size={11} />
-                      متبقّي {t.daysLeft} {t.daysLeft === 1 ? 'يوم' : 'أيام'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="small goal-map-trash-item-restore"
-                    disabled={restoringYear === t.year}
-                    onClick={() => restoreYearNow(t.year)}
-                  >
-                    <DynamicIcon name="rotate-ccw" size={13} />
-                    {restoringYear === t.year ? 'جاري الاسترجاع...' : 'استرجاع'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {confirmDeleteYear != null && (
         <ConfirmModal
@@ -1057,7 +999,6 @@ export default function GoalMap({
           <span className="goal-map-section-toggle-label">
             بناء الخطة
             <span className="goal-map-section-title-year" dir="ltr">{selectedYear}</span>
-            {yearTotalGoals > 0 && <span className="goal-map-section-title-count">{yearTotalGoals} هدف</span>}
           </span>
           <DynamicIcon name="chevron-down" size={15} className={`goal-map-section-chevron ${planBuilderOpen ? 'expanded' : ''}`} />
         </button>
@@ -1115,55 +1056,56 @@ export default function GoalMap({
               </div>
             )}
 
-            {/* هيدر القسم: زرار إضافة بس — مفيش نص عنوان مكرر هنا، لأن السنة
-                المختارة والمستوى والمسار (بريدكرمب) كلهم ظاهرين فوق بالفعل. */}
-            <div className="level-content-header">
-              <button type="button" className="small level-content-add-btn" onClick={openSectionAdd}>
-                <DynamicIcon name="plus" size={14} /> {SINGULAR_INDEFINITE_LABEL[activeLevel]} جديد
-              </button>
+            {/* محتوى المستوى: حاوية عرض واحدة بسيطة — إما قائمة الكروت أو
+                رسالة الحالة الفاضية، وتحتها زرار إضافة واحد بس (مفيش تكرار). */}
+            <div className="level-content-box">
+              {levelItems.length === 0 ? (
+                <div className="goal-map-empty level-empty">
+                  <DynamicIcon
+                    name={activeLevel === 'YEARLY' ? 'flag' : (activeLevelDef.icon as any)}
+                    size={28}
+                    className="empty-icon"
+                  />
+                  <p>
+                    {activeLevel === 'YEARLY'
+                      ? `ابدأ بتحديد أهم حاجة عايز تحققها في سنة ${selectedYear}، وبعدين هنساعدك تقسمها لخطوات شهرية وأسبوعية ويومية واضحة.`
+                      : focusGoal
+                        ? `لسه مفيش ${pluralIndefinite(activeLevel)} تحت "${focusGoal.title}" — ابدأ بإضافة أول واحد.`
+                        : yearGoalsByLevel.YEARLY.length === 0
+                          ? 'لازم تضيف هدف سنوي الأول قبل ما تقدر تضيف أهداف تحته.'
+                          : `لسه مفيش ${pluralIndefinite(activeLevel)} في سنة ${selectedYear} — تقدر تضيفه من هنا وتختار الهدف الأب بنفسك.`}
+                  </p>
+                </div>
+              ) : (
+                <div className="level-goal-grid">
+                  {levelItems.map((goal) => (
+                    <LevelGoalCard
+                      key={goal.id}
+                      goal={goal}
+                      childCount={lists.filter((l) => l.parentGoalId === goal.id).length}
+                      childDef={activeChildCategory ? categoryOf(activeChildCategory) : null}
+                      onDrillIn={drillInto}
+                      lifeAreas={lifeAreas}
+                      onChange={onChange}
+                      onDeleteList={onDeleteList}
+                      onManageLifeAreas={onManageLifeAreas}
+                      onCreateSubGoal={onCreateGoal}
+                      onGoToParent={goToParentGoal}
+                      highlighted={goal.id === highlightedGoalId}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* محتوى المستوى: قائمة مسطّحة من الكروت */}
-            {levelItems.length === 0 ? (
-              <div className="goal-map-empty level-empty">
-                <DynamicIcon
-                  name={activeLevel === 'YEARLY' ? 'flag' : (activeLevelDef.icon as any)}
-                  size={28}
-                  className="empty-icon"
-                />
-                <p>
-                  {activeLevel === 'YEARLY'
-                    ? `ابدأ بتحديد أهم حاجة عايز تحققها في سنة ${selectedYear}، وبعدين هنساعدك تقسمها لخطوات شهرية وأسبوعية ويومية واضحة.`
-                    : focusGoal
-                      ? `لسه مفيش ${pluralIndefinite(activeLevel)} تحت "${focusGoal.title}" — ابدأ بإضافة أول واحد.`
-                      : yearGoalsByLevel.YEARLY.length === 0
-                        ? 'لازم تضيف هدف سنوي الأول قبل ما تقدر تضيف أهداف تحته.'
-                        : `لسه مفيش ${pluralIndefinite(activeLevel)} في سنة ${selectedYear} — تقدر تضيفه من هنا وتختار الهدف الأب بنفسك.`}
-                </p>
-                <button type="button" onClick={openSectionAdd} disabled={activeLevel !== 'YEARLY' && yearGoalsByLevel.YEARLY.length === 0}>
-                  <DynamicIcon name="plus" size={15} /> {SINGULAR_INDEFINITE_LABEL[activeLevel]} جديد
-                </button>
-              </div>
-            ) : (
-              <div className="level-goal-grid">
-                {levelItems.map((goal) => (
-                  <LevelGoalCard
-                    key={goal.id}
-                    goal={goal}
-                    childCount={lists.filter((l) => l.parentGoalId === goal.id).length}
-                    childDef={activeChildCategory ? categoryOf(activeChildCategory) : null}
-                    onDrillIn={drillInto}
-                    lifeAreas={lifeAreas}
-                    onChange={onChange}
-                    onDeleteList={onDeleteList}
-                    onManageLifeAreas={onManageLifeAreas}
-                    onCreateSubGoal={onCreateGoal}
-                    onGoToParent={goToParentGoal}
-                    highlighted={goal.id === highlightedGoalId}
-                  />
-                ))}
-              </div>
-            )}
+            <button
+              type="button"
+              className="level-content-add-btn-bottom"
+              onClick={openSectionAdd}
+              disabled={activeLevel !== 'YEARLY' && yearGoalsByLevel.YEARLY.length === 0}
+            >
+              <DynamicIcon name="plus" size={15} /> {SINGULAR_INDEFINITE_LABEL[activeLevel]} جديد
+            </button>
           </>
         )}
       </div>
