@@ -51,8 +51,6 @@ import { DynamicIcon } from './lib/icons';
 import TaskDistributionCard from './components/TaskDistributionCard';
 import CompletionRateCard from './components/CompletionRateCard';
 import PendingRestoreSection from './components/PendingRestoreSection';
-import MusicPlayerBar from './components/MusicPlayerBar';
-import PomodoroBar from './components/PomodoroBar';
 
 // الصفحات دي مش بتتفتح كل زيارة (لوحة الأدمن، البروفايل، المهام
 // المتكررة، الأرشيف، مشغّل القرآن، البومودورو) وبعضها تقيل نسبيًا (لوحة
@@ -67,6 +65,7 @@ const LifeAreasManager = lazy(() => import('./components/LifeAreasManager'));
 const RecurringTasksManager = lazy(() => import('./components/RecurringTasksManager'));
 const ArchivePage = lazy(() => import('./components/Archive'));
 const GoalMap = lazy(() => import('./components/GoalMap'));
+const PrayerTimes = lazy(() => import('./components/PrayerTimes'));
 const MusicPlayer = lazy(() => import('./components/MusicPlayer'));
 const Pomodoro = lazy(() => import('./components/Pomodoro'));
 const AddTaskModal = lazy(() => import('./components/AddTaskModal'));
@@ -809,6 +808,7 @@ export default function App() {
         onOpenRecurring={() => setView('recurring')}
         onOpenPlayer={() => setView('player')}
         onOpenPomodoro={() => setView('pomodoro')}
+        onOpenPrayerTimes={() => setView('prayerTimes')}
         onToggleMute={handleToggleMute}
         onTogglePush={handleTogglePush}
         onRequestLogout={requestLogout}
@@ -824,8 +824,6 @@ export default function App() {
           onConfirm={confirmLogout}
         />
       )}
-      <PomodoroBar onOpenPomodoro={() => setView('pomodoro')} isOnPomodoroPage={view === 'pomodoro'} />
-      <MusicPlayerBar onOpenPlayer={() => setView('player')} isOnPlayerPage={view === 'player'} />
     </>
   );
 
@@ -946,6 +944,18 @@ export default function App() {
     );
   }
 
+  if (view === 'prayerTimes') {
+    return (
+      <>
+        <ToastContainer />
+        <Suspense fallback={<RouteLoading />}>
+          <PrayerTimes onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+        </Suspense>
+        {sideMenuAndModals}
+      </>
+    );
+  }
+
   if (view === 'pomodoro') {
     return (
       <>
@@ -1017,7 +1027,7 @@ export default function App() {
             </button>
 
             <div className="brand">
-              <h1 className="brand-title">المهام الرئيسية</h1>
+              <h1 className="brand-title">الخريطة</h1>
             </div>
 
             <div className="top-bar-controls">

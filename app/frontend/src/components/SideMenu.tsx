@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { PushSupportState } from '../lib/push';
 import { DynamicIcon } from '../lib/icons';
 import { useTheme } from '../lib/theme';
+import { usePrayerTimes } from '../lib/prayerTimesStore';
+import { PRAYER_LABELS, formatCountdown } from '../lib/prayerTimes';
 
 interface Props {
   open: boolean;
@@ -25,6 +27,7 @@ interface Props {
   onOpenRecurring: () => void;
   onOpenPlayer: () => void;
   onOpenPomodoro: () => void;
+  onOpenPrayerTimes: () => void;
   onToggleMute: () => void;
   onTogglePush: () => void;
   onRequestLogout: () => void;
@@ -55,6 +58,7 @@ export default function SideMenu({
   onOpenRecurring,
   onOpenPlayer,
   onOpenPomodoro,
+  onOpenPrayerTimes,
   onToggleMute,
   onTogglePush,
   onRequestLogout,
@@ -62,6 +66,7 @@ export default function SideMenu({
   const panelRef = useRef<HTMLDivElement>(null);
   const [theme, toggleTheme] = useTheme();
   const isDark = theme === 'dark';
+  const { nextPrayer } = usePrayerTimes();
 
   useEffect(() => {
     if (!open) return;
@@ -140,6 +145,24 @@ export default function SideMenu({
           </div>
 
           <div className="side-menu-divider" role="separator" />
+
+          <button
+            className={`side-menu-item side-menu-item-highlight side-menu-prayer-item ${currentView === 'prayerTimes' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenPrayerTimes)}
+            aria-current={currentView === 'prayerTimes' ? 'page' : undefined}
+          >
+            <DynamicIcon name="moon-star" size={18} className="side-menu-item-icon" />
+            <span className="side-menu-item-label-col">
+              <span className="side-menu-item-label">مواقيت الصلاة</span>
+              {nextPrayer && (
+                <span className="side-menu-prayer-sub">
+                  {PRAYER_LABELS[nextPrayer.key]} بعد {formatCountdown(nextPrayer.remainingMs)}
+                </span>
+              )}
+            </span>
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+          </button>
 
           {isAdmin && (
             <button

@@ -126,6 +126,15 @@ import {
   Wrench,
   X,
   Zap,
+  MapPin,
+  Navigation,
+  Upload,
+  Loader2,
+  RefreshCw,
+  ChevronRight,
+  Radio,
+  Vibrate,
+  Info,
 } from 'lucide-react';
 
 // أيقونة القلب (زرار "إضافة للمفضّلة") متعمولة كـ SVG مكتوب يدويًا هنا، مش
@@ -301,6 +310,15 @@ export const ICON_MAP = {
   wrench: Wrench,
   x: X,
   zap: Zap,
+  'map-pin': MapPin,
+  navigation: Navigation,
+  upload: Upload,
+  loader: Loader2,
+  'refresh-cw': RefreshCw,
+  'chevron-right': ChevronRight,
+  radio: Radio,
+  vibrate: Vibrate,
+  info: Info,
 } satisfies Record<string, IconComponent>;
 
 export type IconKey = keyof typeof ICON_MAP;

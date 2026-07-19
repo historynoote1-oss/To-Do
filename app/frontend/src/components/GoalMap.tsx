@@ -104,10 +104,13 @@ function pluralIndefinite(level: CategoryKey): string {
 // ===== "خريطة العرض الكاملة" — Zoom Navigation =====
 // بدل الشجرة المتداخلة القديمة (كل المستويات ظاهرة دفعة واحدة بتعشيش
 // بصري)، هنا كل ضغطة بتدخل المستخدم مستوى أعمق زي فتح مجلد، بترتيب:
-// مجال حياة ← سنة ← هدف سنوي ← أهداف شهرية ← أسبوعية ← يومية ← المهمة
-// نفسها. `ZoomFolderGrid` هي وحدة البناء المشتركة لأي مستوى "مجلدات"
-// (كل حاجة قبل المهمة النهائية) — كارت لكل عنصر بعنوان/أيقونة/شريط تقدّم،
-// والضغط عليه بينفّذ `onOpen` بتاعه (اللي بيتحكم فيه GoalMap نفسه).
+// مجال حياة ← هدف سنوي ← أهداف شهرية ← أسبوعية ← يومية ← المهمة نفسها.
+// السنة *مش* خطوة جوّه المسار ده — هي نفسها تبويب السنة المختار فوق في
+// "بناء الخطة" (selectedYear)، فكل الأقسام دايمًا بتعكس نفس السنة الواحدة
+// المختارة من فوق. `ZoomFolderGrid` هي وحدة البناء المشتركة لأي مستوى
+// "مجلدات" (كل حاجة قبل المهمة النهائية) — كارت لكل عنصر بعنوان/أيقونة/
+// شريط تقدّم، والضغط عليه بينفّذ `onOpen` بتاعه (اللي بيتحكم فيه GoalMap
+// نفسه).
 interface ZoomFolderItem {
   key: string;
   title: string;
@@ -295,16 +298,47 @@ export default function GoalMap({
   // شوف lib/overdueScheduler.ts في الباك إند لمنطق التعليم/الخصم نفسه.
   const overdueGoals = useMemo(() => lists.filter((l) => !!l.overduePenalizedAt), [lists]);
 
+  // ===== سنوات "فاضية" اتضافت يدويًا بزرار "+ سنة جديدة" ولسه معملش فيها
+  // أي هدف سنوي =====
+  // قبل كده تبويبات السنين كانت بتتحسب بس من `targetYear` الأهداف الموجودة
+  // فعلًا + السنة الحالية، فلو حد ضغط "سنة جديدة" واختار سنة (زي ٢٠٢٩) من
+  // غير ما يضيف هدف فيها فورًا، السنة دي معندهاش أي هدف يخليها تظهر في
+  // `years` — فتبويبها ميظهرش أصلًا وكان شكله للمستخدم إن الزرار "مش
+  // شغال". هنا بنحتفظ بقائمة السنين الفاضية دي محليًا (localStorage، زي
+  // باقي تفضيلات الجهاز في الموقع) عشان تفضل ظاهرة كتبويب حتى قبل ما
+  // يتضاف فيها أي هدف، وبتتشال من هنا لما تتحذف يدويًا (شوف
+  // confirmDeleteYearNow تحت).
+  const EXTRA_YEARS_KEY = 'goalMap.emptyYears';
+  const [extraYears, setExtraYears] = useState<number[]>(() => {
+    try {
+      const raw = localStorage.getItem(EXTRA_YEARS_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed.filter((y) => Number.isInteger(y)) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  function persistExtraYears(next: number[]) {
+    setExtraYears(next);
+    try {
+      localStorage.setItem(EXTRA_YEARS_KEY, JSON.stringify(next));
+    } catch {
+      // تخزين محلي بس — لو فشل (خصوصية متصفح، مساحة ممتلئة...) مش لازم يكسر الشاشة.
+    }
+  }
+
   const years = useMemo(() => {
     const set = new Set<number>();
     for (const g of yearlyGoals) {
       if (g.targetYear) set.add(g.targetYear);
     }
+    for (const y of extraYears) set.add(y);
     // نضمن إن السنة الحالية دايمًا ظاهرة كخيار حتى لو لسه معملش فيها أهداف،
     // عشان تبقى نقطة انطلاق واضحة لمستخدم جديد.
     set.add(CURRENT_YEAR);
     return Array.from(set).sort((a, b) => a - b);
-  }, [yearlyGoals]);
+  }, [yearlyGoals, extraYears]);
 
   const [selectedYear, setSelectedYear] = useState<number>(() => {
     // افتراضيًا بنبدأ بأحدث سنة فيها أهداف فعلاً (لو موجودة)، وإلا السنة الحالية.
@@ -544,10 +578,24 @@ export default function GoalMap({
   async function confirmDeleteYearNow() {
     const y = confirmDeleteYear;
     if (y == null) return;
+    // لو السنة دي كانت لسه فاضية (اتضافت بس بزرار "سنة جديدة" ومعملش فيها
+    // أي هدف)، مفيش حاجة على السيرفر تتحذف أصلًا (وطلب الحذف كان هيرجّع
+    // خطأ 404) — يكفي إننا نشيلها من قائمة السنين الفاضية المحفوظة محليًا.
+    const hasRealGoals = yearlyGoals.some((g) => (g.targetYear || CURRENT_YEAR) === y);
+    if (!hasRealGoals) {
+      persistExtraYears(extraYears.filter((ey) => ey !== y));
+      toast.success(`سنة ${y} اتشالت`);
+      setConfirmDeleteYear(null);
+      if (selectedYear === y) {
+        setSelectedYear(CURRENT_YEAR);
+      }
+      return;
+    }
     try {
       await trashYearApi(y);
       toast.success(`سنة ${y} اتنقلت لسلة المحذوفات — تقدر تسترجعها خلال 5 أيام`);
       setConfirmDeleteYear(null);
+      persistExtraYears(extraYears.filter((ey) => ey !== y));
       onChange();
       refreshTrash();
       if (selectedYear === y) {
@@ -623,6 +671,16 @@ export default function GoalMap({
   function selectYear(y: number) {
     sounds.click();
     setSelectedYear(y);
+    // لو المستخدم واقف جوه مجال حياة في "خريطة العرض الكاملة"، لازم نرجّعه
+    // لقائمة الأهداف السنوية بتاعة نفس المجال في السنة الجديدة، بدل ما
+    // يفضل واقف على سلسلة أهداف (شهر/أسبوع/يوم) ممكن تبقى مش موجودة أصلًا
+    // في السنة الجديدة.
+    if (zoomLifeAreaId != null) {
+      setZoomGoalChainIds([]);
+      setZoomMonth(null);
+      setZoomWeek(null);
+      setZoomDay(null);
+    }
   }
 
   function openAddYearStepper() {
@@ -646,6 +704,12 @@ export default function GoalMap({
 
   function confirmAddYear() {
     sounds.click();
+    // لو السنة دي معندهاش أهداف فعلية أصلًا، لازم نسجّلها في extraYears
+    // عشان تبويبها يظهر فعلًا (شوف تعريف extraYears فوق) — من غير الخطوة
+    // دي السنة كانت بتتحفظ في selectedYear بس من غير ما يظهرلها تبويب.
+    if (!years.includes(newYearDraft)) {
+      persistExtraYears(Array.from(new Set([...extraYears, newYearDraft])));
+    }
     setSelectedYear(newYearDraft);
     setAddYearOpen(false);
     // مفيش فتح نافذة إنشاء هدف هنا خالص — إضافة الأهداف كلها بقت مسؤولية
@@ -729,12 +793,14 @@ export default function GoalMap({
 
   function navigateToPlacement(placement: NonNullable<ReturnType<typeof placementForCreatedGoal>>) {
     setZoomFilterLifeArea('all');
-    setZoomFilterYear('all');
     setZoomFilterStatus('all');
     setZoomFilterPriority('all');
     setZoomFilterOpen(false);
+    // السنة بقت تبويب واحد فوق بس (selectedYear) — القفزة لمكان الهدف
+    // الجديد بتحوّل التبويب ده لنفس سنة الهدف كمان (لو كانت مختلفة) عشان
+    // "بناء الخطة" و"خريطة العرض الكاملة" يفضلوا متزامنين على نفس السنة.
+    setSelectedYear(placement.year);
     setZoomLifeAreaId(placement.lifeAreaId);
-    setZoomYear(placement.year);
     setZoomGoalChainIds(placement.chainIds);
     setZoomMonth(placement.month);
     setZoomWeek(placement.week);
@@ -757,12 +823,19 @@ export default function GoalMap({
   // ===== قسم "خريطة العرض الكاملة" (Zoom Navigation) — قابل للطي/الفتح. =====
   const [treeOpen, setTreeOpen] = useState(false);
 
-  // ===== مسار التنقل بالزوم: مجال حياة ← سنة ← سلسلة الأهداف المُختارة =====
+  // ===== مسار التنقل بالزوم: مجال حياة ← سلسلة الأهداف المُختارة =====
   // بنخزّن الأهداف بمعرّفاتها (IDs) بس، مش الكائن نفسه، عشان لو `lists`
   // اتحدّثت (تعديل/حذف/إضافة) المسار يفضل صحيح تلقائيًا (وأي معرّف بقى
   // محذوف بيتفلتر لوحده من غير ما يكسر الشاشة).
+  //
+  // ===== ملحوظة: السنة هنا مفيش ليها state منفصلة خالص =====
+  // قبل كده كان فيه `zoomYear` منفصل، فكان ممكن تدخل مجال حياة معين
+  // وتلاقي كل سنينه (٢٠٢٦ و٢٠٢٧ مع بعض) بغض النظر عن تبويب السنة المختار
+  // فوق في "بناء الخطة" — ده كان مربك لأن المستخدم أصلًا محدد سنة معينة
+  // من فوق الصفحة. دلوقتي "خريطة العرض الكاملة" بتتبع `selectedYear` (نفس
+  // تبويب السنة فوق) تلقائيًا وبس — تغيير التبويب فوق بيغيّر محتوى الخريطة
+  // كمان، وملهاش سنة منفصلة تتصفّح لوحدها.
   const [zoomLifeAreaId, setZoomLifeAreaId] = useState<string | null>(null);
-  const [zoomYear, setZoomYear] = useState<number | null>(null);
   const [zoomGoalChainIds, setZoomGoalChainIds] = useState<string[]>([]);
   // ===== خانات التقويم الحقيقي (شهر/أسبوع/يوم) — المرحلة 9 =====
   // بعد ما هدف سنوي يتفتح، بنعرض شبكة تقويمية حقيقية (12 شهر بأرقامهم)
@@ -785,13 +858,11 @@ export default function GoalMap({
   // فعليًا في أي مستوى واقف فيه المستخدم دلوقتي.
   const [zoomFilterOpen, setZoomFilterOpen] = useState(false);
   const [zoomFilterLifeArea, setZoomFilterLifeArea] = useState<string>('all');
-  const [zoomFilterYear, setZoomFilterYear] = useState<string>('all');
   const [zoomFilterStatus, setZoomFilterStatus] = useState<'all' | 'done' | 'pending' | 'overdue'>('all');
   const [zoomFilterPriority, setZoomFilterPriority] = useState<'all' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'>('all');
 
   const zoomFiltersActiveCount = [
     zoomFilterLifeArea !== 'all',
-    zoomFilterYear !== 'all',
     zoomFilterStatus !== 'all',
     zoomFilterPriority !== 'all',
   ].filter(Boolean).length;
@@ -814,34 +885,21 @@ export default function GoalMap({
   function clearZoomFilters() {
     sounds.click();
     setZoomFilterLifeArea('all');
-    setZoomFilterYear('all');
     setZoomFilterStatus('all');
     setZoomFilterPriority('all');
   }
 
   // اختيار مجال حياة من الفلتر بيقفز فورًا لنفس شاشته (زي الضغط على كارته
-  // بالظبط)، و"الكل" بيرجّع لشاشة اختيار المجالات.
+  // بالظبط)، و"الكل" بيرجّع لشاشة اختيار المجالات. السنة مش موجودة هنا
+  // خالص — بتتحدد من تبويب السنة فوق في "بناء الخطة" بس (شوف selectedYear).
   function onZoomFilterLifeAreaChange(value: string) {
     sounds.click();
     setZoomFilterLifeArea(value);
-    if (value === 'all') {
-      setZoomLifeAreaId(null);
-      setZoomYear(null);
-      setZoomGoalChainIds([]);
-    } else {
-      setZoomLifeAreaId(value);
-      setZoomYear(null);
-      setZoomGoalChainIds([]);
-    }
-  }
-
-  function onZoomFilterYearChange(value: string) {
-    sounds.click();
-    setZoomFilterYear(value);
-    if (value !== 'all' && zoomLifeAreaId != null) {
-      setZoomYear(Number(value));
-      setZoomGoalChainIds([]);
-    }
+    setZoomLifeAreaId(value === 'all' ? null : value);
+    setZoomGoalChainIds([]);
+    setZoomMonth(null);
+    setZoomWeek(null);
+    setZoomDay(null);
   }
 
   const zoomGoalChain = useMemo(
@@ -856,9 +914,13 @@ export default function GoalMap({
   const zoomWeeklyGoal = zoomGoalChain[2] as GoalList | undefined;
   const zoomDailyGoal = zoomGoalChain[3] as GoalList | undefined;
 
+  // مفلترة بالحالة/الأولوية *و* بالسنة المختارة فوق (selectedYear) — عشان
+  // "خريطة العرض الكاملة" كلها (بما فيها عدّاد كل مجال حياة في شبكته
+  // الأولى) تعكس سنة واحدة بس، نفس اللي المستخدم مختارها من تبويبات
+  // "بناء الخطة" فوق، مش كل السنين مخلوطة مع بعض.
   const zoomFilteredYearlyGoals = useMemo(
-    () => yearlyGoals.filter(matchesZoomStatusPriority),
-    [yearlyGoals, zoomFilterStatus, zoomFilterPriority]
+    () => yearlyGoals.filter((g) => (g.targetYear || CURRENT_YEAR) === selectedYear).filter(matchesZoomStatusPriority),
+    [yearlyGoals, selectedYear, zoomFilterStatus, zoomFilterPriority]
   );
 
   const zoomLifeAreaBuckets = useMemo(() => {
@@ -871,18 +933,10 @@ export default function GoalMap({
     return map;
   }, [zoomFilteredYearlyGoals]);
 
-  const zoomYearsInLifeArea = useMemo(() => {
-    if (zoomLifeAreaId == null) return [] as number[];
-    const goals = zoomLifeAreaBuckets.get(zoomLifeAreaId) || [];
-    const set = new Set<number>();
-    for (const g of goals) set.add(g.targetYear || CURRENT_YEAR);
-    return Array.from(set).sort((a, b) => a - b);
-  }, [zoomLifeAreaBuckets, zoomLifeAreaId]);
-
   const zoomYearlyGoals = useMemo(() => {
-    if (zoomLifeAreaId == null || zoomYear == null) return [] as GoalList[];
-    return (zoomLifeAreaBuckets.get(zoomLifeAreaId) || []).filter((g) => (g.targetYear || CURRENT_YEAR) === zoomYear);
-  }, [zoomLifeAreaBuckets, zoomLifeAreaId, zoomYear]);
+    if (zoomLifeAreaId == null) return [] as GoalList[];
+    return zoomLifeAreaBuckets.get(zoomLifeAreaId) || [];
+  }, [zoomLifeAreaBuckets, zoomLifeAreaId]);
 
   // ===== شبكات المستويات التقويمية (المرحلة 9) =====
   // مجموعات الأهداف الشهرية/الأسبوعية/اليومية تحت الهدف/الخانة الحالية،
@@ -938,7 +992,6 @@ export default function GoalMap({
   function zoomResetRoot() {
     sounds.click();
     setZoomLifeAreaId(null);
-    setZoomYear(null);
     setZoomGoalChainIds([]);
     setZoomMonth(null);
     setZoomWeek(null);
@@ -948,16 +1001,6 @@ export default function GoalMap({
   function zoomOpenLifeArea(key: string) {
     sounds.click();
     setZoomLifeAreaId(key);
-    setZoomYear(null);
-    setZoomGoalChainIds([]);
-    setZoomMonth(null);
-    setZoomWeek(null);
-    setZoomDay(null);
-  }
-
-  function zoomOpenYear(y: number) {
-    sounds.click();
-    setZoomYear(y);
     setZoomGoalChainIds([]);
     setZoomMonth(null);
     setZoomWeek(null);
@@ -1302,9 +1345,9 @@ export default function GoalMap({
 
       {/* ===================================================================
           القسم الثاني: خريطة العرض الكاملة — Zoom Navigation. تصفّح حرّ
-          لكل الأهداف بغض النظر عن السنة المختارة فوق في "بناء الخطة"،
-          بترتيب: مجال حياة ← سنة ← هدف سنوي ← شهرية ← أسبوعية ← يومية ←
-          المهمة نفسها (كارت TodoList الكامل، زي الصفحة الرئيسية بالظبط).
+          لكل أهداف *السنة المختارة فوق في "بناء الخطة"* بس (selectedYear)،
+          بترتيب: مجال حياة ← هدف سنوي ← شهرية ← أسبوعية ← يومية ← المهمة
+          نفسها (كارت TodoList الكامل، زي الصفحة الرئيسية بالظبط).
           =================================================================== */}
       {yearlyGoals.length > 0 && (
         <div className="goal-map-section goal-map-tree-section">
@@ -1353,21 +1396,10 @@ export default function GoalMap({
                       </select>
                     </div>
 
-                    <div className="goal-map-zoom-filter-field">
-                      <label>السنة</label>
-                      <select
-                        value={zoomFilterYear}
-                        onChange={(e) => onZoomFilterYearChange(e.target.value)}
-                        disabled={zoomLifeAreaId == null}
-                      >
-                        <option value="all">الكل</option>
-                        {zoomYearsInLifeArea.map((y) => (
-                          <option key={y} value={y} dir="ltr">
-                            {y}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* فلتر "السنة" اتشال من هنا — خريطة العرض الكاملة بقت
+                        بتتبع تبويب السنة فوق في "بناء الخطة" (selectedYear)
+                        تلقائيًا وبس، عشان تفضل السنة مصدر حقيقة واحد في كل
+                        الصفحة، مش قابلة للاختيار مرتين في مكانين مختلفين. */}
 
                     {/* فلاتر "الشهر"/"الأسبوع" اتشالت من هنا بعد المرحلة 9 —
                         بقى في تصفّح تقويمي حقيقي (شهر ← أسبوع ← يوم) جوه
@@ -1422,28 +1454,10 @@ export default function GoalMap({
                 >
                   <DynamicIcon name="home" size={12} /> مجالات الحياة
                 </button>
+                {/* مجال الحياة + السنة سوا في خطوة واحدة — السنة هنا هي
+                    نفسها تبويب "بناء الخطة" فوق (selectedYear)، مفيش خطوة
+                    اختيار سنة منفصلة جوه الخريطة. */}
                 {zoomLifeAreaId != null && (
-                  <span className="zoom-map-crumb-item">
-                    <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
-                    <button
-                      type="button"
-                      className={`zoom-map-crumb ${zoomYear == null ? 'current' : ''}`}
-                      onClick={() => {
-                        sounds.click();
-                        setZoomYear(null);
-                        setZoomGoalChainIds([]);
-                        setZoomMonth(null);
-                        setZoomWeek(null);
-                        setZoomDay(null);
-                      }}
-                      disabled={zoomYear == null}
-                    >
-                      <DynamicIcon name={lifeAreaMeta(zoomLifeAreaId).icon} size={12} />
-                      {lifeAreaMeta(zoomLifeAreaId).title}
-                    </button>
-                  </span>
-                )}
-                {zoomYear != null && (
                   <span className="zoom-map-crumb-item">
                     <DynamicIcon name="chevron-left" size={11} className="zoom-map-crumb-sep" />
                     <button
@@ -1451,9 +1465,10 @@ export default function GoalMap({
                       className={`zoom-map-crumb ${zoomGoalChain.length === 0 ? 'current' : ''}`}
                       onClick={zoomGoToYearLevel}
                       disabled={zoomGoalChain.length === 0}
-                      dir="ltr"
                     >
-                      {zoomYear}
+                      <DynamicIcon name={lifeAreaMeta(zoomLifeAreaId).icon} size={12} />
+                      {lifeAreaMeta(zoomLifeAreaId).title}
+                      <span dir="ltr"> · {selectedYear}</span>
                     </button>
                   </span>
                 )}
@@ -1576,25 +1591,9 @@ export default function GoalMap({
                     };
                   })}
                 />
-              ) : zoomYear == null ? (
-                <ZoomFolderGrid
-                  emptyLabel="لسه مفيش سنوات فيها أهداف في المجال ده."
-                  items={zoomYearsInLifeArea.map((y) => {
-                    const goals = (zoomLifeAreaBuckets.get(zoomLifeAreaId) || []).filter((g) => (g.targetYear || CURRENT_YEAR) === y);
-                    const ratio = goalsDoneRatio(goals);
-                    return {
-                      key: String(y),
-                      title: String(y),
-                      icon: 'calendar-range',
-                      doneCount: ratio.done,
-                      totalCount: ratio.total,
-                      onOpen: () => zoomOpenYear(y),
-                    };
-                  })}
-                />
               ) : zoomGoalChain.length === 0 ? (
                 <ZoomFolderGrid
-                  emptyLabel={`لسه مفيش أهداف سنوية في سنة ${zoomYear} لهذا المجال.`}
+                  emptyLabel={`لسه مفيش أهداف سنوية في سنة ${selectedYear} لهذا المجال.`}
                   items={zoomYearlyGoals.map((g) => {
                     const children = lists.filter((l) => l.parentGoalId === g.id);
                     const ratio = goalsDoneRatio(children);

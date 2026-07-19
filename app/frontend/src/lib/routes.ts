@@ -7,7 +7,7 @@
 
 import type { AdminTab } from '../components/AdminDashboard';
 
-export type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring' | 'player' | 'pomodoro' | 'goalMap';
+export type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring' | 'player' | 'pomodoro' | 'goalMap' | 'prayerTimes';
 
 // نفس فكرة صفحة الأرشيف بتبويباتها، لكن كصفحتين مستقلتين فعليًا لهم مسار
 // خاص بكل واحدة (بدل تبويب داخلي بس) — عشان تبقى كل واحدة قابلة للمشاركة
@@ -27,6 +27,7 @@ export const VIEW_PATHS: Record<ViewName, string> = {
   player: '/player',
   pomodoro: '/pomodoro',
   goalMap: '/goals',
+  prayerTimes: '/prayer-times',
 };
 
 export const PATH_VIEWS: Record<string, ViewName> = Object.fromEntries(

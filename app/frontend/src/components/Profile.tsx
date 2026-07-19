@@ -8,17 +8,25 @@ import {
   changeOwnPassword,
   regenerateOwnRecoveryCode,
   ProfileData,
-  ProfileStats,
 } from '../lib/api';
-import { PRIORITY_MAP, PriorityKey } from '../lib/priority';
 import { toast } from '../lib/toast';
 import { sounds } from '../lib/sounds';
 import { DynamicIcon } from '../lib/icons';
 import BackButton from './BackButton';
 
-const PRIORITY_ORDER: PriorityKey[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'];
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
+
+// تنسيق تاريخ كامل بالتفصيل: السنة والشهر واليوم والساعة والدقيقة.
+function formatFullDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('ar-EG', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export default function Profile({
   onBack,
@@ -36,7 +44,6 @@ export default function Profile({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [stats, setStats] = useState<ProfileStats | null>(null);
 
   // ---- نموذج تعديل الملف الشخصي ----
   const [displayName, setDisplayName] = useState('');
@@ -52,33 +59,6 @@ export default function Profile({
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
-
-  // ---- إعدادات الأصوات ----
-  const [soundsEnabled, setSoundsEnabled] = useState(() => !sounds.isMuted());
-  const [soundVolume, setSoundVolume] = useState(() => sounds.getVolume());
-
-  useEffect(() => {
-    return sounds.subscribe(({ muted, volume }) => {
-      setSoundsEnabled(!muted);
-      setSoundVolume(volume);
-    });
-  }, []);
-
-  function handleToggleSounds() {
-    const enabled = !soundsEnabled;
-    sounds.setMuted(!enabled);
-    if (enabled) sounds.click();
-  }
-
-  function handleVolumeChange(value: number) {
-    sounds.setVolume(value);
-  }
-
-  function handleVolumeCommit(value: number) {
-    // بنسمّع النغمة بس لحظة ما المستخدم يسيب الشريط، مش مع كل حركة صغيرة،
-    // عشان منزعجهوش بسيل من الأصوات وهو لسه بيظبط المستوى.
-    sounds.setVolume(value, { preview: true });
-  }
 
   // ---- توليد كود استرجاع جديد ----
   const [showRegen, setShowRegen] = useState(false);
@@ -98,7 +78,6 @@ export default function Profile({
     try {
       const data = await getProfile();
       setProfile(data.profile);
-      setStats(data.stats);
       setDisplayName(data.profile.displayName || '');
       setBio(data.profile.bio || '');
       setAvatarUrl(data.profile.avatarUrl);
@@ -238,7 +217,7 @@ export default function Profile({
     );
   }
 
-  if (loadError || !profile || !stats) {
+  if (loadError || !profile) {
     return (
       <div className="container view-fade profile-page">
         <div className="top-bar">
@@ -261,7 +240,7 @@ export default function Profile({
   }
 
   const initials = (profile.displayName || profile.username).trim().charAt(0).toUpperCase();
-  const totalPriority = Object.values(stats.priority).reduce((a, b) => a + b, 0);
+  const isDirty = displayName.trim() !== (profile.displayName || '') || bio.trim() !== (profile.bio || '');
 
   return (
     <div className="container view-fade profile-page">
@@ -287,187 +266,109 @@ export default function Profile({
         </div>
       </div>
 
-      <div className="profile-hero">
-        <div className="profile-avatar">
-          {avatarUrl ? (
-            <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
-          ) : (
-            <span aria-hidden="true">{initials}</span>
-          )}
-        </div>
-        <div className="profile-hero-info">
-          <h1>{profile.displayName || profile.username}</h1>
-          <span className="profile-username">@{profile.username}</span>
-          {profile.bio && <p className="profile-bio">{profile.bio}</p>}
-          <div className="profile-badges">
-            {profile.isAdmin && <span className="twofa-badge twofa-on">أدمن</span>}
-            <span className="profile-meta">
-              عضو منذ {new Date(profile.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long' })}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="stats-row profile-stats-row">
-        <div className="stat-card">
-          <span className="stat-card-value">{stats.totalLists}</span>
-          <span className="stat-card-label">إجمالي المهام الرئيسية</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-card-value stat-card-success">{stats.completedLists}</span>
-          <span className="stat-card-label">مكتملة بالكامل</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-card-value">{stats.completionRate}%</span>
-          <span className="stat-card-label">
-            نسبة الإنجاز ({stats.doneItems}/{stats.totalItems})
-          </span>
-        </div>
-      </div>
-
-      {totalPriority > 0 && (
-        <div className="admin-panel profile-section">
-          <h2>توزيع مهامك حسب الأولوية</h2>
-          <div className="priority-bars">
-            {PRIORITY_ORDER.map((p) => {
-              const count = stats.priority[p];
-              const pct = totalPriority > 0 ? Math.round((count / totalPriority) * 100) : 0;
-              const def = PRIORITY_MAP[p];
-              return (
-                <div className="priority-row" key={p}>
-                  <span className="priority-row-label">{def.label}</span>
-                  <div className="priority-row-track">
-                    <div
-                      className="priority-row-fill"
-                      style={{ width: `${Math.max(pct, count > 0 ? 3 : 0)}%`, background: def.color }}
-                    />
-                  </div>
-                  <span className="priority-row-count">
-                    {count} ({pct}%)
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="security-panel profile-section">
-        <h2><DynamicIcon name="volume-high" size={18} /> إعدادات الصوت</h2>
-        <div className="security-status-card">
-          <div className="settings-field checkbox-row sound-toggle-row">
-            <label htmlFor="sounds-enabled-toggle">
-              <input
-                id="sounds-enabled-toggle"
-                type="checkbox"
-                checked={soundsEnabled}
-                onChange={handleToggleSounds}
-              />
-              تفعيل أصوات الموقع
-            </label>
-            <span className="modal-hint sound-toggle-hint">
-              أصوات قصيرة ومريحة لإضافة وحذف وتعديل المهام والتذكيرات والإشعارات
-            </span>
-          </div>
-          <div className="settings-field">
-            <label htmlFor="sounds-volume-slider">
-              مستوى الصوت
-              <span className="sound-volume-value">{soundsEnabled ? `${soundVolume}%` : 'مكتوم'}</span>
-            </label>
-            <input
-              id="sounds-volume-slider"
-              type="range"
-              className="sound-volume-slider"
-              min={0}
-              max={100}
-              step={5}
-              value={soundVolume}
-              disabled={!soundsEnabled}
-              onChange={(e) => handleVolumeChange(Number(e.target.value))}
-              onMouseUp={(e) => handleVolumeCommit(Number((e.target as HTMLInputElement).value))}
-              onTouchEnd={(e) => handleVolumeCommit(Number((e.target as HTMLInputElement).value))}
-              onKeyUp={(e) => handleVolumeCommit(Number((e.target as HTMLInputElement).value))}
-              aria-label="مستوى صوت الموقع"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="security-panel profile-section">
-        <h2><DynamicIcon name="pencil" size={18} /> تعديل الملف الشخصي</h2>
-        <div className="security-status-card">
-          <div className="settings-field">
-            <label>اسم العرض (اختياري)</label>
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={profile.username}
-              maxLength={40}
-            />
-          </div>
-          <div className="settings-field">
-            <label>نبذة مختصرة (اختياري)</label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="اكتب سطر بسيط عن نفسك..."
-              maxLength={160}
-              rows={2}
-            />
-          </div>
-          <div className="settings-field">
-            <label>صورة الأفتار</label>
-            <div className="avatar-edit-wrap">
-              <div className={`avatar-upload-preview ${uploadingAvatar ? 'is-loading' : ''}`}>
-                {avatarUrl ? (
-                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
-                ) : (
-                  <span aria-hidden="true">{initials}</span>
-                )}
-                {uploadingAvatar && <span className="avatar-upload-spinner" aria-hidden="true" />}
-              </div>
+      {/* ===== 1. معلومات المستخدم ===== */}
+      <div className="profile-identity-card profile-section">
+        <div className="profile-identity-top">
+          <div className="profile-avatar-wrap">
+            <div className={`profile-avatar-circle ${uploadingAvatar ? 'is-loading' : ''}`}>
+              {avatarUrl ? (
+                <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+              ) : (
+                <span aria-hidden="true">{initials}</span>
+              )}
+              {uploadingAvatar && <span className="avatar-upload-spinner" aria-hidden="true" />}
+            </div>
+            <div className="profile-avatar-actions">
               <button
                 type="button"
-                className="avatar-edit-icon-btn avatar-edit-icon-btn-primary"
+                className="profile-avatar-btn profile-avatar-btn-edit"
                 onClick={() => avatarInputRef.current?.click()}
                 disabled={uploadingAvatar}
                 title={avatarUrl ? 'تغيير الصورة' : 'رفع صورة'}
                 aria-label={avatarUrl ? 'تغيير الصورة' : 'رفع صورة'}
               >
-                <DynamicIcon name="pencil" size={14} />
+                <DynamicIcon name="pencil" size={13} />
               </button>
               {avatarUrl && (
                 <button
                   type="button"
-                  className="avatar-edit-icon-btn avatar-edit-icon-btn-danger"
+                  className="profile-avatar-btn profile-avatar-btn-remove"
                   onClick={handleRemoveAvatar}
                   disabled={uploadingAvatar}
                   title="حذف الصورة"
                   aria-label="حذف الصورة"
                 >
-                  <DynamicIcon name="trash" size={14} />
+                  <DynamicIcon name="trash" size={13} />
                 </button>
               )}
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                onChange={handleAvatarSelect}
-                hidden
-              />
             </div>
-            <p className="modal-hint">JPG أو PNG أو WEBP أو GIF — أقل من 3 ميجابايت</p>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={handleAvatarSelect}
+              hidden
+            />
           </div>
-          <div className="modal-actions">
+
+          <div className="profile-identity-fields">
+            <input
+              className="profile-name-input"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder={profile.username}
+              maxLength={40}
+              aria-label="اسم العرض"
+            />
+            <div className="profile-username-row">
+              <span className="profile-username-badge">@{profile.username}</span>
+              {profile.isAdmin && <span className="twofa-badge twofa-on">أدمن</span>}
+            </div>
+          </div>
+        </div>
+
+        <textarea
+          className="profile-bio-input"
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="اكتب سطر بسيط عن نفسك..."
+          maxLength={160}
+          rows={2}
+          aria-label="نبذة مختصرة"
+        />
+
+        <div className="profile-meta-chips">
+          <span className="profile-meta-chip">
+            <DynamicIcon name="calendar-days" size={13} /> عضو منذ {formatFullDateTime(profile.createdAt)}
+          </span>
+          {profile.lastLoginAt && (
+            <span className="profile-meta-chip">
+              <DynamicIcon name="history" size={13} /> آخر دخول {formatFullDateTime(profile.lastLoginAt)}
+            </span>
+          )}
+        </div>
+
+        {isDirty && (
+          <div className="profile-save-row">
             <button onClick={handleSaveProfile} disabled={savingProfile} type="button">
               {savingProfile ? 'جاري الحفظ...' : 'حفظ التغييرات'}
             </button>
           </div>
-        </div>
+        )}
+        <p className="modal-hint" style={{ marginTop: 10 }}>
+          JPG أو PNG أو WEBP أو GIF — أقل من 3 ميجابايت
+        </p>
       </div>
 
-      <div className="security-panel profile-section">
-        <h2><DynamicIcon name="lock" size={18} /> كلمة المرور</h2>
+      {/* ===== 2. كلمة المرور والأمان ===== */}
+      <div className="profile-security-card profile-section">
+        <h2>
+          <DynamicIcon name="shield-check" size={18} /> كلمة المرور والأمان
+        </h2>
+
+        <h3>
+          <DynamicIcon name="lock" size={16} /> تغيير كلمة المرور
+        </h3>
         <div className="security-status-card">
           <input
             type="password"
@@ -499,10 +400,10 @@ export default function Profile({
             </button>
           </div>
         </div>
-      </div>
 
-      <div className="security-panel profile-section">
-        <h2><DynamicIcon name="key" size={18} /> كود الاسترجاع</h2>
+        <h3>
+          <DynamicIcon name="key" size={16} /> كود الاسترجاع
+        </h3>
         <p className="modal-text">
           لو نسيت كلمة المرور، بتسترجع حسابك بكود الاسترجاع بدل الإيميل. لو حاسس إن الكود ضاع منك أو حد ممكن يكون
           شافه، تقدر تولّد كود جديد يحل محله فورًا.

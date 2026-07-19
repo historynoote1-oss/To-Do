@@ -38,6 +38,10 @@ interface MusicPlayerContextValue {
   sleepRemainingSeconds: number | null;
   playTrack: (track: YoutubeTrack) => void;
   togglePlayPause: () => void;
+  // بيوقف التشغيل لو شغّال حاليًا بس (من غير ما "يبدّل" الحالة زي togglePlayPause) —
+  // مخصّصة لأي مقاطعة خارجية لازم توقف الصوت (مثلاً الأذان التلقائي)، عشان منعملش
+  // "تشغيل" بالغلط لو كان أصلًا متوقف.
+  pauseForInterruption: () => void;
   toggleLoop: () => void;
   seekToRatio: (ratio: number) => void;
   skip: (deltaSeconds: number) => void;
@@ -368,6 +372,14 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [currentTrack]);
 
+  const pauseForInterruption = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || !currentTrack) return;
+    if (typeof player.getPlayerState === 'function' && player.getPlayerState() === window.YT?.PlayerState?.PLAYING) {
+      player.pauseVideo();
+    }
+  }, [currentTrack]);
+
   const toggleLoop = useCallback(() => setLooping((prev) => !prev), []);
 
   const seekToRatio = useCallback(
@@ -487,6 +499,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         sleepRemainingSeconds,
         playTrack,
         togglePlayPause,
+        pauseForInterruption,
         toggleLoop,
         seekToRatio,
         skip,
