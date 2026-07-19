@@ -24,7 +24,7 @@ import BackButton from './BackButton';
 import ConfirmModal from './ConfirmModal';
 import { DynamicIcon } from '../lib/icons';
 import { sounds } from '../lib/sounds';
-import { CategoryKey, CHILD_CATEGORY_OF, categoryOf, MONTH_NAMES, WEEK_LABELS, DAY_OF_WEEK_NAMES } from '../lib/category';
+import { CategoryKey, categoryOf, MONTH_NAMES, WEEK_LABELS, DAY_OF_WEEK_NAMES } from '../lib/category';
 import { LifeAreaData, hexToSoftBg } from '../lib/lifeArea';
 import type { NewTaskPayload } from './AddTaskModal';
 import type { GoalOption, TrashedYear } from '../lib/api';
@@ -80,16 +80,8 @@ function clampToFutureYear(y: number) {
   return Math.max(CURRENT_YEAR, Math.min(MAX_YEAR, y));
 }
 
-// تسميات عربية صحيحة نحويًا حسب السياق — "هدف شهري" (نكرة مفرد، لزرار
-// "+ جديد")، "أهداف شهرية" (نكرة جمع، لجمل زي "لسه مفيش...")، "الأهداف
-// الشهرية" (معرفة جمع، لعناوين الأقسام والتبويبات).
-const SINGULAR_INDEFINITE_LABEL: Record<CategoryKey, string> = {
-  YEARLY: 'هدف سنوي',
-  MONTHLY: 'هدف شهري',
-  WEEKLY: 'هدف أسبوعي',
-  DAILY: 'هدف يومي',
-};
-
+// تسمية "أهداف شهرية" (نكرة جمع) — بتُستخدم في قائمة اختيار المستوى بعد
+// زرار "إضافة مهام / أهداف".
 function pluralIndefinite(level: CategoryKey): string {
   return `أهداف ${categoryOf(level)!.label}`;
 }
@@ -212,67 +204,6 @@ function ZoomFolderGrid({
           </button>
         );
       })}
-    </div>
-  );
-}
-
-// كارت هدف واحد في "بناء الخطة" (العرض المسطّح): نفس كارت TodoList
-// المعتاد + شريط سفلي مخصوص هنا بيعرض عدد الأهداف الفرعية المباشرة
-// وزرار "استعراض" ينقّل المستخدم للمستوى اللي تحته وهو واقف على نفس الهدف
-// ده كأب (breadcrumb بيتابعه تلقائيًا لأنه بيتحسب من `focusGoalId`).
-function LevelGoalCard({
-  goal,
-  childCount,
-  childDef,
-  onDrillIn,
-  lifeAreas,
-  onChange,
-  onDeleteList,
-  onManageLifeAreas,
-  onCreateSubGoal,
-  onGoToParent,
-  highlighted,
-}: {
-  goal: GoalList;
-  childCount: number;
-  childDef: ReturnType<typeof categoryOf>;
-  onDrillIn: (goal: GoalList) => void;
-  lifeAreas: LifeAreaData[];
-  onChange: () => void;
-  onDeleteList: (id: string) => void;
-  onManageLifeAreas: () => void;
-  onCreateSubGoal: (data: NewTaskPayload) => Promise<void> | void;
-  onGoToParent: (parent: { id: string; category: string | null; targetYear?: number | null }) => void;
-  highlighted?: boolean;
-}) {
-  return (
-    <div className="level-goal-card">
-      <TodoList
-        list={goal}
-        onChange={onChange}
-        onDeleteList={onDeleteList}
-        lifeAreas={lifeAreas}
-        onManageLifeAreas={onManageLifeAreas}
-        onCreateSubGoal={onCreateSubGoal}
-        onGoToParent={onGoToParent}
-        highlighted={highlighted}
-        compact
-      />
-      {childDef && (
-        <button type="button" className="level-goal-card-drill" onClick={() => onDrillIn(goal)}>
-          <span className="level-goal-card-drill-text">
-            {childCount > 0 ? (
-              <>
-                استعراض الأهداف ال{childDef.label}
-                <span className="level-goal-card-drill-count">{childCount}</span>
-              </>
-            ) : (
-              <>ابدأ إضافة أهداف {childDef.label} تحت الهدف ده</>
-            )}
-          </span>
-          <DynamicIcon name="chevron-left" size={15} />
-        </button>
-      )}
     </div>
   );
 }
@@ -418,19 +349,6 @@ export default function GoalMap({
     [yearlyGoals, selectedYear]
   );
 
-  // ===== تبويبات "بناء الخطة": مستوى حالي (سنوي/شهري/أسبوعي/يومي) + هدف
-  // "مُركَّز عليه" (focus) بنستعرض أهداف فرعية بتاعته بس. لما مفيش focus،
-  // بنعرض كل أهداف المستوى ده في السنة كلها مجمّعة. =====
-  const [activeLevel, setActiveLevel] = useState<CategoryKey>('YEARLY');
-  const [focusGoalId, setFocusGoalId] = useState<string | null>(null);
-
-  // لما المستخدم يغيّر السنة، نرجّع نبدأ من الأول (المستوى السنوي، بدون
-  // تركيز) — أوضح للعقل من إنه يفضل واقف في مكان عميق من سنة مختلفة.
-  useEffect(() => {
-    setActiveLevel('YEARLY');
-    setFocusGoalId(null);
-  }, [selectedYear]);
-
   // كل أهداف السنة المختارة مجمّعة حسب المستوى (سنوي/شهري/أسبوعي/يومي) —
   // بنبنيها بمشي طبقة طبقة من الأهداف السنوية لتحت (BFS)، عشان نقدر نحسب
   // عدد كل مستوى في هيدر التبويب من غير ما نحتاج طلب سيرفر إضافي.
@@ -473,34 +391,6 @@ export default function GoalMap({
     return { total, done, overdue, percent };
   }, [yearGoalsByLevel]);
 
-  const focusGoal = useMemo(
-    () => (focusGoalId ? lists.find((l) => l.id === focusGoalId) || null : null),
-    [lists, focusGoalId]
-  );
-
-  // مسار البريدكرمب: من الهدف السنوي الجد لحد الهدف المُركَّز عليه حاليًا،
-  // متبني بالصعود من focusGoal عبر parentGoalId لحد ما نوصل لهدف مالوش أب.
-  const breadcrumbChain = useMemo(() => {
-    if (!focusGoal) return [] as GoalList[];
-    const chain: GoalList[] = [focusGoal];
-    let current: GoalList = focusGoal;
-    while (current.parentGoalId) {
-      const parent = lists.find((l) => l.id === current.parentGoalId);
-      if (!parent) break;
-      chain.unshift(parent);
-      current = parent;
-    }
-    return chain;
-  }, [focusGoal, lists]);
-
-  // الأهداف المعروضة فعليًا في المستوى الحالي: لو في تركيز على هدف معيّن،
-  // بس أبناؤه المباشرين؛ غير كده كل أهداف المستوى ده في السنة كلها.
-  const levelItems = useMemo(() => {
-    if (activeLevel === 'YEARLY') return yearGoalsForSelected;
-    if (focusGoal) return lists.filter((l) => l.parentGoalId === focusGoal.id);
-    return yearGoalsByLevel[activeLevel];
-  }, [activeLevel, focusGoal, lists, yearGoalsForSelected, yearGoalsByLevel]);
-
   function selectYear(y: number) {
     sounds.click();
     setSelectedYear(y);
@@ -533,102 +423,106 @@ export default function GoalMap({
     // قسم "بناء الخطة" تحت، مش لحظة إنشاء السنة نفسها.
   }
 
-  function selectLevel(level: CategoryKey) {
-    sounds.click();
-    setActiveLevel(level);
-    setFocusGoalId(null);
-  }
-
-  function drillInto(goal: GoalList) {
-    const childCategory = goal.category ? CHILD_CATEGORY_OF[goal.category as CategoryKey] : null;
-    if (!childCategory) return;
-    sounds.click();
-    setActiveLevel(childCategory);
-    setFocusGoalId(goal.id);
-  }
-
-  function goToBreadcrumb(goal: GoalList) {
-    const childCategory = goal.category ? CHILD_CATEGORY_OF[goal.category as CategoryKey] : null;
-    if (!childCategory) return;
-    sounds.click();
-    setActiveLevel(childCategory);
-    setFocusGoalId(goal.id);
-  }
-
-  function clearFocus() {
-    sounds.click();
-    setFocusGoalId(null);
-  }
-
-  // ===== نافذة إضافة هدف من هيدر القسم (مش من جوه كارت هدف موجود) =====
-  // بتتفتح بإعداد مختلف حسب المكان اللي المستخدم واقف فيه:
-  // - في تبويب "سنوية": تصنيف سنوي + السنة المختارة جاهزين.
-  // - في تبويب تاني وفيه تركيز على هدف: الهدف الأب جاهز ومربوط تلقائيًا.
-  // - في تبويب تاني بدون تركيز: بس التصنيف جاهز، والمستخدم يختار الهدف
-  //   الأب بنفسه من خطوة "الهدف الأب" في الويزارد (زي ما هي أصلًا).
+  // ===== قسم "بناء الخطة" بقى بس زرار واحد: "إضافة مهام / أهداف" =====
+  // الضغط عليه بيفتح قائمة اختيار المستوى الأربعة (سنوي/شهري/أسبوعي/يومي)،
+  // وكل مستوى بيفتح نافذة الإنشاء الكاملة (نفس الويزارد باحترافيته وكل
+  // خطواته: العنوان، المهام الفرعية، الأولوية، خانة التقويم، الهدف الأب،
+  // مجال الحياة، التوقيت، التذكيرات...) — الويزارد نفسه هو اللي بيضمن
+  // ربط الهدف بالمستوى اللي فوقه صح (خطوة "الهدف الأب" بتفلتر الخيارات
+  // حسب المستوى المطلوب تلقائيًا، شوف AddTaskModal + lib/category.ts).
+  const [addLevelPickerOpen, setAddLevelPickerOpen] = useState(false);
   const [addModal, setAddModal] = useState<{ open: boolean; category: CategoryKey | null; parent: GoalOption | null }>(
     { open: false, category: null, parent: null }
   );
 
-  function openSectionAdd() {
+  function openAddLevelPicker() {
     sounds.click();
-    if (activeLevel === 'YEARLY') {
-      setAddModal({ open: true, category: 'YEARLY', parent: null });
-      return;
-    }
-    if (focusGoal) {
-      setAddModal({
-        open: true,
-        category: null,
-        parent: {
-          id: focusGoal.id,
-          title: focusGoal.title,
-          category: focusGoal.category ?? null,
-          targetYear: focusGoal.targetYear ?? null,
-        },
-      });
-      return;
-    }
-    setAddModal({ open: true, category: activeLevel, parent: null });
+    setAddLevelPickerOpen(true);
   }
 
-  // ===== أيقونة الترابط في الكارت المبسّط: تنقّل فعلي للهدف الأب =====
-  // بتتنادى لما المستخدم يضغط "افتح" جوه popover أيقونة الترابط في كارت
-  // مبسّط (TodoList compact). بتنقّل التبويب النشط لمستوى الهدف الأب،
-  // وتحطّ التركيز (focus) على *جد* الهدف الأب (أبو أبوه) عشان الهدف الأب
-  // نفسه يبان في قائمة إخوته بدل ما يتفتح على أبنائه — يعني "شوف الهدف
-  // ده مكانه فين" مش "ادخل جواه". وبعدين بنعمل تمييز بصري مؤقت + سكرول
-  // للكارت بتاعه عشان يبان واضح وسط باقي الكروت.
-  const [highlightedGoalId, setHighlightedGoalId] = useState<string | null>(null);
-  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function goToParentGoal(parent: { id: string; category: string | null; targetYear?: number | null }) {
+  function openAddForLevel(level: CategoryKey) {
     sounds.click();
-    setPlanBuilderOpen(true);
-    if (parent.category === 'YEARLY') {
-      setActiveLevel('YEARLY');
-      setFocusGoalId(null);
-    } else if (parent.category) {
-      const full = lists.find((l) => l.id === parent.id);
-      setActiveLevel(parent.category as CategoryKey);
-      setFocusGoalId(full?.parentGoalId ?? null);
+    setAddLevelPickerOpen(false);
+    // الهدف الأب مش محدد مقدّمًا هنا عمدًا (إلا للسنوي اللي مالوش أب أصلًا)
+    // — خطوة "الهدف الأب" جوه الويزارد هي اللي هتخلي المستخدم يختاره بنفسه
+    // من قائمة مفلترة صح حسب المستوى، فمفيش لغبطة أو ربط غلط.
+    setAddModal({ open: true, category: level, parent: null });
+  }
+
+  // ===== بعد ما يتضاف هدف: قفزة تلقائية لمكانه الصح في "خريطة العرض
+  // الكاملة" حسب البيانات اللي المستخدم دخّلها بالظبط (مش رجوع لمكان
+  // عشوائي) =====
+  // بنستخدم نفس بيانات الفورم (parentGoalId + الخانة الزمنية) عشان نبني
+  // سلسلة الآباء (سنوي ← شهري ← أسبوعي) من `lists` الموجودة أصلًا (كلهم
+  // اتضافوا قبل كده، فمعرّفاتهم موجودة)، من غير ما نحتاج id الهدف الجديد
+  // نفسه — بنفتح على "حاوية" الهدف الجديد (الخانة التقويمية اللي اتحط
+  // فيها) مش جوّاه، عشان يبان مع بقية إخوته في نفس المكان.
+  function placementForCreatedGoal(data: NewTaskPayload) {
+    const category = data.category as CategoryKey;
+    if (category === 'YEARLY') {
+      return {
+        lifeAreaId: data.lifeAreaId || 'none',
+        year: data.targetYear ?? CURRENT_YEAR,
+        chainIds: [] as string[],
+        month: null as number | null,
+        week: null as number | null,
+        day: null as number | null,
+      };
     }
-    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-    setHighlightedGoalId(parent.id);
-    highlightTimerRef.current = setTimeout(() => setHighlightedGoalId(null), 2200);
-    // بنستنى فريم عشان القائمة الجديدة تترندر الأول قبل ما نحاول نلاقي الكارت.
+    if (!data.parentGoalId) return null;
+    const immediateParent = lists.find((l) => l.id === data.parentGoalId);
+    if (!immediateParent) return null;
+    const chain: GoalList[] = [];
+    let current: GoalList | undefined = immediateParent;
+    while (current) {
+      chain.unshift(current);
+      current = current.parentGoalId ? lists.find((l) => l.id === current!.parentGoalId) : undefined;
+    }
+    const yearlyAncestor = chain[0];
+    let month: number | null = null;
+    let week: number | null = null;
+    for (const g of chain) {
+      if (g.category === 'MONTHLY' && g.targetMonth) month = g.targetMonth;
+      if (g.category === 'WEEKLY' && g.targetWeek) week = g.targetWeek;
+    }
+    if (category === 'MONTHLY') month = data.targetMonth ?? month;
+    if (category === 'WEEKLY') week = data.targetWeek ?? week;
+    const day = category === 'DAILY' ? data.targetDayOfWeek ?? null : null;
+    return {
+      lifeAreaId: yearlyAncestor.lifeAreaId || 'none',
+      year: yearlyAncestor.targetYear ?? CURRENT_YEAR,
+      chainIds: chain.map((g) => g.id),
+      month,
+      week,
+      day,
+    };
+  }
+
+  function navigateToPlacement(placement: NonNullable<ReturnType<typeof placementForCreatedGoal>>) {
+    setZoomFilterLifeArea('all');
+    setZoomFilterYear('all');
+    setZoomFilterStatus('all');
+    setZoomFilterPriority('all');
+    setZoomFilterOpen(false);
+    setZoomLifeAreaId(placement.lifeAreaId);
+    setZoomYear(placement.year);
+    setZoomGoalChainIds(placement.chainIds);
+    setZoomMonth(placement.month);
+    setZoomWeek(placement.week);
+    setZoomDay(placement.day);
+    setTreeOpen(true);
     window.setTimeout(() => {
-      document.getElementById(`list-${parent.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 60);
+      document.querySelector('.goal-map-tree-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
   }
 
-  // ===== طيّ/فتح قسم "بناء الخطة" بالكامل (تبويبات + بريدكرمب + محتوى) =====
-  // ===== حالة فتح/طي القسمين الرئيسيين =====
-  // "بناء الخطة" هو المسار الأساسي للتعديل السريع، فبيفضل مفتوح افتراضيًا.
-  // "خريطة العرض الكاملة" أثقل بكتير (بريدكرمب + فلاتر + شبكات متداخلة)
-  // وبتكرر جزء كبير من نفس المعلومات، فبتفضل مقفولة افتراضيًا عشان الصفحة
-  // متبقاش مزدحمة من أول لحظة — المستخدم بيفتحها بنفسه لما يحتاج يتصفّح
-  // بالتقويم الكامل (تحسين UX من مراجعة التصميم).
+  async function handleCreateAndNavigate(data: NewTaskPayload) {
+    await onCreateGoal(data);
+    const placement = placementForCreatedGoal(data);
+    if (placement) navigateToPlacement(placement);
+  }
+
+  // "بناء الخطة" هو المدخل السريع لإضافة أهداف/مهام؛ فبيفضل مفتوح افتراضيًا.
   const [planBuilderOpen, setPlanBuilderOpen] = useState(true);
 
   // ===== قسم "خريطة العرض الكاملة" (Zoom Navigation) — قابل للطي/الفتح. =====
@@ -900,9 +794,6 @@ export default function GoalMap({
   const yearTotalGoals =
     yearGoalsByLevel.YEARLY.length + yearGoalsByLevel.MONTHLY.length + yearGoalsByLevel.WEEKLY.length + yearGoalsByLevel.DAILY.length;
 
-  const activeLevelDef = categoryOf(activeLevel)!;
-  const activeChildCategory = CHILD_CATEGORY_OF[activeLevel] || null;
-
   return (
     <div className="container view-fade profile-page goal-map-page">
       <div className="top-bar">
@@ -1087,131 +978,96 @@ export default function GoalMap({
       )}
 
       {/* ===================================================================
-          القسم الأول: بناء الخطة — تبويبات مستوى مسطّحة وسهلة التنقل.
-          قابل للطي/الفتح بالكامل (تبويبات + بريدكرمب + محتوى المستوى).
+          القسم الأول: بناء الخطة — بقى بس زرار واحد "إضافة مهام / أهداف".
+          الضغط عليه بيفتح اختيار المستوى (سنوي/شهري/أسبوعي/يومي)، وبعد
+          الإضافة بننقّل المستخدم تلقائيًا لمكان الهدف الصح في "خريطة
+          العرض الكاملة" تحت — مفيش قائمة مسطّحة هنا خالص دلوقتي.
           =================================================================== */}
       <div className="goal-map-section">
-        <button
-          type="button"
-          className="goal-map-section-title goal-map-section-toggle"
-          onClick={() => {
-            sounds.click();
-            setPlanBuilderOpen((v) => !v);
-          }}
-          aria-expanded={planBuilderOpen}
-        >
-          <DynamicIcon name="target" size={16} />
-          <span className="goal-map-section-toggle-label">
-            بناء الخطة
-            <span className="goal-map-section-title-year" dir="ltr">{selectedYear}</span>
-          </span>
-          <DynamicIcon name="chevron-down" size={15} className={`goal-map-section-chevron ${planBuilderOpen ? 'expanded' : ''}`} />
-        </button>
+        <div className="goal-map-section-header-row">
+          <button
+            type="button"
+            className="goal-map-section-title goal-map-section-toggle"
+            onClick={() => {
+              sounds.click();
+              setPlanBuilderOpen((v) => !v);
+            }}
+            aria-expanded={planBuilderOpen}
+          >
+            <DynamicIcon name="target" size={16} />
+            <span className="goal-map-section-toggle-label">
+              بناء الخطة
+              <span className="goal-map-section-title-year" dir="ltr">{selectedYear}</span>
+            </span>
+            <DynamicIcon name="chevron-down" size={15} className={`goal-map-section-chevron ${planBuilderOpen ? 'expanded' : ''}`} />
+          </button>
+        </div>
 
         {planBuilderOpen && (
-          <>
-            {/* تبويبات المستوى الأربعة */}
-            <div className="level-tab-bar" role="tablist" aria-label="اختيار مستوى الأهداف">
-              {LEVELS.map((level) => {
-                const def = categoryOf(level)!;
-                const count = yearGoalsByLevel[level].length;
-                const disabled = level !== 'YEARLY' && yearGoalsByLevel.YEARLY.length === 0;
-                const active = activeLevel === level;
-                return (
-                  <button
-                    key={level}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    disabled={disabled}
-                    className={`level-tab ${active ? 'active' : ''}`}
-                    style={active ? { ['--level-color' as any]: def.color, ['--level-bg' as any]: def.bg } : undefined}
-                    onClick={() => selectLevel(level)}
-                    title={disabled ? 'لازم يكون فيه هدف سنوي الأول' : `الأهداف ال${def.label}`}
-                  >
-                    <DynamicIcon name={def.icon} size={14} />
-                    <span>الأهداف ال{def.label}</span>
-                    {count > 0 && <span className="level-tab-count">{count}</span>}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="goal-map-add-launcher">
+            <button type="button" className="goal-map-add-launcher-btn" onClick={openAddLevelPicker}>
+              <DynamicIcon name="plus" size={18} />
+              إضافة مهام / أهداف
+            </button>
+            <p className="goal-map-add-launcher-hint">
+              اختار المستوى، واملأ بيانات الهدف بالتفصيل عشان يترتبط صح بالمكان المناسب له في خريطة العرض الكاملة تحت.
+            </p>
 
-            {/* بريدكرمب المسار الحالي، بيبان بس لو فيه تركيز على هدف معيّن */}
-            {breadcrumbChain.length > 0 && (
-              <div className="level-breadcrumb" aria-label="مسار التنقل الحالي">
-                <button type="button" className="level-breadcrumb-crumb level-breadcrumb-root" onClick={clearFocus}>
-                  <DynamicIcon name="calendar-range" size={12} />
-                  <span dir="ltr">{selectedYear}</span>
-                </button>
-                {breadcrumbChain.map((goal) => (
-                  <span key={goal.id} className="level-breadcrumb-item">
-                    <DynamicIcon name="chevron-left" size={11} className="level-breadcrumb-sep" />
+            {addLevelPickerOpen && (
+              <div
+                className="goal-map-level-picker-overlay"
+                role="dialog"
+                aria-label="اختيار مستوى الهدف"
+                onClick={() => {
+                  sounds.click();
+                  setAddLevelPickerOpen(false);
+                }}
+              >
+                <div className="goal-map-level-picker" onClick={(e) => e.stopPropagation()}>
+                  <div className="goal-map-level-picker-head">
+                    <strong>هتضيف هدف من أي مستوى؟</strong>
                     <button
                       type="button"
-                      className={`level-breadcrumb-crumb ${goal.id === focusGoalId ? 'current' : ''}`}
-                      onClick={() => goToBreadcrumb(goal)}
-                      disabled={goal.id === focusGoalId}
-                      title={goal.title}
+                      className="icon-btn"
+                      aria-label="إغلاق"
+                      onClick={() => {
+                        sounds.click();
+                        setAddLevelPickerOpen(false);
+                      }}
                     >
-                      {goal.title}
+                      <DynamicIcon name="x" size={16} />
                     </button>
-                  </span>
-                ))}
+                  </div>
+                  <div className="goal-map-level-picker-list">
+                    {LEVELS.map((level) => {
+                      const def = categoryOf(level)!;
+                      const disabled = level !== 'YEARLY' && yearGoalsByLevel.YEARLY.length === 0;
+                      return (
+                        <button
+                          key={level}
+                          type="button"
+                          className="goal-map-level-picker-option"
+                          style={{ ['--level-color' as any]: def.color, ['--level-bg' as any]: def.bg } as any}
+                          disabled={disabled}
+                          onClick={() => openAddForLevel(level)}
+                          title={disabled ? 'لازم يكون فيه هدف سنوي الأول' : undefined}
+                        >
+                          <span className="goal-map-level-picker-option-icon">
+                            <DynamicIcon name={def.icon} size={18} />
+                          </span>
+                          <span className="goal-map-level-picker-option-text">
+                            <strong>إضافة {pluralIndefinite(level)}</strong>
+                            <span>{def.hint}</span>
+                          </span>
+                          <DynamicIcon name="chevron-left" size={15} className="goal-map-level-picker-option-chevron" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
-
-            {/* محتوى المستوى: حاوية عرض واحدة بسيطة — إما قائمة الكروت أو
-                رسالة الحالة الفاضية، وتحتها زرار إضافة واحد بس (مفيش تكرار). */}
-            <div className="level-content-box">
-              {levelItems.length === 0 ? (
-                <div className="goal-map-empty level-empty">
-                  <DynamicIcon
-                    name={activeLevel === 'YEARLY' ? 'flag' : (activeLevelDef.icon as any)}
-                    size={28}
-                    className="empty-icon"
-                  />
-                  <p>
-                    {activeLevel === 'YEARLY'
-                      ? `ابدأ بتحديد أهم حاجة عايز تحققها في سنة ${selectedYear}، وبعدين هنساعدك تقسمها لخطوات شهرية وأسبوعية ويومية واضحة.`
-                      : focusGoal
-                        ? `لسه مفيش ${pluralIndefinite(activeLevel)} تحت "${focusGoal.title}" — ابدأ بإضافة أول واحد.`
-                        : yearGoalsByLevel.YEARLY.length === 0
-                          ? 'لازم تضيف هدف سنوي الأول قبل ما تقدر تضيف أهداف تحته.'
-                          : `لسه مفيش ${pluralIndefinite(activeLevel)} في سنة ${selectedYear} — تقدر تضيفه من هنا وتختار الهدف الأب بنفسك.`}
-                  </p>
-                </div>
-              ) : (
-                <div className="level-goal-grid">
-                  {levelItems.map((goal) => (
-                    <LevelGoalCard
-                      key={goal.id}
-                      goal={goal}
-                      childCount={lists.filter((l) => l.parentGoalId === goal.id).length}
-                      childDef={activeChildCategory ? categoryOf(activeChildCategory) : null}
-                      onDrillIn={drillInto}
-                      lifeAreas={lifeAreas}
-                      onChange={onChange}
-                      onDeleteList={onDeleteList}
-                      onManageLifeAreas={onManageLifeAreas}
-                      onCreateSubGoal={onCreateGoal}
-                      onGoToParent={goToParentGoal}
-                      highlighted={goal.id === highlightedGoalId}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              className="level-content-add-btn-bottom"
-              onClick={openSectionAdd}
-              disabled={activeLevel !== 'YEARLY' && yearGoalsByLevel.YEARLY.length === 0}
-            >
-              <DynamicIcon name="plus" size={15} /> {SINGULAR_INDEFINITE_LABEL[activeLevel]} جديد
-            </button>
-          </>
+          </div>
         )}
       </div>
 
@@ -1667,7 +1523,7 @@ export default function GoalMap({
                     onDeleteList={onDeleteList}
                     lifeAreas={lifeAreas}
                     onManageLifeAreas={onManageLifeAreas}
-                    onCreateSubGoal={onCreateGoal}
+                    onCreateSubGoal={handleCreateAndNavigate}
                   />
                 </div>
               )}
@@ -1685,7 +1541,7 @@ export default function GoalMap({
             setAddModal((m) => ({ ...m, open: false }));
             onManageLifeAreas();
           }}
-          onCreate={onCreateGoal}
+          onCreate={handleCreateAndNavigate}
           onLifeAreaCreated={onLifeAreaCreated}
           presetCategory={addModal.category}
           presetTargetYear={addModal.category === 'YEARLY' ? selectedYear : null}
