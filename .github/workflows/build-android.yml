@@ -45,6 +45,7 @@ jobs:
       - name: Patch Android SDK & Gradle Plugin versions
         working-directory: frontend
         run: |
+          sed -i -E "s/minSdkVersion = [0-9]+/minSdkVersion = 24/" android/variables.gradle
           sed -i -E "s/compileSdkVersion = [0-9]+/compileSdkVersion = 36/" android/variables.gradle
           sed -i -E "s/targetSdkVersion = [0-9]+/targetSdkVersion = 36/" android/variables.gradle
           sed -i -E "s/com\.android\.tools\.build:gradle:[0-9.]+/com.android.tools.build:gradle:8.9.1/" android/build.gradle
