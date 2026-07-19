@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
+import { requireAccountPassword } from '../middleware/requireAccountPassword';
 import { syncListArchiveState } from '../lib/archive';
 import { resolveActivityDay } from '../lib/localDate';
+import { collectGoalAndDescendantIds } from '../lib/goalCascade';
 
 const router = Router();
 
@@ -484,6 +486,28 @@ router.patch('/:id', async (req: AuthRequest, res) => {
     },
   });
   res.json(updated);
+});
+
+// ===== حذف هدف بكل تبعياته (خريطة العرض الكاملة) =====
+// حذف نهائي فوري (مش سلة محذوفات) لهدف معيّن مع كل الأهداف الفرعية
+// التابعة له على كل المستويات (شوف lib/goalCascade.ts). محمي بـ
+// requireAccountPassword — لازم المستخدم يكتب كلمة مرور حسابه هو في كل
+// مرة عشان ميحصلش حذف جماعي بالغلط أو من جهاز مسروق وهو لسه داخل بحساب
+// شغال. الحذف الفعلي بيعتمد على الـ Cascade الموجودة أصلًا في السكيمة
+// (TodoItem/Reminder مرتبطين بـ onDelete: Cascade)، فحذف الأهداف كافي
+// عشان كل محتواها (مهام فرعية، تذكيرات...) يتحذف معاها تلقائيًا.
+router.post('/:id/delete-cascade', requireAccountPassword, async (req: AuthRequest, res) => {
+  const root = await prisma.todoList.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  });
+  if (!root) return res.status(404).json({ error: 'الهدف غير موجود' });
+  if (root.archiveReason === 'OVERDUE') {
+    return res.status(400).json({ error: 'مينفعش تحذف مهمة متأخرة اتؤرشفت تلقائيًا' });
+  }
+
+  const ids = await collectGoalAndDescendantIds(req.userId!, root.id);
+  await prisma.todoList.deleteMany({ where: { id: { in: ids } } });
+  res.json({ success: true, count: ids.length });
 });
 
 router.delete('/:id', async (req: AuthRequest, res) => {

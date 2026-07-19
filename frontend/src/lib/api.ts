@@ -462,6 +462,19 @@ export function resolveLifeAreaImageUrl(imageUrl: string | null | undefined): st
   return `${API_URL}${imageUrl}`;
 }
 
+// ===== حذف هدف بكل تبعياته (خريطة العرض الكاملة) =====
+// حذف نهائي فوري (بيمسح الهدف وكل الأهداف الفرعية تحته على كل المستويات)
+// — محمي بكلمة مرور الحساب، شوف middleware/requireAccountPassword في
+// الباك إند.
+export async function deleteListCascade(id: string, password: string) {
+  const res = await fetch(`${API_URL}/api/lists/${id}/delete-cascade`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ password }),
+  });
+  return handle(res);
+}
+
 export async function deleteList(id: string) {
   const res = await fetch(`${API_URL}/api/lists/${id}`, {
     method: 'DELETE',

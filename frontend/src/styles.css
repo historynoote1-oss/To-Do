@@ -7299,7 +7299,53 @@ body.modal-lock-scroll {
   text-align: start;
   overflow: hidden;
   box-shadow: var(--shadow-sm, none);
+  width: 100%;
+  height: 100%;
   transition: transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+}
+
+/* ===== كارت هدف حقيقي وقت الضغط المطوّل (مؤشر بصري إنه هيتحذف لو كملت
+   الضغط) — بنفس منطق الضغطة المطوّلة على تبويب السنة، بس هنا الإشارة
+   بصرية بس (لون خطر + انكماش خفيف) بدل ما تبدأ بتحذف فورًا. ===== */
+.zoom-folder-card-pressing {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-dim);
+  transform: scale(0.97);
+}
+
+/* ===== الحاوية الشفافة اللي بتلف كارت الهدف + زرار التعديل جنبه —
+   محتاجينها عشان زرار القلم يتحط كعنصر شقيق (مش جوه الكارت اللي هو
+   `<button>` أصلًا، وزرار جوه زرار مش سليم في الـ HTML). ===== */
+.zoom-folder-card-wrap {
+  position: relative;
+}
+
+/* زرار "تعديل" (قلم) في الزاوية العلوية لكل كارت هدف حقيقي — ظاهر
+   دايمًا (مش بس عند الـ hover) عشان يشتغل صح على الموبايل. */
+.zoom-folder-card-edit-btn {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  z-index: 2;
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.zoom-folder-card-edit-btn:hover {
+  background: var(--gradient-brand-soft, color-mix(in srgb, var(--accent) 14%, var(--surface)));
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  transform: translateY(-1px);
 }
 
 .zoom-folder-card::before {

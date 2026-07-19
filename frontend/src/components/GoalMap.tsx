@@ -22,13 +22,28 @@ import { useEffect, useMemo, useRef, useState, Suspense, lazy } from 'react';
 import TodoList from './TodoList';
 import BackButton from './BackButton';
 import ConfirmModal from './ConfirmModal';
+import AccountPasswordConfirmModal from './AccountPasswordConfirmModal';
 import { DynamicIcon } from '../lib/icons';
 import { sounds } from '../lib/sounds';
 import { CategoryKey, categoryOf, MONTH_NAMES, WEEK_LABELS, DAY_OF_WEEK_NAMES } from '../lib/category';
 import { LifeAreaData, hexToSoftBg } from '../lib/lifeArea';
 import type { NewTaskPayload } from './AddTaskModal';
 import type { GoalOption, TrashedYear } from '../lib/api';
-import { getTrash, trashYear as trashYearApi, restoreTrashedYear } from '../lib/api';
+import {
+  getTrash,
+  trashYear as trashYearApi,
+  restoreTrashedYear,
+  deleteListCascade,
+  updateList,
+  getReminders,
+  addItem,
+  deleteItem,
+  updateItemContent,
+  reorderItems,
+  createReminder,
+  updateReminder,
+  deleteReminder,
+} from '../lib/api';
 import { toast } from '../lib/toast';
 
 const AddTaskModal = lazy(() => import('./AddTaskModal'));
@@ -112,6 +127,11 @@ interface ZoomFolderItem {
   // "تقويم" واضح تحت عينك مش قائمة أهداف تانية.
   calendar?: boolean;
   badge?: string;
+  // ===== حذف بالتبعيات + تعديل (مباشرة من كارت الهدف في الزوم) =====
+  // بيتحط بس لما `it` بيمثّل هدف حقيقي (سنوي/شهري/أسبوعي/يومي) — مش خانة
+  // تقويمية ولا مجلد تجميعي (مجال حياة/سنة). وجوده هو اللي بيفعّل زرار
+  // القلم والضغطة المطوّلة على الكارت ده تحديدًا.
+  goal?: GoalList;
 }
 
 // شبكة شهور/أسابيع/أيام (variant="calendar") بتحتاج تخطيط مختلف عن شبكة
@@ -122,10 +142,23 @@ function ZoomFolderGrid({
   items,
   emptyLabel,
   density = 'folders',
+  onEditGoal,
+  onGoalLongPressStart,
+  onGoalLongPressEnd,
+  longPressFiredRef,
+  pressingGoalId,
 }: {
   items: ZoomFolderItem[];
   emptyLabel: string;
   density?: ZoomGridDensity;
+  // ===== حذف بالتبعيات + تعديل — شوف `goal` في ZoomFolderItem فوق =====
+  // بيتفعّلوا بس على الكروت اللي معاها `goal` (أهداف حقيقية)، والكروت
+  // التجميعية (مجال حياة/سنة) والخانات التقويمية بتتجاهلهم تمامًا.
+  onEditGoal?: (goal: GoalList) => void;
+  onGoalLongPressStart?: (goal: GoalList) => void;
+  onGoalLongPressEnd?: () => void;
+  longPressFiredRef?: { current: boolean };
+  pressingGoalId?: string | null;
 }) {
   if (items.length === 0) {
     return (
@@ -170,38 +203,70 @@ function ZoomFolderGrid({
             </button>
           );
         }
+        // كارت هدف حقيقي (سنوي/شهري/أسبوعي/يومي) بيحمل `goal` — بنغلّفه في
+        // `div` عشان نقدر نحط زرار "تعديل" كعنصر شقيق منفصل فوقه (مش جوّاه،
+        // لأن زرار جوه زرار مش سليم في الـ HTML)، ونربط الضغطة المطوّلة
+        // بالكارت الرئيسي بنفس أسلوب حذف السنة بالظبط.
+        const isPressing = !!it.goal && pressingGoalId === it.goal.id;
         return (
-          <button
-            key={it.key}
-            type="button"
-            className={`zoom-folder-card ${isFullyComplete ? 'zoom-folder-card-complete' : ''}`}
-            style={it.color ? ({ ['--zoom-color' as any]: it.color, ['--zoom-bg' as any]: it.bg } as any) : undefined}
-            onClick={it.onOpen}
-          >
-            <span className="zoom-folder-card-icon">
-              <DynamicIcon name={it.icon} size={20} />
-            </span>
-            <span className="zoom-folder-card-title" title={it.title}>
-              {it.title}
-            </span>
-            {it.totalCount > 0 &&
-              (isFullyComplete ? (
-                <span className="zoom-folder-card-complete-ring" title={`اكتمل ${it.doneCount}/${it.totalCount}`}>
-                  <DynamicIcon name="check" size={13} />
-                  <span>مكتمل</span>
-                </span>
-              ) : (
-                <span className="zoom-folder-card-progress">
-                  <span className="zoom-folder-card-progress-track">
-                    <span className="zoom-folder-card-progress-fill" style={{ width: `${percent}%` }} />
+          <div key={it.key} className="zoom-folder-card-wrap">
+            <button
+              type="button"
+              className={`zoom-folder-card ${isFullyComplete ? 'zoom-folder-card-complete' : ''} ${isPressing ? 'zoom-folder-card-pressing' : ''}`}
+              style={it.color ? ({ ['--zoom-color' as any]: it.color, ['--zoom-bg' as any]: it.bg } as any) : undefined}
+              onClick={() => {
+                if (it.goal && longPressFiredRef?.current) {
+                  longPressFiredRef.current = false;
+                  return;
+                }
+                it.onOpen();
+              }}
+              onPointerDown={it.goal ? () => onGoalLongPressStart?.(it.goal!) : undefined}
+              onPointerUp={it.goal ? onGoalLongPressEnd : undefined}
+              onPointerLeave={it.goal ? onGoalLongPressEnd : undefined}
+              onPointerCancel={it.goal ? onGoalLongPressEnd : undefined}
+              onContextMenu={it.goal ? (e) => e.preventDefault() : undefined}
+              title={it.goal ? `${it.title} — اضغط مطوّلًا للحذف` : it.title}
+            >
+              <span className="zoom-folder-card-icon">
+                <DynamicIcon name={it.icon} size={20} />
+              </span>
+              <span className="zoom-folder-card-title" title={it.title}>
+                {it.title}
+              </span>
+              {it.totalCount > 0 &&
+                (isFullyComplete ? (
+                  <span className="zoom-folder-card-complete-ring" title={`اكتمل ${it.doneCount}/${it.totalCount}`}>
+                    <DynamicIcon name="check" size={13} />
+                    <span>مكتمل</span>
                   </span>
-                  <span className="zoom-folder-card-progress-label">
-                    {it.doneCount}/{it.totalCount} · {percent}٪
+                ) : (
+                  <span className="zoom-folder-card-progress">
+                    <span className="zoom-folder-card-progress-track">
+                      <span className="zoom-folder-card-progress-fill" style={{ width: `${percent}%` }} />
+                    </span>
+                    <span className="zoom-folder-card-progress-label">
+                      {it.doneCount}/{it.totalCount} · {percent}٪
+                    </span>
                   </span>
-                </span>
-              ))}
-            <DynamicIcon name="chevron-left" size={16} className="zoom-folder-card-chevron" />
-          </button>
+                ))}
+              <DynamicIcon name="chevron-left" size={16} className="zoom-folder-card-chevron" />
+            </button>
+            {it.goal && onEditGoal && (
+              <button
+                type="button"
+                className="zoom-folder-card-edit-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditGoal(it.goal!);
+                }}
+                aria-label="تعديل الهدف"
+                title="تعديل"
+              >
+                <DynamicIcon name="pencil" size={13} />
+              </button>
+            )}
+          </div>
         );
       })}
     </div>
@@ -310,6 +375,170 @@ export default function GoalMap({
       return;
     }
     selectYear(y);
+  }
+
+  // ===== حذف هدف بكل تبعياته (ضغطة مطوّلة على كارته في خريطة العرض
+  // الكاملة) — نفس فكرة حذف السنة بالظبط بس: (1) حذف نهائي فوري (مش سلة
+  // محذوفات، الأهداف هنا مش سنة كاملة)، و(2) خطوة تأكيد إضافية بكلمة مرور
+  // الحساب قبل التنفيذ الفعلي، شوف lib/api.ts (deleteListCascade) و
+  // middleware/requireAccountPassword في الباك إند. =====
+  const goalLongPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const goalLongPressFiredRef = useRef(false);
+  const [pressingGoalId, setPressingGoalId] = useState<string | null>(null);
+  // المرحلة الأولى: تأكيد عادي بيعرض عدد الأهداف الفرعية اللي هتتحذف معاه.
+  const [cascadeDeleteCandidate, setCascadeDeleteCandidate] = useState<GoalList | null>(null);
+  // المرحلة الثانية (بعد التأكيد الأول): كلمة مرور الحساب للتنفيذ الفعلي.
+  const [cascadePasswordFor, setCascadePasswordFor] = useState<GoalList | null>(null);
+
+  function startGoalLongPress(goal: GoalList) {
+    goalLongPressFiredRef.current = false;
+    setPressingGoalId(goal.id);
+    if (goalLongPressTimerRef.current) clearTimeout(goalLongPressTimerRef.current);
+    goalLongPressTimerRef.current = setTimeout(() => {
+      goalLongPressFiredRef.current = true;
+      setPressingGoalId(null);
+      sounds.click();
+      setCascadeDeleteCandidate(goal);
+    }, LONG_PRESS_MS);
+  }
+
+  function cancelGoalLongPress() {
+    setPressingGoalId(null);
+    if (goalLongPressTimerRef.current) {
+      clearTimeout(goalLongPressTimerRef.current);
+      goalLongPressTimerRef.current = null;
+    }
+  }
+
+  // معاينة عدد التبعيات (شهري/أسبوعي/يومي) اللي هتتحذف مع الهدف — بنفس
+  // أسلوب حساب yearGoalsByLevel فوق (مشي طبقة طبقة عبر parentGoalId)، بس
+  // بادئ من الهدف المطلوب حذفه بدل قمة الهرم، وبدون تنفيذ أي طلب سيرفر
+  // إضافي (البيانات موجودة أصلًا في `lists`).
+  function cascadeChildCounts(goalId: string) {
+    const counts: Record<CategoryKey, number> = { YEARLY: 0, MONTHLY: 0, WEEKLY: 0, DAILY: 0 };
+    let frontierIds = [goalId];
+    while (frontierIds.length > 0) {
+      const frontierSet = new Set(frontierIds);
+      const children = lists.filter((l) => l.parentGoalId && frontierSet.has(l.parentGoalId));
+      if (children.length === 0) break;
+      for (const child of children) {
+        const cat = (child.category as CategoryKey) || 'MONTHLY';
+        if (counts[cat] != null) counts[cat]++;
+      }
+      frontierIds = children.map((c) => c.id);
+    }
+    return counts;
+  }
+
+  async function confirmCascadeDeleteNow(password: string) {
+    const goal = cascadePasswordFor;
+    if (!goal) return;
+    await deleteListCascade(goal.id, password);
+    sounds.click();
+    toast.success(`"${goal.title}" اتحذف نهائيًا مع كل تبعياته`);
+    setCascadePasswordFor(null);
+    onChange();
+  }
+
+  // ===== تعديل هدف مباشرة من كارته (زرار القلم) — نفس ويزارد الإنشاء بس
+  // في وضع تعديل، بنفس منطق TodoList.tsx بالظبط (openEditModal +
+  // handleEditSave) عشان التعديل يشتغل صح على المهام الفرعية والتذكيرات
+  // المرتبطة بالهدف مش بس حقوله الأساسية. =====
+  const [editGoal, setEditGoal] = useState<GoalList | null>(null);
+  const [editGoalReminders, setEditGoalReminders] = useState<
+    { id: string; offsetMinutes: number; message: string | null }[]
+  >([]);
+
+  async function openEditGoal(goal: GoalList) {
+    setEditGoal(goal);
+    try {
+      const reminders = await getReminders({ listId: goal.id });
+      const startMs = goal.startTime ? new Date(goal.startTime).getTime() : null;
+      setEditGoalReminders(
+        reminders
+          .filter((r: any) => !r.itemId)
+          .map((r: any) => ({
+            id: r.id,
+            offsetMinutes: startMs !== null ? Math.max(0, Math.round((startMs - new Date(r.remindAt).getTime()) / 60000)) : 0,
+            message: r.message ?? null,
+          }))
+      );
+    } catch {
+      setEditGoalReminders([]);
+    }
+  }
+
+  async function handleEditGoalSave(id: string, data: NewTaskPayload) {
+    const nextFields = {
+      title: data.title,
+      priority: data.priority,
+      category: data.category,
+      targetYear: data.targetYear,
+      targetMonth: data.targetMonth,
+      targetWeek: data.targetWeek,
+      targetDayOfWeek: data.targetDayOfWeek,
+      lifeAreaId: data.lifeAreaId,
+      parentGoalId: data.parentGoalId,
+      startTime: data.startTime,
+      endTime: data.endTime,
+    };
+    try {
+      await updateList(id, nextFields);
+
+      // المهام الفرعية اللي اتشالت من الويزارد.
+      for (const itemId of data.deletedSubtaskIds) {
+        await deleteItem(itemId);
+      }
+
+      // المهام الفرعية الموجودة أصلًا — تحديث نصها لو اتغيّر.
+      const existingBeforeById = new Map((editGoal?.items || []).map((it: any) => [it.id, it.content]));
+      for (const s of data.subtasks) {
+        if (s.id && existingBeforeById.get(s.id) !== s.content) {
+          await updateItemContent(s.id, s.content);
+        }
+      }
+
+      // المهام الفرعية الجديدة.
+      const newSubtaskContents = data.subtasks.filter((s) => !s.id).map((s) => s.content);
+      const createdItemIds: string[] = [];
+      for (const content of newSubtaskContents) {
+        const created = await addItem(id, content);
+        createdItemIds.push(created.id);
+      }
+
+      // حفظ الترتيب النهائي.
+      let createdIdx = 0;
+      const finalOrderIds = data.subtasks.map((s) => (s.id ? s.id : createdItemIds[createdIdx++]));
+      if (finalOrderIds.length > 0) {
+        await reorderItems(finalOrderIds.map((itemId, index) => ({ id: itemId, position: index })));
+      }
+
+      // التذكيرات اللي اتشالت.
+      for (const reminderId of data.deletedReminderIds) {
+        await deleteReminder(reminderId);
+      }
+
+      // المهمة الرئيسية (الهدف) معندهاش dueDate، فبنحسب remindAt بنفسنا من
+      // وقت بدايتها — نفس منطق TodoList.tsx بالظبط.
+      if (data.startTime) {
+        for (const r of data.reminders) {
+          const remindAt = new Date(new Date(data.startTime).getTime() - r.offsetMinutes * 60 * 1000).toISOString();
+          if (r.id) {
+            await updateReminder(r.id, { remindAt, message: r.message || undefined });
+          } else {
+            await createReminder({ listId: id, mode: 'CUSTOM', remindAt, message: r.message || undefined });
+          }
+        }
+      }
+
+      sounds.click();
+      toast.success('اتحدّثت المهمة');
+      onChange();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر حفظ التعديلات');
+      throw err;
+    }
   }
 
   async function confirmDeleteYearNow() {
@@ -1380,8 +1609,14 @@ export default function GoalMap({
                       doneCount: ratio.done,
                       totalCount: ratio.total,
                       onOpen: () => zoomOpenGoal(g),
+                      goal: g,
                     };
                   })}
+                  onEditGoal={openEditGoal}
+                  onGoalLongPressStart={startGoalLongPress}
+                  onGoalLongPressEnd={cancelGoalLongPress}
+                  longPressFiredRef={goalLongPressFiredRef}
+                  pressingGoalId={pressingGoalId}
                 />
               ) : zoomGoalChain.length === 1 && zoomMonth == null ? (
                 // ===== شبكة شهور السنة (12 شهر بأرقامهم) تحت الهدف السنوي
@@ -1424,8 +1659,14 @@ export default function GoalMap({
                       doneCount: ratio.done,
                       totalCount: ratio.total,
                       onOpen: () => zoomOpenGoal(g),
+                      goal: g,
                     };
                   })}
+                  onEditGoal={openEditGoal}
+                  onGoalLongPressStart={startGoalLongPress}
+                  onGoalLongPressEnd={cancelGoalLongPress}
+                  longPressFiredRef={goalLongPressFiredRef}
+                  pressingGoalId={pressingGoalId}
                 />
               ) : zoomGoalChain.length === 2 && zoomWeek == null ? (
                 // ===== "مربع الأسابيع" جوه الشهر المختار — أسابيع الهدف
@@ -1469,8 +1710,14 @@ export default function GoalMap({
                       doneCount: ratio.done,
                       totalCount: ratio.total,
                       onOpen: () => zoomOpenGoal(g),
+                      goal: g,
                     };
                   })}
+                  onEditGoal={openEditGoal}
+                  onGoalLongPressStart={startGoalLongPress}
+                  onGoalLongPressEnd={cancelGoalLongPress}
+                  longPressFiredRef={goalLongPressFiredRef}
+                  pressingGoalId={pressingGoalId}
                 />
               ) : zoomGoalChain.length === 3 && zoomDay == null ? (
                 // ===== جميع أيام الأسبوع المختار (7 أيام ثابتة) — كل يوم
@@ -1510,8 +1757,14 @@ export default function GoalMap({
                       doneCount: ratio.done,
                       totalCount: ratio.total,
                       onOpen: () => zoomOpenGoal(g),
+                      goal: g,
                     };
                   })}
+                  onEditGoal={openEditGoal}
+                  onGoalLongPressStart={startGoalLongPress}
+                  onGoalLongPressEnd={cancelGoalLongPress}
+                  longPressFiredRef={goalLongPressFiredRef}
+                  pressingGoalId={pressingGoalId}
                 />
               ) : (
                 // ===== المستوى النهائي: كارت المهمة اليومية الكاملة، زي
@@ -1530,6 +1783,82 @@ export default function GoalMap({
             </>
           )}
         </div>
+      )}
+
+      {/* ===== المرحلة الأولى من حذف هدف بتبعياته: تأكيد عادي بيوضّح بالظبط
+          كام هدف فرعي (شهري/أسبوعي/يومي) هيتحذف معاه. ===== */}
+      {cascadeDeleteCandidate && (() => {
+        const counts = cascadeChildCounts(cascadeDeleteCandidate.id);
+        const parts: string[] = [];
+        if (counts.MONTHLY > 0) parts.push(`${counts.MONTHLY} هدف شهري`);
+        if (counts.WEEKLY > 0) parts.push(`${counts.WEEKLY} هدف أسبوعي`);
+        if (counts.DAILY > 0) parts.push(`${counts.DAILY} هدف يومي`);
+        const description =
+          parts.length > 0
+            ? `هيتحذف الهدف "${cascadeDeleteCandidate.title}" نهائيًا مع كل تبعياته: ${parts.join('، ')}، وكل المهام الفرعية والتذكيرات المرتبطة بيهم كلهم. الإجراء ده مينفعش يترجع.`
+            : `هيتحذف الهدف "${cascadeDeleteCandidate.title}" نهائيًا مع كل مهامه الفرعية وتذكيراته. الإجراء ده مينفعش يترجع.`;
+        return (
+          <ConfirmModal
+            title="متأكد من حذف الهدف ده؟"
+            description={description}
+            confirmLabel="متابعة الحذف"
+            cancelLabel="إلغاء"
+            danger
+            onCancel={() => setCascadeDeleteCandidate(null)}
+            onConfirm={() => {
+              setCascadePasswordFor(cascadeDeleteCandidate);
+              setCascadeDeleteCandidate(null);
+            }}
+          />
+        );
+      })()}
+
+      {/* ===== المرحلة الثانية: تأكيد أخير بكلمة مرور الحساب قبل التنفيذ
+          الفعلي — شوف AccountPasswordConfirmModal.tsx وlib/api.ts
+          (deleteListCascade). ===== */}
+      {cascadePasswordFor && (
+        <AccountPasswordConfirmModal
+          title={`حذف "${cascadePasswordFor.title}" نهائيًا`}
+          description="الإجراء ده نهائي ومينفعش يترجع — اكتب كلمة مرور حسابك للتأكيد."
+          confirmLabel="حذف نهائيًا"
+          onCancel={() => setCascadePasswordFor(null)}
+          onConfirm={confirmCascadeDeleteNow}
+        />
+      )}
+
+      {/* ===== تعديل هدف مباشرة من كارته (زرار القلم) — نفس ويزارد
+          الإنشاء بس في وضع تعديل. ===== */}
+      {editGoal && (
+        <Suspense fallback={null}>
+          <AddTaskModal
+            open={!!editGoal}
+            lifeAreas={lifeAreas}
+            onClose={() => setEditGoal(null)}
+            onManageLifeAreas={onManageLifeAreas}
+            editTarget={{
+              id: editGoal.id,
+              title: editGoal.title,
+              priority: (editGoal.priority || 'MEDIUM') as any,
+              category: (editGoal.category ?? null) as CategoryKey | null,
+              targetYear: editGoal.targetYear ?? null,
+              targetMonth: editGoal.targetMonth ?? null,
+              targetWeek: editGoal.targetWeek ?? null,
+              targetDayOfWeek: editGoal.targetDayOfWeek ?? null,
+              lifeAreaId: editGoal.lifeArea?.id ?? editGoal.lifeAreaId ?? null,
+              parentGoalId: editGoal.parentGoal?.id ?? editGoal.parentGoalId ?? null,
+              startTime: editGoal.startTime ?? null,
+              endTime: editGoal.endTime ?? null,
+              subtasks: [...(editGoal.items || [])]
+                .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
+                .map((it: any) => ({ id: it.id, content: it.content })),
+              reminders: editGoalReminders,
+            }}
+            onSave={async (id, data) => {
+              await handleEditGoalSave(id, data);
+              setEditGoal(null);
+            }}
+          />
+        </Suspense>
       )}
 
       <Suspense fallback={null}>
