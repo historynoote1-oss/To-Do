@@ -1,0 +1,22 @@
+workflows:
+  android-apk:
+    name: بناء APK (قائمة المهام)
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      vars:
+        # غيّر القيمة دي لرابط الباك إند الحقيقي بتاعك على Railway قبل أول بناء
+        API_BASE_URL: "https://your-backend.up.railway.app"
+    scripts:
+      - name: تجهيز مجلدات المنصّة (android/ios) لو مش موجودة
+        script: |
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android --org com.qaematalmahaam .
+          fi
+      - name: تنزيل المكتبات
+        script: flutter pub get
+      - name: بناء APK
+        script: |
+          flutter build apk --release --dart-define=API_BASE_URL=$API_BASE_URL
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
