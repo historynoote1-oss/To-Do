@@ -4,19 +4,21 @@ workflows:
     max_build_duration: 30
     environment:
       flutter: stable
-      vars:
-        # غيّر القيمة دي لرابط الباك إند الحقيقي بتاعك على Railway قبل أول بناء
-        API_BASE_URL: "https://to-do-production-ef84.up.railway.app"
+      # API_BASE_URL بيتاخد من متغيرات البيئة اللي ضفتها بنفسك في
+      # Codemagic (App settings → Environment variables) — مفيش حاجة
+      # تتغيّر هنا، الملف ده بس بيستخدمه وقت البناء.
     scripts:
-      - name: تجهيز مجلدات المنصّة (android/ios) لو مش موجودة
+      - name: تجهيز مجلد المنصّة (android) لو مش موجود
         script: |
           if [ ! -d "android" ]; then
             flutter create --platforms=android --org com.qaematalmahaam .
           fi
       - name: تنزيل المكتبات
         script: flutter pub get
-      - name: بناء APK
+      - name: بناء APK (مقسّم حسب نوع المعالج لتقليل الحجم)
         script: |
-          flutter build apk --release --dart-define=API_BASE_URL=$API_BASE_URL
+          flutter build apk --release \
+            --dart-define=API_BASE_URL=$API_BASE_URL \
+            --split-per-abi
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
