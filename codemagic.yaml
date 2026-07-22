@@ -6,7 +6,7 @@ workflows:
       flutter: stable
       vars:
         # غيّر القيمة دي لرابط الباك إند الحقيقي بتاعك على Railway قبل أول بناء
-        API_BASE_URL: "https://your-backend.up.railway.app"
+        API_BASE_URL: "https://to-do-production-ef84.up.railway.app"
     scripts:
       - name: تجهيز مجلدات المنصّة (android/ios) لو مش موجودة
         script: |
