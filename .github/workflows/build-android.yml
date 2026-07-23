@@ -1,0 +1,65 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm install
+
+      - name: Build web app
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+
+      - name: Install Capacitor deps
+        working-directory: frontend
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/push-notifications @capacitor/geolocation @capacitor/camera
+
+      - name: Add Android platform (first run only)
+        working-directory: frontend
+        run: test -d android || npx cap add android
+
+      - name: Patch Android SDK & Gradle Plugin versions
+        working-directory: frontend
+        run: |
+          sed -i -E "s/minSdkVersion = [0-9]+/minSdkVersion = 24/" android/variables.gradle
+          sed -i -E "s/compileSdkVersion = [0-9]+/compileSdkVersion = 36/" android/variables.gradle
+          sed -i -E "s/targetSdkVersion = [0-9]+/targetSdkVersion = 36/" android/variables.gradle
+          sed -i -E "s/com\.android\.tools\.build:gradle:[0-9.]+/com.android.tools.build:gradle:8.9.1/" android/build.gradle
+
+      - name: Sync Capacitor
+        working-directory: frontend
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: frontend/android
+        run: chmod +x gradlew && ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
