@@ -57,27 +57,46 @@ const manifestPath = path.join(ANDROID_DIR, 'app', 'src', 'main', 'AndroidManife
 if (!existsSync(manifestPath)) fail('AndroidManifest.xml مش موجود');
 let manifest = readFileSync(manifestPath, 'utf8');
 
-const MARKER = '<!-- adhan-native:injected -->';
-if (!manifest.includes(MARKER)) {
-  const permissions = readFileSync(path.join(NATIVE_SRC, 'manifest-permissions.txt'), 'utf8');
-  const components = readFileSync(path.join(NATIVE_SRC, 'manifest-components.txt'), 'utf8');
+// 3-أ) الصلاحيات: بنتحقق من كل سطر صلاحية لوحده (مش من علامة واحدة عامة)،
+// عشان لو ضفنا صلاحية جديدة لاحقًا (زي الموقع الجغرافي) تتضاف تلقائي حتى
+// لو مجلد android/ موجود بالفعل من بيلد قديم كانت فيه صلاحيات أذان بس.
+const PERMISSIONS_MARKER = '<!-- adhan-native:permissions -->';
+const permissionLines = readFileSync(path.join(NATIVE_SRC, 'manifest-permissions.txt'), 'utf8')
+  .split('\n')
+  .map((l) => l.trim())
+  .filter(Boolean);
+const missingPermissions = permissionLines.filter((line) => !manifest.includes(line));
 
-  // إضافة الصلاحيات بعد فتح تاج <manifest ...>
-  manifest = manifest.replace(
-    /(<manifest[^>]*>)/,
-    `$1\n${MARKER}\n${permissions}`
-  );
+if (missingPermissions.length > 0) {
+  const needsMarker = !manifest.includes(PERMISSIONS_MARKER);
+  const block = (needsMarker ? `${PERMISSIONS_MARKER}\n` : '') + missingPermissions.join('\n');
+  manifest = manifest.replace(/(<manifest[^>]*>)/, `$1\n${block}`);
+  writeFileSync(manifestPath, manifest, 'utf8');
+  console.log(`[apply-android-native] تم إضافة ${missingPermissions.length} صلاحية ناقصة إلى AndroidManifest.xml`);
+} else {
+  console.log('[apply-android-native] كل الصلاحيات موجودة بالفعل، تخطي');
+}
 
-  // إضافة الـ receivers/service قبل قفل </application>
+// 3-ب) الـ receivers/service: علامة مستقلة تمامًا عن علامة الصلاحيات،
+// عشان إضافة صلاحية جديدة فوق ميوقفش إضافة الـ components لو دي أول مرة.
+// وبنتأكد كمان إن الأسماء نفسها مش موجودة قبل كده (لو الملف اتعدّل بنسخة
+// قديمة من السكربت بعلامة مختلفة)، عشان مانكررش الـ receivers ونعمل خطأ
+// بناء بسبب تعريف مكرر لنفس الاسم.
+const COMPONENTS_MARKER = '<!-- adhan-native:components -->';
+const componentsRaw = readFileSync(path.join(NATIVE_SRC, 'manifest-components.txt'), 'utf8');
+const componentNames = [...componentsRaw.matchAll(/android:name="([^"]+)"/g)].map((m) => m[1]);
+const componentsAlreadyPresent =
+  componentNames.length > 0 && componentNames.every((name) => manifest.includes(`android:name="${name}"`));
+
+if (!manifest.includes(COMPONENTS_MARKER) && !componentsAlreadyPresent) {
   manifest = manifest.replace(
     /(<\/application>)/,
-    `${components}\n$1`
+    `${COMPONENTS_MARKER}\n${componentsRaw}\n$1`
   );
-
   writeFileSync(manifestPath, manifest, 'utf8');
-  console.log('[apply-android-native] تم تعديل AndroidManifest.xml');
+  console.log('[apply-android-native] تم إضافة الـ receivers/service إلى AndroidManifest.xml');
 } else {
-  console.log('[apply-android-native] AndroidManifest.xml معدّل بالفعل، تخطي');
+  console.log('[apply-android-native] الـ receivers/service موجودة بالفعل، تخطي');
 }
 
 // 4) تسجيل البلجن في MainActivity (Capacitor بيولّدها Java عادةً)
