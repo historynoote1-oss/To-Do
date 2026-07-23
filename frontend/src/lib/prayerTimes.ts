@@ -71,10 +71,40 @@ export interface DayTimings {
 export class GeolocationDeniedError extends Error {}
 export class GeolocationUnavailableError extends Error {}
 
-// بيطلب موقع المستخدم الجغرافي بأعلى دقة ممكنة من المتصفح — بيحتاج إذن
-// صريح من المستخدم (نافذة المتصفح القياسية)، ومفيش أي طريقة تانية أدق من
-// كده متاحة على الويب.
-export function requestGeolocation(): Promise<{ lat: number; lng: number; accuracy: number | null }> {
+// بيطلب موقع المستخدم الجغرافي بأعلى دقة ممكنة. لو التطبيق شغال كـ APK
+// حقيقي (Capacitor) بنستخدم بلجن @capacitor/geolocation الأصلي، لأنه هو
+// الوحيد اللي بيقدر يفتح نافذة إذن الموقع الحقيقية بتاعة أندرويد جوه
+// الـ WebView ويتأكد إن الإذن متسجل في النظام؛ navigator.geolocation
+// العادي جوه WebView بيفشل بصمت أو بيديله رسالة "فعّله من المتصفح" اللي
+// مالهاش معنى في تطبيق مثبّت. على الويب العادي (المتصفح) بنستخدم
+// navigator.geolocation زي ما هو، ومفيش طريقة تانية أدق منه متاحة هناك.
+export async function requestGeolocation(): Promise<{ lat: number; lng: number; accuracy: number | null }> {
+  const { Capacitor } = await import('@capacitor/core');
+  if (Capacitor.isNativePlatform()) {
+    return requestNativeGeolocation();
+  }
+  return requestBrowserGeolocation();
+}
+
+async function requestNativeGeolocation(): Promise<{ lat: number; lng: number; accuracy: number | null }> {
+  try {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    let status = await Geolocation.checkPermissions();
+    if (status.location !== 'granted' && status.coarseLocation !== 'granted') {
+      status = await Geolocation.requestPermissions();
+    }
+    if (status.location !== 'granted' && status.coarseLocation !== 'granted') {
+      throw new GeolocationDeniedError('إذن الموقع الجغرافي متمنوع — لازم تفعّله من إعدادات التطبيق في هاتفك (الإعدادات ← التطبيقات ← خريطة ← الأذونات ← الموقع)');
+    }
+    const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000 });
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy ?? null };
+  } catch (err) {
+    if (err instanceof GeolocationDeniedError) throw err;
+    throw new GeolocationUnavailableError('تعذّر تحديد موقعك الجغرافي حاليًا — تأكد إن خدمة الموقع (GPS) مفعّلة في الهاتف');
+  }
+}
+
+function requestBrowserGeolocation(): Promise<{ lat: number; lng: number; accuracy: number | null }> {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) {
       reject(new GeolocationUnavailableError('المتصفح ده مش بيدعم تحديد الموقع الجغرافي'));
