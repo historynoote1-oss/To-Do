@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
-import { syncListArchiveState } from '../lib/archive';
+import { syncListArchiveState } from '../lib/core/archive';
 
 const router = Router();
 const VALID_PRIORITIES = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];

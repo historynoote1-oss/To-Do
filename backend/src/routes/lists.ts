@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import { requireAccountPassword } from '../middleware/requireAccountPassword';
-import { syncListArchiveState } from '../lib/archive';
-import { resolveActivityDay } from '../lib/localDate';
-import { collectGoalAndDescendantIds } from '../lib/goalCascade';
+import { syncListArchiveState } from '../lib/core/archive';
+import { resolveActivityDay } from '../lib/core/localDate';
+import { collectGoalAndDescendantIds } from '../lib/core/goalCascade';
 
 const router = Router();
 

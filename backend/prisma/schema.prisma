@@ -147,7 +147,7 @@ model LifeArea {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name  String
-  color String  @default("#1d6f73")
+  color String  @default("#7c3aed")
   // أيقونة إيموجي بسيطة (اختياري) — بتتجاهل في الواجهة لو فيه imageUrl مرفوع.
   icon  String?
   // صورة أيقونة مخصصة رفعها المستخدم من جهازه، بتحل محل الإيموجي في العرض.

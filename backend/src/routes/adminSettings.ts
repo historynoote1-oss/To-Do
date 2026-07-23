@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import { requireAdminPassword } from '../middleware/requireAdminPassword';
-import { SITE_SETTINGS_DEFAULTS, invalidateSiteSettingsCache } from '../lib/siteSettings';
+import { SITE_SETTINGS_DEFAULTS, invalidateSiteSettingsCache } from '../lib/core/siteSettings';
 
 const router = Router();
 

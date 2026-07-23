@@ -20,24 +20,23 @@ import {
   SiteStatus,
   Reminder,
   getStreak,
-} from './lib/api';
-import { useUndoRedo } from './lib/undoRedo';
-import { sounds } from './lib/sounds';
-import { toast } from './lib/toast';
-import { attachHardwareBackButton, confirmExitOnDoubleBack, hapticSelection, hideSplash } from './lib/nativeShell';
-import { scheduleLocalReminder } from './lib/nativeReminders';
-import { applyNavDirection } from './lib/motion';
-import { getPushState, enablePush, disablePush, PushSupportState, PushError } from './lib/push';
-import TodoList from './components/TodoList';
-import AuthForm from './components/AuthForm';
-import type { AdminTab } from './components/AdminDashboard';
-import NotificationsBell from './components/NotificationsBell';
-import MaintenancePage from './components/MaintenancePage';
-import ToastContainer from './components/ToastContainer';
-import SideMenu from './components/SideMenu';
-import ThemeToggleButton from './components/ThemeToggleButton';
-import ConfirmModal from './components/ConfirmModal';
-import type { NewTaskPayload } from './components/AddTaskModal';
+} from '@/lib/api/api';
+import { useUndoRedo } from '@/lib/core/undoRedo';
+import { sounds } from '@/lib/audio/sounds';
+import { toast } from '@/lib/core/toast';
+import { attachHardwareBackButton, confirmExitOnDoubleBack, hapticSelection, hideSplash } from '@/lib/core/nativeShell';
+import { scheduleLocalReminder } from '@/lib/notifications/nativeReminders';
+import { applyNavDirection } from '@/lib/core/motion';
+import { getPushState, enablePush, disablePush, PushSupportState, PushError } from '@/lib/notifications/push';
+import AuthForm from '@/components/auth/AuthForm';
+import type { AdminTab } from '@/components/admin/AdminDashboard';
+import NotificationsBell from '@/components/notifications/NotificationsBell';
+import MaintenancePage from '@/components/layout/MaintenancePage';
+import ToastContainer from '@/components/layout/ToastContainer';
+import SideMenu from '@/components/layout/SideMenu';
+import ThemeToggleButton from '@/components/layout/ThemeToggleButton';
+import ConfirmModal from '@/components/common/ConfirmModal';
+import type { NewTaskPayload } from '@/components/tasks/AddTaskModal';
 import {
   ViewName,
   ArchiveTab,
@@ -45,18 +44,18 @@ import {
   ADMIN_TAB_PATHS,
   ARCHIVE_TAB_PATHS,
   resolveFromPath,
-} from './lib/routes';
-import { CategoryKey } from './lib/category';
-import { LifeAreaData } from './lib/lifeArea';
-import { groupByLifeArea, groupHierarchical, isListDone, NO_LIFE_AREA_GROUP } from './lib/organize';
-import TaskHierarchy from './components/TaskHierarchy';
-import { DynamicIcon } from './lib/icons';
-import TaskDistributionCard from './components/TaskDistributionCard';
-import CompletionRateCard from './components/CompletionRateCard';
-import PendingRestoreSection from './components/PendingRestoreSection';
-import BottomTabBar from './components/BottomTabBar';
-import PullToRefresh from './components/PullToRefresh';
-import OfflineBanner from './components/OfflineBanner';
+} from '@/lib/api/routes';
+import { CategoryKey } from '@/lib/core/category';
+import { LifeAreaData } from '@/lib/core/lifeArea';
+import { groupByLifeArea, groupHierarchical, isListDone } from '@/lib/core/organize';
+import TaskHierarchy from '@/components/tasks/TaskHierarchy';
+import { DynamicIcon } from '@/lib/core/icons';
+import TaskDistributionCard from '@/components/stats/TaskDistributionCard';
+import CompletionRateCard from '@/components/stats/CompletionRateCard';
+import PendingRestoreSection from '@/components/tasks/PendingRestoreSection';
+import BottomTabBar from '@/components/layout/BottomTabBar';
+import PullToRefresh from '@/components/layout/PullToRefresh';
+import OfflineBanner from '@/components/layout/OfflineBanner';
 
 // الصفحات دي مش بتتفتح كل زيارة (لوحة الأدمن، البروفايل، المهام
 // المتكررة، الأرشيف، مشغّل القرآن، البومودورو) وبعضها تقيل نسبيًا (لوحة
@@ -65,16 +64,16 @@ import OfflineBanner from './components/OfflineBanner';
 // أول ما المستخدم يفتح الصفحة المعنية — الملف بتاعها بيتنزّل في الخلفية
 // في نفس لحظة الانتقال، فمفيش فرق محسوس في التجربة لكن حجم أول تحميل
 // للموقع بيقل بشكل كبير.
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
-const Profile = lazy(() => import('./components/Profile'));
-const LifeAreasManager = lazy(() => import('./components/LifeAreasManager'));
-const RecurringTasksManager = lazy(() => import('./components/RecurringTasksManager'));
-const ArchivePage = lazy(() => import('./components/Archive'));
-const GoalMap = lazy(() => import('./components/GoalMap'));
-const PrayerTimes = lazy(() => import('./components/PrayerTimes'));
-const MusicPlayer = lazy(() => import('./components/MusicPlayer'));
-const Pomodoro = lazy(() => import('./components/Pomodoro'));
-const AddTaskModal = lazy(() => import('./components/AddTaskModal'));
+const AdminDashboard = lazy(() => import('@/components/admin/AdminDashboard'));
+const Profile = lazy(() => import('@/components/profile/Profile'));
+const LifeAreasManager = lazy(() => import('@/components/life-areas/LifeAreasManager'));
+const RecurringTasksManager = lazy(() => import('@/components/tasks/RecurringTasksManager'));
+const ArchivePage = lazy(() => import('@/components/tasks/Archive'));
+const GoalMap = lazy(() => import('@/components/goals/GoalMap'));
+const PrayerTimes = lazy(() => import('@/components/prayer/PrayerTimes'));
+const MusicPlayer = lazy(() => import('@/components/media/MusicPlayer'));
+const Pomodoro = lazy(() => import('@/components/media/Pomodoro'));
+const AddTaskModal = lazy(() => import('@/components/tasks/AddTaskModal'));
 
 // شاشة انتظار بسيطة (نفس سبينر شاشة الإقلاع) بتظهر لحظة تحميل صفحة جديدة
 // عند الطلب — عادةً أجزاء من الثانية على أي اتصال عادي.

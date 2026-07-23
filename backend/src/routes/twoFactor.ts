@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import { AuthRequest, verifyUser } from '../middleware/verifyUser';
-import { comparePassword, hashPassword, signToken, verifyPendingTwoFactorToken } from '../lib/auth';
+import { comparePassword, hashPassword, signToken, verifyPendingTwoFactorToken } from '../lib/auth/auth';
 import {
   generateSecret,
   generateQrCodeDataUrl,
   verifyTotpToken,
   generateRecoveryCodes,
-} from '../lib/twoFactor';
+} from '../lib/auth/twoFactor';
 
 const router = Router();
 

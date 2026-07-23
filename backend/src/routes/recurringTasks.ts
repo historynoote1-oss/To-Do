@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Prisma, Priority } from '@prisma/client';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import {
   RECURRENCE_FREQUENCIES,
@@ -8,8 +8,8 @@ import {
   MIN_INTERVAL,
   MAX_INTERVAL,
   fastForward,
-} from '../lib/recurrence';
-import { generateOccurrence } from '../lib/recurringTaskScheduler';
+} from '../lib/core/recurrence';
+import { generateOccurrence } from '../lib/schedulers/recurringTaskScheduler';
 
 const router = Router();
 

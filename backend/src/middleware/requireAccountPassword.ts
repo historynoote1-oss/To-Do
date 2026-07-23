@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { prisma } from '../lib/prisma';
-import { comparePassword } from '../lib/auth';
+import { prisma } from '../lib/core/prisma';
+import { comparePassword } from '../lib/auth/auth';
 import { AuthRequest } from './verifyUser';
 
 // حماية إضافية (step-up authentication) لأي إجراء تدميري نهائي مينفعش

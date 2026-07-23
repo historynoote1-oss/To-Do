@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
-import { resolveActivityDay } from '../lib/localDate';
+import { resolveActivityDay } from '../lib/core/localDate';
 
 const router = Router();
 

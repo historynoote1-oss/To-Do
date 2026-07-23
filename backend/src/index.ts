@@ -27,10 +27,10 @@ import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
 import { rehabilitationGate } from './middleware/rehabilitationGate';
-import { startReminderScheduler } from './lib/reminderScheduler';
-import { startRecurringTaskScheduler } from './lib/recurringTaskScheduler';
-import { startOverdueScheduler } from './lib/overdueScheduler';
-import { startTrashScheduler } from './lib/trashScheduler';
+import { startReminderScheduler } from './lib/schedulers/reminderScheduler';
+import { startRecurringTaskScheduler } from './lib/schedulers/recurringTaskScheduler';
+import { startOverdueScheduler } from './lib/schedulers/overdueScheduler';
+import { startTrashScheduler } from './lib/schedulers/trashScheduler';
 
 const app = express();
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import {
   hashPassword,
   comparePassword,
@@ -13,8 +13,8 @@ import {
   checkPwnedPassword,
   generateRecoveryCode,
   hashRecoveryCode,
-} from '../lib/auth';
-import { getSiteSettings } from '../lib/siteSettings';
+} from '../lib/auth/auth';
+import { getSiteSettings } from '../lib/core/siteSettings';
 
 const router = Router();
 

@@ -15,58 +15,59 @@
      بيتحدّث فعليًا من lib/motion.ts (applyNavDirection) قبل كل تنقّل؛
      القيمة هنا مجرد افتراضي آمن لأول تحميل. */
   --nav-dir: 1;
-  /* ---- Color (Light, warm-neutral design system) ---- */
-  --bg: #f1eee5;
-  --bg-glow: radial-gradient(ellipse 900px 560px at 12% -8%, rgba(29, 111, 115, 0.14), transparent 60%),
-    radial-gradient(ellipse 760px 540px at 100% 0%, rgba(217, 154, 43, 0.08), transparent 58%),
-    radial-gradient(ellipse 820px 560px at 82% 112%, rgba(46, 139, 87, 0.10), transparent 60%),
-    radial-gradient(ellipse 600px 420px at 0% 100%, rgba(107, 95, 209, 0.05), transparent 60%);
+  /* ---- Color (Light — "Velvet Nova": pearl base + royal violet/gold jewel accents) ---- */
+  --bg: #f8f6fd;
+  --bg-glow: radial-gradient(ellipse 900px 560px at 12% -8%, rgba(124, 58, 237, 0.14), transparent 60%),
+    radial-gradient(ellipse 760px 540px at 100% 0%, rgba(217, 119, 6, 0.09), transparent 58%),
+    radial-gradient(ellipse 820px 560px at 82% 112%, rgba(219, 39, 119, 0.10), transparent 60%),
+    radial-gradient(ellipse 600px 420px at 0% 100%, rgba(14, 165, 233, 0.06), transparent 60%);
   --surface: #ffffff;
-  --surface-2: #eae6d9;
-  --surface-3: #e1dccb;
-  --border: #d6cfb9;
-  --border-soft: #e0dac6;
-  --accent: #1d6f73;
-  --accent-soft: #0f4649;
-  --accent-strong: #175a5d;
-  --accent-dim: rgba(29, 111, 115, 0.12);
-  --success: #2e8b57;
-  --success-dim: rgba(46, 139, 87, 0.12);
-  --danger: #c1443a;
-  --danger-dim: rgba(193, 68, 58, 0.10);
-  --info: #6b5fd1;
-  --timeline-warn: #d99a2b;
-  --timeline-warn-dim: rgba(217, 154, 43, 0.14);
-  --pending-restore: #c98a1a;
-  --pending-restore-dim: rgba(201, 138, 26, 0.13);
-  --streak: #e08a1f;
-  --streak-dim: rgba(224, 138, 31, 0.14);
-  --text: #26271f;
-  --text-muted: #63604f;
-  --text-faint: #938d77;
+  --surface-2: #f1ecfa;
+  --surface-3: #e7dcf5;
+  --border: #ded0f2;
+  --border-soft: #ebe1f8;
+  --accent: #7c3aed;
+  --accent-soft: #4c1d95;
+  --accent-strong: #6d28d9;
+  --accent-dim: rgba(124, 58, 237, 0.12);
+  --success: #059669;
+  --success-dim: rgba(5, 150, 105, 0.12);
+  --danger: #e11d48;
+  --danger-dim: rgba(225, 29, 72, 0.10);
+  --info: #0284c7;
+  --timeline-warn: #d97706;
+  --timeline-warn-dim: rgba(217, 119, 6, 0.14);
+  --pending-restore: #c2410c;
+  --pending-restore-dim: rgba(194, 65, 12, 0.13);
+  --streak: #d97706;
+  --streak-dim: rgba(217, 119, 6, 0.14);
+  --text: #241c35;
+  --text-muted: #665d80;
+  --text-faint: #948aad;
 
   /* ---- Brand gradients & glass (identity layer, used across CTAs / hero
      surfaces / hover glows). Kept as separate tokens from --accent so a
      flat-color fallback still works anywhere --gradient-brand isn't read. */
-  --gradient-brand: linear-gradient(135deg, #1d6f73 0%, #2e8b57 52%, #d99a2b 100%);
-  --gradient-brand-soft: linear-gradient(135deg, rgba(29, 111, 115, 0.16), rgba(46, 139, 87, 0.10) 55%, rgba(217, 154, 43, 0.08));
-  --gradient-text: linear-gradient(90deg, #0f4649, #1d6f73 45%, #2e8b57 100%);
+  --gradient-brand: linear-gradient(135deg, #7c3aed 0%, #db2777 52%, #d97706 100%);
+  --gradient-brand-soft: linear-gradient(135deg, rgba(124, 58, 237, 0.16), rgba(219, 39, 119, 0.10) 55%, rgba(217, 119, 6, 0.08));
+  --gradient-text: linear-gradient(90deg, #6d28d9, #a21caf 45%, #d97706 100%);
   /* تدرّج اسم الموقع المتحرّك (شوف .brand-title) — نفس ألوان هوية العلامة
      (--gradient-brand) بس بلفة كاملة (بيرجع لأول لون في الآخر) عشان
      الحركة تلف بسلاسة من غير "قفزة" لونية واضحة عند إعادة البداية. */
-  --gradient-brand-loop: linear-gradient(90deg, #0f4649, #1d6f73 25%, #2e8b57 50%, #d99a2b 75%, #0f4649 100%);
-  --glass-bg: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-blur: blur(18px) saturate(1.4);
-  --aurora-1: rgba(29, 111, 115, 0.30);
-  --aurora-2: rgba(46, 139, 87, 0.22);
-  --aurora-3: rgba(217, 154, 43, 0.20);
+  --gradient-brand-loop: linear-gradient(90deg, #6d28d9, #a21caf 25%, #db2777 50%, #d97706 75%, #6d28d9 100%);
+  --gold-shimmer: linear-gradient(100deg, #b45309 0%, #f0b429 30%, #fde68a 50%, #f0b429 70%, #b45309 100%);
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-blur: blur(20px) saturate(1.5);
+  --aurora-1: rgba(124, 58, 237, 0.28);
+  --aurora-2: rgba(219, 39, 119, 0.20);
+  --aurora-3: rgba(217, 119, 6, 0.20);
 
   /* ---- Type ---- */
-  --font-display: 'Katibeh', 'Cairo', sans-serif;
+  --font-display: 'Reem Kufi', 'Cairo', sans-serif;
   --font-body: 'Cairo', 'Tahoma', sans-serif;
-  --font-num: 'Chelsea Market', cursive;
-  --font-logo: 'Lalezar', 'Cairo', sans-serif;
+  --font-num: 'Cairo', sans-serif;
+  --font-logo: 'Reem Kufi', 'Cairo', sans-serif;
 
   /* ---- Scale ---- */
   --space-1: 4px;
@@ -91,64 +92,67 @@
   --dur: 0.25s;
   --dur-slow: 0.45s;
 
-  --shadow-sm: 0 2px 10px rgba(38, 39, 31, 0.06);
-  --shadow-glow: 0 0 40px rgba(29, 111, 115, 0.10), 0 10px 30px rgba(38, 39, 31, 0.06);
-  --shadow-lift: 0 16px 40px rgba(38, 39, 31, 0.10), 0 0 0 1px rgba(29, 111, 115, 0.14);
+  --shadow-sm: 0 2px 10px rgba(36, 28, 53, 0.07);
+  --shadow-glow: 0 0 44px rgba(124, 58, 237, 0.16), 0 10px 30px rgba(36, 28, 53, 0.07);
+  --shadow-lift: 0 18px 44px rgba(36, 28, 53, 0.12), 0 0 0 1px rgba(124, 58, 237, 0.16);
 
   /* شريط الهيدر العلوي (زجاجي، sticky) — لازم يبقى مبني على لون الثيم
      الفعلي، مش لون ثابت، عشان ميتحولش لشريط بيج فاتح فوق خلفية غامقة. */
-  --top-bar-bg: rgba(234, 230, 217, 0.82);
+  --top-bar-bg: rgba(241, 236, 250, 0.82);
 }
 
-/* ---- Dark Mode — designed independently, not a naive inversion ---- */
+/* ---- Dark Mode — "Velvet Nova" obsidian base with royal violet / magenta /
+   gold jewel-tone identity. This is the primary, flagship look of the app. ---- */
 [data-theme='dark'] {
-  --bg: #0c1013;
-  --bg-glow: radial-gradient(ellipse 900px 560px at 12% -8%, rgba(45, 184, 189, 0.22), transparent 60%),
-    radial-gradient(ellipse 760px 540px at 100% 0%, rgba(232, 180, 81, 0.10), transparent 58%),
-    radial-gradient(ellipse 820px 560px at 82% 112%, rgba(75, 203, 142, 0.14), transparent 60%),
-    radial-gradient(ellipse 600px 420px at 0% 100%, rgba(167, 156, 240, 0.10), transparent 60%);
-  --surface: #1a2126;
-  --surface-2: #212a30;
-  --surface-3: #2a343b;
-  --border: #333f45;
-  --border-soft: #283238;
-  --accent: #2bb0b5;
-  --accent-soft: #82e3e6;
-  --accent-strong: #1d6f73;
-  --accent-dim: rgba(43, 176, 181, 0.16);
-  --success: #4bcb8e;
-  --success-dim: rgba(75, 203, 142, 0.16);
-  --danger: #e57268;
-  --danger-dim: rgba(229, 114, 104, 0.16);
-  --info: #a79cf0;
-  --timeline-warn: #e8b451;
-  --timeline-warn-dim: rgba(232, 180, 81, 0.16);
-  --pending-restore: #e8b451;
-  --pending-restore-dim: rgba(232, 180, 81, 0.16);
-  --streak: #f0a94a;
-  --streak-dim: rgba(240, 169, 74, 0.18);
-  --text: #edf1f0;
-  --text-muted: #a4b0b0;
-  --text-faint: #6d7878;
+  --bg: #0a0714;
+  --bg-glow: radial-gradient(ellipse 900px 560px at 12% -8%, rgba(167, 139, 250, 0.28), transparent 60%),
+    radial-gradient(ellipse 760px 540px at 100% 0%, rgba(240, 180, 41, 0.13), transparent 58%),
+    radial-gradient(ellipse 820px 560px at 82% 112%, rgba(232, 121, 249, 0.18), transparent 60%),
+    radial-gradient(ellipse 600px 420px at 0% 100%, rgba(56, 189, 248, 0.10), transparent 60%);
+  --surface: #14101f;
+  --surface-2: #1b1629;
+  --surface-3: #251e35;
+  --border: #362c4d;
+  --border-soft: #2a2239;
+  --accent: #a78bfa;
+  --accent-soft: #ddd6fe;
+  --accent-strong: #8b5cf6;
+  --accent-dim: rgba(167, 139, 250, 0.18);
+  --success: #34d399;
+  --success-dim: rgba(52, 211, 153, 0.16);
+  --danger: #fb7185;
+  --danger-dim: rgba(251, 113, 133, 0.16);
+  --info: #38bdf8;
+  --timeline-warn: #f0b429;
+  --timeline-warn-dim: rgba(240, 180, 41, 0.16);
+  --pending-restore: #f0a94a;
+  --pending-restore-dim: rgba(240, 169, 74, 0.16);
+  --streak: #f0b429;
+  --streak-dim: rgba(240, 180, 41, 0.18);
+  --text: #f4f0ff;
+  --text-muted: #b3a8cf;
+  --text-faint: #766a92;
 
-  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 40px rgba(43, 176, 181, 0.16), 0 10px 30px rgba(0, 0, 0, 0.35);
-  --shadow-lift: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(43, 176, 181, 0.2);
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 48px rgba(167, 139, 250, 0.22), 0 10px 32px rgba(0, 0, 0, 0.45);
+  --shadow-lift: 0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(167, 139, 250, 0.22);
 
-  --top-bar-bg: rgba(26, 33, 38, 0.78);
+  --top-bar-bg: rgba(20, 16, 31, 0.78);
 
   /* ---- Brand gradients & glass — independently tuned for dark surfaces,
-     brighter stops so the identity gradient stays vivid on deep backgrounds. */
-  --gradient-brand: linear-gradient(135deg, #2bb0b5 0%, #4bcb8e 52%, #e8b451 100%);
-  --gradient-brand-soft: linear-gradient(135deg, rgba(43, 176, 181, 0.22), rgba(75, 203, 142, 0.14) 55%, rgba(232, 180, 81, 0.12));
-  --gradient-text: linear-gradient(90deg, #82e3e6, #2bb0b5 45%, #4bcb8e 100%);
-  --gradient-brand-loop: linear-gradient(90deg, #82e3e6, #2bb0b5 25%, #4bcb8e 50%, #e8b451 75%, #82e3e6 100%);
-  --glass-bg: rgba(26, 33, 38, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-blur: blur(18px) saturate(1.3);
-  --aurora-1: rgba(43, 176, 181, 0.35);
-  --aurora-2: rgba(75, 203, 142, 0.24);
-  --aurora-3: rgba(232, 180, 81, 0.22);
+     brighter, more saturated stops so the identity gradient glows against
+     the obsidian background instead of muddying into it. */
+  --gradient-brand: linear-gradient(135deg, #a78bfa 0%, #e879f9 52%, #f0b429 100%);
+  --gradient-brand-soft: linear-gradient(135deg, rgba(167, 139, 250, 0.26), rgba(232, 121, 249, 0.16) 55%, rgba(240, 180, 41, 0.14));
+  --gradient-text: linear-gradient(90deg, #ddd6fe, #e879f9 45%, #f0b429 100%);
+  --gradient-brand-loop: linear-gradient(90deg, #ddd6fe, #c084fc 25%, #e879f9 50%, #f0b429 75%, #ddd6fe 100%);
+  --gold-shimmer: linear-gradient(100deg, #92400e 0%, #f0b429 30%, #fde68a 50%, #f0b429 70%, #92400e 100%);
+  --glass-bg: rgba(20, 16, 31, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-blur: blur(20px) saturate(1.4);
+  --aurora-1: rgba(167, 139, 250, 0.40);
+  --aurora-2: rgba(232, 121, 249, 0.26);
+  --aurora-3: rgba(240, 180, 41, 0.24);
 }
 
 * {
@@ -1028,142 +1032,12 @@ button:disabled {
   flex-shrink: 0;
 }
 
-/* عنصر القائمة اللي ليه سهم توسيع (زي "الأرشيف") — سطر رئيسي قابل للضغط
-   يودّي للصفحة الافتراضية، وسهم دائري منفصل جنبه يفتح/يقفل صفحاته الفرعية
-   جوّه القائمة نفسها من غير ما تتقفل، بانيميشن انزلاق ناعم. */
-.side-menu-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.side-menu-item-parent {
-  padding: 4px;
-  gap: 2px;
-}
-
-.side-menu-item-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 8px 8px;
-  border-radius: calc(var(--radius-sm) - 3px);
-  background: transparent;
-  border: none;
-  color: inherit;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: start;
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out);
-}
-
-.side-menu-item-main:hover {
-  background: var(--surface-2);
-}
-
-.side-menu-item-expand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: transparent;
-  border: none;
-  color: var(--text-faint);
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-}
-
-.side-menu-item-expand:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.side-menu-item-expand:active {
-  transform: scale(0.92);
-}
-
 .side-menu-item-arrow {
   transition: transform var(--dur-med, 0.25s) var(--ease-out);
 }
 
 .side-menu-item-arrow.expanded {
   transform: rotate(180deg);
-}
-
-/* حيلة CSS Grid لعمل انزلاق ارتفاع ناعم للقائمة الفرعية من غير ما نعرف
-   ارتفاعها بالبكسل مقدّمًا — بيفضل العنصر موجود في الـ DOM دايمًا (زرارين
-   قابلين للوصول بلوحة المفاتيح) وبس بيتقفل بصريًا بارتفاع صفري. */
-.side-menu-submenu-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 260ms var(--ease-out);
-}
-
-.side-menu-submenu-wrap.open {
-  grid-template-rows: 1fr;
-}
-
-.side-menu-submenu-inner {
-  overflow: hidden;
-  min-height: 0;
-}
-
-.side-menu-submenu {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-inline-start: 21px;
-  padding: 6px 4px 6px 12px;
-  padding-inline-start: 12px;
-  border-inline-start: 2px solid var(--border-soft);
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 180ms var(--ease-out), transform 220ms var(--ease-out);
-}
-
-.side-menu-submenu-wrap.open .side-menu-submenu {
-  opacity: 1;
-  transform: translateY(0);
-  transition-delay: 80ms;
-}
-
-.side-menu-subitem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border-radius: calc(var(--radius-sm) - 2px);
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  font-size: 13.5px;
-  font-weight: 600;
-  text-align: start;
-  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
-}
-
-.side-menu-subitem:hover {
-  background: var(--gradient-brand-soft);
-  border-color: var(--border-soft);
-  color: var(--text);
-}
-
-.side-menu-subitem.active {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: var(--accent-soft);
-}
-
-.side-menu-subitem-icon {
-  flex-shrink: 0;
-  color: inherit;
 }
 
 .side-menu-divider {
@@ -1260,7 +1134,7 @@ button:disabled {
 .theme-icon-sun {
   opacity: 1;
   transform: rotate(0deg) scale(1);
-  color: #d99a2b;
+  color: #f0b429;
 }
 
 .theme-fab-icon-moon,
@@ -1301,7 +1175,7 @@ button:disabled {
 .knob-icon-sun {
   opacity: 1;
   transform: scale(1) rotate(0deg);
-  color: #d99a2b;
+  color: #f0b429;
 }
 
 .side-menu-switch-theme.on .knob-icon-sun {
@@ -1640,20 +1514,6 @@ button:disabled {
   line-height: 1.1;
 }
 
-.stat-block-value-urgent {
-  color: var(--danger);
-}
-
-.streak-block-value {
-  color: var(--streak);
-}
-
-/* استريك اتخصم منه بسبب أهداف خريطة الأهداف اللي فاتت (المرحلة 7) —
-   شوف lib/overdueScheduler.ts وStreakCard.tsx. */
-.streak-block-penalized .streak-block-value {
-  color: var(--danger);
-}
-
 .stat-block-label {
   font-size: 11.5px;
   color: var(--text-muted);
@@ -1881,20 +1741,6 @@ button:disabled {
   }
 }
 
-/* ===== List toolbar: section heading + filter tabs ===== */
-.list-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.list-toolbar .section-heading {
-  margin: 0;
-  flex: 1;
-}
-
 .filter-tabs {
   display: flex;
   gap: 4px;
@@ -1926,91 +1772,6 @@ button:disabled {
   background: var(--surface);
   color: var(--accent-soft);
   box-shadow: var(--shadow-sm);
-}
-
-/* ===== New list / item rows ===== */
-.new-list,
-.new-item {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.new-list-row,
-.new-item-row {
-  display: flex;
-  gap: 8px;
-}
-
-.new-list-row input,
-.new-item-row input {
-  flex: 1;
-}
-
-.new-list-priority,
-.new-item-priority {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  animation: pop-in var(--dur) var(--ease-out) both;
-}
-
-.new-list-priority-label {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-/* ===== New main list: elevated composer card ===== */
-.new-list {
-  position: relative;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: 18px;
-  margin-bottom: 24px;
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-
-.new-list::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  background: var(--gradient-brand);
-  opacity: 0.7;
-}
-
-.new-list-row input {
-  font-size: 15.5px;
-}
-
-.new-list-row button {
-  white-space: nowrap;
-}
-
-/* ===== Section heading above the lists grid ===== */
-.section-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.2px;
-  margin: 0 2px 12px;
-}
-
-.section-heading::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-soft);
 }
 
 /* ===== List cards ===== */
@@ -3109,10 +2870,10 @@ li input[type='checkbox'] {
 }
 
 .password-strength.strength-3 .password-strength-bar span {
-  background: var(--success, #2e8b57);
+  background: var(--success, #059669);
 }
 .password-strength.strength-3 .password-strength-label {
-  color: var(--success, #2e8b57);
+  color: var(--success, #059669);
 }
 
 .auth-forgot-hint {
@@ -3133,7 +2894,7 @@ li input[type='checkbox'] {
 }
 
 .auth-forgot-link:hover {
-  color: var(--accent, #1d6f73);
+  color: var(--accent, #7c3aed);
 }
 
 .rehab-intro {
@@ -3211,15 +2972,6 @@ li input[type='checkbox'] {
   height: 150px;
   margin-bottom: 16px;
   border: 1px solid var(--border);
-}
-
-/* ===== Admin dashboard ===== */
-.admin-container h2 {
-  font-size: 16px;
-  margin: 26px 0 12px;
-  font-family: var(--font-body);
-  font-weight: 700;
-  color: var(--accent-soft);
 }
 
 .stats-grid {
@@ -3645,25 +3397,13 @@ li input[type='checkbox'] {
   font-size: 12px;
   font-weight: 900;
 }
-
-.toast-success {
-  border-color: color-mix(in srgb, var(--success) 40%, var(--glass-border));
-}
 .toast-success .toast-icon {
   background: var(--success-dim);
   color: var(--success);
 }
-
-.toast-error {
-  border-color: color-mix(in srgb, var(--danger) 40%, var(--glass-border));
-}
 .toast-error .toast-icon {
   background: var(--danger-dim);
   color: var(--danger);
-}
-
-.toast-info {
-  border-color: color-mix(in srgb, var(--info) 35%, var(--glass-border));
 }
 .toast-info .toast-icon {
   background: color-mix(in srgb, var(--info) 14%, transparent);
@@ -4928,13 +4668,6 @@ li input[type='checkbox'] {
     transform: rotate(360deg);
   }
 }
-
-/* ===== نظام التذكيرات (Reminders) ===== */
-
-.toast-reminder {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-border));
-  background: linear-gradient(180deg, var(--glass-bg) 0%, var(--accent-dim) 220%);
-}
 .toast-reminder .toast-icon {
   background: var(--accent-dim);
   color: var(--accent-soft);
@@ -5176,13 +4909,8 @@ li input[type='checkbox'] {
 
 /* ===== مؤقت المهمة (Task Timeline) ===== */
 /* الصندوق المضغوط نفسه (أيقونة/بار/رقم) موجود في قسم list-card-compact
-   تحت — .timeline-compact وما يتفرّع منها. هنا لسه بس نافذة التعديل. */
-
-.timeline-modal {
-  max-width: 380px;
-  max-height: 88vh;
-  overflow-y: auto;
-}
+   تحت — .timeline-compact وما يتفرّع منها. هنا حقول تعديل الوقت المستخدمة
+   جوه نافذة إضافة/تعديل المهمة (AddTaskModal). */
 
 .timeline-form-row {
   display: flex;
@@ -5294,358 +5022,10 @@ li input[type='checkbox'] {
   white-space: nowrap;
 }
 
-.category-clear-btn {
-  width: 100%;
-  margin-top: 6px;
-  background: transparent;
-  border: 1px dashed var(--border);
-  color: var(--text-muted);
-  font-size: 11.5px;
-  padding: 6px;
-  box-shadow: none;
-}
-
-.category-clear-btn:hover {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
 .category-picker-wrap {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.category-toolbar {
-  flex-wrap: wrap;
-  row-gap: 8px;
-}
-
-/* =========================================================================
-   نظام الفلترة المتقدم (Advanced Filtering)
-   ========================================================================= */
-
-.filter-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.filter-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.filter-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  flex-shrink: 0;
-  box-shadow: none;
-}
-
-.filter-trigger:hover {
-  border-color: var(--accent);
-  color: var(--accent-soft);
-  filter: none;
-  box-shadow: none;
-}
-
-.filter-trigger.active {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: var(--accent-soft);
-}
-
-.filter-count-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  color: #f4fbfa;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.filter-modal-header h2 .filter-count-pill {
-  vertical-align: middle;
-  margin-inline-start: 4px;
-}
-
-.saved-filter-quick-row {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex: 1;
-  min-width: 0;
-}
-
-.saved-filter-quick-row::-webkit-scrollbar {
-  display: none;
-}
-
-.saved-filter-quick-chip {
-  flex-shrink: 0;
-  background: var(--surface-2);
-  border: 1px solid var(--border-soft);
-  color: var(--text-muted);
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 7px 12px;
-  border-radius: var(--radius-pill);
-  white-space: nowrap;
-  box-shadow: none;
-}
-
-.saved-filter-quick-chip:hover {
-  color: var(--accent-soft);
-  border-color: var(--accent);
-  filter: none;
-  box-shadow: none;
-}
-
-.filter-bar-heading {
-  margin: 0 0 0 auto;
-  flex-shrink: 0;
-}
-
-.filter-bar-heading::after {
-  display: none;
-}
-
-.active-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  animation: pop-in var(--dur) var(--ease-out) both;
-}
-
-.active-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 5px 6px 5px 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border-soft);
-}
-
-.active-filter-chip button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.08);
-  color: inherit;
-  font-size: 9px;
-  box-shadow: none;
-}
-
-.active-filter-chip button:hover {
-  background: rgba(0, 0, 0, 0.18);
-  filter: none;
-  box-shadow: none;
-  transform: none;
-}
-
-.clear-all-filters {
-  background: transparent;
-  border: none;
-  color: var(--text-faint);
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: underline;
-  padding: 5px 4px;
-  box-shadow: none;
-}
-
-.clear-all-filters:hover {
-  color: var(--danger);
-  filter: none;
-  box-shadow: none;
-  transform: none;
-}
-
-/* ---- Filter panel (modal) ---- */
-.filter-modal-box {
-  max-width: 480px;
-  max-height: 86vh;
-  overflow-y: auto;
-  text-align: start;
-}
-
-.filter-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.filter-modal-header h2 {
-  margin: 0;
-}
-
-.filter-section {
-  padding: 14px 0;
-  border-top: 1px solid var(--border-soft);
-}
-
-.filter-section:first-of-type {
-  padding-top: 0;
-  border-top: none;
-}
-
-.filter-section-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.filter-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-soft);
-  color: var(--text-muted);
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 7px 12px;
-  border-radius: var(--radius-pill);
-  box-shadow: none;
-}
-
-.filter-chip:hover {
-  border-color: var(--accent);
-  color: var(--text);
-  filter: none;
-  box-shadow: none;
-}
-
-.filter-chip.selected {
-  font-weight: 700;
-  box-shadow: none;
-}
-
-.saved-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.saved-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  background: var(--accent-dim);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-pill);
-  overflow: hidden;
-}
-
-.saved-filter-chip button {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  color: var(--accent-soft);
-  font-size: 12.5px;
-  font-weight: 700;
-  padding: 7px 10px;
-}
-
-.saved-filter-chip button:hover {
-  filter: none;
-  box-shadow: none;
-  transform: none;
-}
-
-.saved-filter-remove {
-  padding: 7px 9px 7px 6px !important;
-  color: var(--text-faint) !important;
-  font-size: 10px !important;
-  font-weight: 400 !important;
-}
-
-.saved-filter-remove:hover {
-  color: var(--danger) !important;
-}
-
-.filter-modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border-soft);
-  flex-wrap: wrap;
-}
-
-.filter-result-count {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.filter-modal-footer-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.filter-save-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  animation: pop-in var(--dur) var(--ease-out) both;
-}
-
-.filter-save-row input {
-  flex: 1;
-}
-
-@media (max-width: 480px) {
-  .filter-modal-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .filter-modal-footer-actions {
-    justify-content: stretch;
-  }
-
-  .filter-modal-footer-actions button {
-    flex: 1;
-  }
 }
 
 /* =========================================================================
@@ -5797,20 +5177,6 @@ li input[type='checkbox'] {
   color: var(--accent-soft);
   filter: none;
   box-shadow: none;
-}
-
-/* ---- شريط تبويبات فلترة المجالات ---- */
-.life-area-filter-tabs {
-  flex-wrap: wrap;
-  row-gap: 6px;
-}
-
-.life-area-tab-img {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  object-fit: cover;
-  vertical-align: -2px;
 }
 
 /* ---- صفحة إدارة مجالات الحياة ---- */
@@ -6131,28 +5497,6 @@ li input[type='checkbox'] {
 .life-area-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 28px -8px var(--card-accent, var(--aurora-1));
-}
-
-.life-area-card-reorder {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-  justify-content: center;
-}
-
-.life-area-card-reorder button {
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  box-shadow: none;
-  font-size: 11px;
-}
-
-.life-area-card-glyph-wrap {
-  position: relative;
-  flex-shrink: 0;
 }
 
 .life-area-card-body {
@@ -6800,88 +6144,6 @@ li input[type='checkbox'] {
   color: var(--text-faint);
 }
 
-/* ---- بطاقة مهمة مؤرشفة ---- */
-.archive-card {
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.archive-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.archive-card-head h3 {
-  margin: 0;
-  font-size: 15.5px;
-  color: var(--text);
-  font-weight: 700;
-}
-
-.archive-card-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.archive-static-badge {
-  cursor: default;
-  pointer-events: none;
-}
-
-.life-area-badge-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: var(--radius-pill);
-  padding: 5px 11px;
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.archive-item-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.archive-item-list li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.archive-item-list li.done span:last-child {
-  text-decoration: line-through;
-  color: var(--text-faint);
-}
-
-.archive-item-list .checkbox {
-  cursor: default;
-  flex-shrink: 0;
-}
-
-.archive-card-progress {
-  font-size: 11.5px;
-  color: var(--success);
-  font-weight: 700;
-}
-
 /* ===================================================================
    إعادة تصميم "إضافة مهمة جديدة" + نظام التنظيم الجديد (بديل الفلاتر)
    =================================================================== */
@@ -7151,89 +6413,6 @@ body.modal-lock-scroll {
   color: var(--accent);
 }
 
-.goal-map-year-add-form {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--accent);
-  background: var(--surface);
-}
-
-.goal-map-year-add-input {
-  width: 84px;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  font-weight: 700;
-  font-size: 14px;
-  padding: 6px 4px;
-  text-align: center;
-}
-
-.goal-map-year-add-input:focus {
-  outline: none;
-}
-
-.goal-map-year-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 16px 20px;
-  border-radius: var(--radius-lg);
-  background: var(--glass-bg, var(--surface));
-  backdrop-filter: var(--glass-blur, none);
-  -webkit-backdrop-filter: var(--glass-blur, none);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 18px;
-}
-
-.goal-map-year-header-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.goal-map-year-header-title {
-  font-size: 22px;
-  font-weight: 800;
-  background: var(--gradient-text);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.goal-map-year-header-sub {
-  font-size: 12.5px;
-  color: var(--text-muted);
-}
-
-.goal-map-add-year-goal-btn {
-  white-space: nowrap;
-}
-
-.goal-map-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 12px;
-  padding: 40px 20px;
-  border-radius: var(--radius-lg);
-  border: 1px dashed var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
-}
-
-.goal-map-empty p {
-  max-width: 420px;
-  line-height: 1.6;
-}
-
 .goal-map-tree {
   display: flex;
   flex-direction: column;
@@ -7314,28 +6493,6 @@ body.modal-lock-scroll {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 12px;
-}
-
-/* ===== شبكات الخانات التقويمية (شهور/أسابيع/أيام) — من مراجعة التصميم:
-   عدد ثابت ومعروف مسبقًا (12/5/7)، فبتاخد تخطيط مضغوط بأعمدة ثابتة بدل
-   auto-fill الحر بتاع شبكة المجلدات العادية، عشان تبان "تقويم" منظّم
-   بصريًا بدل قائمة كروت عشوائية العرض. ===== */
-.zoom-map-grid-months {
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-.zoom-map-grid-weeks {
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-.zoom-map-grid-days {
-  grid-template-columns: repeat(7, 1fr);
-  gap: 6px;
-}
-@media (max-width: 560px) {
-  .zoom-map-grid-months { grid-template-columns: repeat(3, 1fr); }
-  .zoom-map-grid-weeks { grid-template-columns: repeat(5, 1fr); }
-  .zoom-map-grid-days { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* ===== كارت "خانة تقويمية" (شهر/أسبوع/يوم) — شكل مصغّر ومحايد اللون
@@ -7728,146 +6885,9 @@ body.modal-lock-scroll {
   color: var(--danger);
 }
 
-/* ===== سلة المحذوفات المؤقتة (Trash) ===== */
-
-.goal-map-trash-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: auto;
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  margin-inline-start: auto;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
-}
-
-.goal-map-trash-toggle:hover,
-.goal-map-trash-toggle.has-items {
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.goal-map-trash-toggle-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: var(--radius-pill);
-  background: var(--danger);
-  color: #fff;
-  font-size: 10.5px;
-  font-weight: 800;
-}
-
-.goal-map-trash-panel {
-  margin: -4px 0 16px;
-  padding: 14px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--glass-bg, var(--surface));
-  backdrop-filter: var(--glass-blur, none);
-  animation: goal-map-trash-in var(--dur) var(--ease-out);
-}
-
 @keyframes goal-map-trash-in {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.goal-map-trash-panel-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--danger);
-  font-weight: 800;
-  font-size: 14px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.goal-map-trash-panel-hint {
-  color: var(--text-muted);
-  font-weight: 500;
-  font-size: 11.5px;
-}
-
-.goal-map-trash-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 18px 0;
-  color: var(--text-muted);
-  font-size: 13px;
-  text-align: center;
-}
-
-.goal-map-trash-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.goal-map-trash-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm, 10px);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  flex-wrap: wrap;
-}
-
-.goal-map-trash-item-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.goal-map-trash-item-year {
-  font-weight: 800;
-  font-size: 15px;
-  color: var(--text);
-}
-
-.goal-map-trash-item-count {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.goal-map-trash-item-days {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: var(--surface-2, var(--surface));
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-}
-
-.goal-map-trash-item-days.urgent {
-  color: var(--danger);
-  background: var(--danger-dim);
-}
-
-.goal-map-trash-item-restore {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
 }
 
 .goal-map-section-title-year {
@@ -7878,12 +6898,6 @@ body.modal-lock-scroll {
   padding: 2px 9px;
   border-radius: var(--radius-pill);
   margin-inline-start: -4px;
-}
-
-.goal-map-section-title-count {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 600;
 }
 
 /* ===== أقسام الصفحة (بناء الخطة / خريطة العرض الكاملة) ===== */
@@ -9175,23 +8189,6 @@ body.modal-lock-scroll {
   color: var(--text-faint);
 }
 
-/* ----- أقسام التنظيم (مجالات الحياة) ----- */
-.task-section-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.task-section-count {
-  font-family: var(--font-num);
-  font-size: 13px;
-  color: var(--text-faint);
-  background: var(--surface-2);
-  border-radius: var(--radius-pill);
-  padding: 2px 10px;
-}
-
 /* ----- إضاءة مؤقتة لمهمة اتوصّل لها من بطاقات الإحصائيات ----- */
 .list-card-jump-highlight {
   animation: jump-pulse 1.8s var(--ease-out) both;
@@ -9447,24 +8444,6 @@ body.modal-lock-scroll {
 .card-icon-action:focus-visible {
   outline: 2px solid var(--accent-soft);
   outline-offset: 2px;
-}
-
-.subtask-count-badge {
-  position: absolute;
-  top: -4px;
-  inset-inline-end: -4px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-family: var(--font-num);
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 15px;
-  text-align: center;
-  border: 1.5px solid var(--surface);
 }
 
 .list-checkbox.disabled {
@@ -9730,25 +8709,6 @@ body.modal-lock-scroll {
   margin-top: 8px;
 }
 
-.add-subtask-trigger {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 1px dashed var(--border);
-  color: var(--text-muted);
-  border-radius: var(--radius);
-  padding: 7px 10px;
-  font-size: 12.5px;
-  margin-bottom: 6px;
-  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-}
-
-.add-subtask-trigger:hover {
-  border-color: var(--accent-soft);
-  color: var(--accent-soft);
-}
-
 .empty.small {
   padding: 8px 2px;
   font-size: 12.5px;
@@ -9803,10 +8763,7 @@ body.modal-lock-scroll {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.hier-area,
-.hier-category,
+}.hier-area,
 .hier-priority {
   border-radius: var(--radius-lg);
 }
@@ -9819,80 +8776,9 @@ body.modal-lock-scroll {
   overflow: hidden;
 }
 
-.hier-area-summary,
-.hier-category-summary,
-.hier-priority-summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-.hier-area-summary::-webkit-details-marker,
-.hier-category-summary::-webkit-details-marker,
-.hier-priority-summary::-webkit-details-marker {
-  display: none;
-}
-
-.hier-area-summary {
-  padding: 12px 14px;
-  font-weight: 700;
-  font-size: 14.5px;
-  border-inline-start: 3px solid var(--chip-color, var(--border));
-}
-
-.hier-caret {
-  transition: transform var(--dur-fast) var(--ease-out);
-  flex-shrink: 0;
-  opacity: 0.6;
-}
-
-details[open] > summary .hier-caret {
-  transform: rotate(180deg);
-}
-
-.hier-label {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.hier-area-body {
-  padding: 4px 12px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.hier-category {
-  border: 1px solid var(--border-soft);
-  background: var(--surface-2);
-}
-
-.hier-category-summary {
-  padding: 9px 12px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.hier-category-body {
-  padding: 2px 10px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .hier-priority {
   border-inline-start: 2px solid var(--border-soft);
   padding-inline-start: 4px;
-}
-
-.hier-priority-summary {
-  padding: 7px 8px;
-  font-size: 12.5px;
-  color: var(--text-muted);
 }
 
 .hier-priority-dot {
@@ -10046,15 +8932,10 @@ details[open] > summary .hier-caret {
   margin-bottom: 0;
 }
 
-@media (max-width: 420px) {
-  .hier-area-summary,
-  .task-hierarchy .archive-year-header {
+@media (max-width: 420px) {.task-hierarchy .archive-year-header {
     padding: 10px 12px;
     font-size: 13.5px;
-  }
-
-  .hier-category-summary,
-  .task-hierarchy .archive-month-header {
+  }.task-hierarchy .archive-month-header {
     padding: 8px 10px;
     font-size: 12.5px;
   }
@@ -10735,11 +9616,6 @@ details[open] > summary .hier-caret {
   display: none;
 }
 
-.music-control-chip-row-wrap {
-  flex-wrap: wrap;
-  overflow-x: visible;
-}
-
 .music-control-chip-label {
   display: inline-flex;
   align-items: center;
@@ -10956,165 +9832,6 @@ details[open] > summary .hier-caret {
   color: #fff;
 }
 
-/* ===== شريط التشغيل الثابت (عام على كل صفحات الموقع) ===== */
-.music-player-bar {
-  position: fixed;
-  bottom: 0;
-  inset-inline: 0;
-  z-index: 55;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 14px;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-top: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-lift);
-  animation: fade-up var(--dur-slow) var(--ease-out) both;
-}
-
-.music-player-bar-track {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
-  background: transparent;
-  box-shadow: none;
-  padding: 4px;
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  text-align: start;
-  font-weight: 400;
-  font-size: inherit;
-}
-
-.music-player-bar-track::before,
-.music-player-bar-track::after {
-  display: none;
-}
-
-.music-player-bar-track:hover:not(:disabled) {
-  background: var(--surface-2);
-  filter: none;
-  box-shadow: none;
-}
-
-.music-player-bar-track:disabled {
-  cursor: default;
-  opacity: 1;
-}
-
-.music-player-bar-thumb {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex-shrink: 0;
-  background: var(--surface-3);
-}
-
-.music-player-bar-thumb-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent-soft);
-  background: var(--gradient-brand-soft);
-}
-
-.music-player-bar-info {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.music-player-bar-info strong {
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 46vw;
-}
-
-.music-player-bar-info span {
-  font-size: 11px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 46vw;
-}
-
-.music-player-bar-seek {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  flex: 2;
-  min-width: 0;
-}
-
-.music-player-bar-seek input[type='range'] {
-  flex: 1;
-  width: auto;
-  accent-color: var(--accent);
-  height: 4px;
-  padding: 0;
-  background: transparent;
-  border: none;
-}
-
-.time-mono {
-  direction: ltr;
-  unicode-bidi: isolate;
-  font-variant-numeric: tabular-nums;
-  font-size: 11px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.music-player-bar-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.music-player-bar-playpause {
-  background: var(--gradient-brand);
-  color: #fff;
-  border: none;
-}
-
-.music-player-bar-playpause:hover {
-  filter: brightness(1.08);
-}
-
-.music-player-bar-skip {
-  display: none;
-}
-
-@media (min-width: 400px) {
-  .music-player-bar-skip {
-    display: inline-flex;
-  }
-}
-
-@media (min-width: 640px) {
-  .music-player-bar-seek {
-    display: flex;
-  }
-}
-
-/* الحاوية الرئيسية بتاخد padding-bottom كافي أصلاً (.container)، لكن لما
-   شريط التشغيل يبقى ظاهر بنحتاج مساحة إضافية عشان آخر عنصر في الصفحة
-   ميختفيش وراه. */
-body:has(.music-player-bar) .container {
-  padding-bottom: 96px;
-}
 
 /* =========================================================================
    بومودورو (Pomodoro) — صفحة المؤقّت + شريط التتبّع الثابت
@@ -11676,166 +10393,6 @@ body:has(.music-player-bar) .container {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-}
-
-/* ===== شريط التتبّع الثابت (زي مشغّل الصوت، لكن للمؤقّت) ===== */
-.pomodoro-bar {
-  position: fixed;
-  bottom: 0;
-  inset-inline: 0;
-  z-index: 54;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-top: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-lift);
-  animation: fade-up var(--dur-slow) var(--ease-out) both;
-}
-
-/* لو شريط مشغّل الصوت ظاهر برضه، شريط البومودورو بيترفع فوقه عشان
-   ميحصلش تراكب بين الاتنين. */
-body:has(.music-player-bar) .pomodoro-bar {
-  bottom: 64px;
-}
-
-.pomodoro-bar-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1;
-  background: transparent;
-  box-shadow: none;
-  padding: 4px;
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  text-align: start;
-  font-weight: 400;
-  font-size: inherit;
-}
-
-.pomodoro-bar-info::before,
-.pomodoro-bar-info::after {
-  display: none;
-}
-
-.pomodoro-bar-info:hover {
-  background: var(--surface-2);
-  filter: none;
-  box-shadow: none;
-}
-
-.pomodoro-bar-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-dim);
-  color: var(--accent-soft);
-}
-
-.pomodoro-bar-icon.phase-break {
-  background: var(--success-dim);
-  color: var(--success);
-}
-
-.pomodoro-bar.status-finished .pomodoro-bar-icon {
-  animation: pomodoro-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes pomodoro-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 var(--accent-dim);
-  }
-  50% {
-    box-shadow: 0 0 0 6px transparent;
-  }
-}
-
-.pomodoro-bar-text {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.pomodoro-bar-text strong {
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 40vw;
-}
-
-.pomodoro-bar-text span {
-  font-size: 11px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 40vw;
-}
-
-.pomodoro-bar-time {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-  flex-shrink: 0;
-}
-
-.pomodoro-bar-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.pomodoro-bar-btn {
-  background: var(--gradient-brand);
-  color: #fff;
-  border: none;
-}
-
-.pomodoro-bar-btn:hover {
-  filter: brightness(1.08);
-}
-
-.pomodoro-bar-next-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  border: none;
-  background: var(--gradient-brand);
-  color: #fff;
-  font-weight: 700;
-  font-size: 12.5px;
-  white-space: nowrap;
-  animation: pomodoro-pop var(--dur-slow) var(--ease-spring) both;
-}
-
-.pomodoro-bar-next-btn:hover {
-  filter: brightness(1.08);
-}
-
-/* مساحة إضافية أسفل الصفحة عشان آخر عنصر ميختفيش وراء شريط البومودورو،
-   وزيادة إضافية لو الشريطين (صوت + بومودورو) ظاهرين مع بعض. */
-body:has(.pomodoro-bar) .container {
-  padding-bottom: 96px;
-}
-
-body:has(.pomodoro-bar):has(.music-player-bar) .container {
-  padding-bottom: 150px;
 }
 
 /* ملحوظة: كان هنا تعريف قديم بيصفّر كل الانحناء (border-radius) في الصفحة
@@ -12694,7 +11251,7 @@ body:has(.pomodoro-bar):has(.music-player-bar) .container {
 }
 
 .offline-banner.reconnected {
-  background: var(--success, #2e8b57);
+  background: var(--success, #059669);
   color: #fff;
 }
 

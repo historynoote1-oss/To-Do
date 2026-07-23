@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import {
   lifeAreaIconUpload,
@@ -8,7 +8,7 @@ import {
   uploadLifeAreaIconToCloudinary,
   deleteLifeAreaIconFromCloudinary,
   deleteLifeAreaIconFile,
-} from '../lib/lifeAreaUpload';
+} from '../lib/uploads/lifeAreaUpload';
 
 const router = Router();
 
@@ -122,7 +122,7 @@ function validateName(value: unknown): string {
 
 function validateColor(value: unknown): string {
   if (typeof value !== 'string' || !HEX_COLOR_RE.test(value)) {
-    throw new Error('اللون لازم يكون كود hex صحيح (مثلاً #1d6f73)');
+    throw new Error('اللون لازم يكون كود hex صحيح (مثلاً #7c3aed)');
   }
   return value;
 }
@@ -223,7 +223,7 @@ router.post('/', async (req: AuthRequest, res) => {
   let parentId: string | null;
   try {
     name = validateName(req.body.name);
-    color = req.body.color !== undefined ? validateColor(req.body.color) : '#1d6f73';
+    color = req.body.color !== undefined ? validateColor(req.body.color) : '#7c3aed';
     icon = validateIcon(req.body.icon);
     ({ parentId } = await validateParentId(req.userId!, req.body.parentId, null));
     await assertSiblingNameUnique(req.userId!, parentId, name);

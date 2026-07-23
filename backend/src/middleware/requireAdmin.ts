@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 import { AuthRequest } from './verifyUser';
 
 // بيتأكد إن اليوزر أدمن فعليًا عن طريق سؤال قاعدة البيانات مباشرة في كل مرة،

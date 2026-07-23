@@ -1,0 +1,46 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="أيقونة قائمة المهام — Velvet Nova">
+  <defs>
+    <linearGradient id="vn-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A78BFA" />
+      <stop offset="52%" stop-color="#E879F9" />
+      <stop offset="100%" stop-color="#F0B429" />
+    </linearGradient>
+
+    <radialGradient id="vn-sheen" cx="22%" cy="16%" r="70%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="vn-vignette" cx="84%" cy="88%" r="65%">
+      <stop offset="0%" stop-color="#0A0414" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#0A0414" stop-opacity="0" />
+    </radialGradient>
+
+    <filter id="vn-glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="14" />
+    </filter>
+
+    <clipPath id="vn-squircle">
+      <rect x="0" y="0" width="512" height="512" rx="115" ry="115" />
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#vn-squircle)">
+    <rect width="512" height="512" fill="url(#vn-bg)" />
+    <rect width="512" height="512" fill="url(#vn-sheen)" />
+    <rect width="512" height="512" fill="url(#vn-vignette)" />
+
+    <!-- soft glow behind the checkmark -->
+    <polyline points="146,278 223,352 378,170" fill="none" stroke="#FFF1BF"
+      stroke-width="46" stroke-linecap="round" stroke-linejoin="round"
+      opacity="0.55" filter="url(#vn-glow)" />
+
+    <!-- premium checkmark -->
+    <polyline points="146,278 223,352 378,170" fill="none" stroke="#FFFFFF"
+      stroke-width="34" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- gold sparkle accent -->
+    <path d="M372,120 C378,133 379,134 392,140 C379,146 378,147 372,160 C366,147 365,146 352,140 C365,134 366,133 372,120 Z"
+      fill="#FEF3C7" opacity="0.95" />
+  </g>
+</svg>

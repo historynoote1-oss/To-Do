@@ -1,14 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-import { UndoRedoProvider } from './lib/undoRedo';
-import { MusicPlayerProvider } from './lib/musicPlayer';
-import { PomodoroProvider } from './lib/pomodoro';
-import { PrayerTimesProvider } from './lib/prayerTimesStore';
-import { getInitialTheme } from './lib/theme';
-import { initNativeShell } from './lib/nativeShell';
-import { initReminderChannel } from './lib/nativeReminders';
-import './styles.css';
+import App from '@/App';
+import { UndoRedoProvider } from '@/lib/core/undoRedo';
+import { MusicPlayerProvider } from '@/lib/audio/musicPlayer';
+import { PomodoroProvider } from '@/lib/audio/pomodoro';
+import { PrayerTimesProvider } from '@/lib/prayer/prayerTimesStore';
+import { getInitialTheme } from '@/lib/core/theme';
+import { initNativeShell } from '@/lib/core/nativeShell';
+import { initReminderChannel } from '@/lib/notifications/nativeReminders';
+import '@/styles.css';
 
 initNativeShell(getInitialTheme());
 void initReminderChannel();
