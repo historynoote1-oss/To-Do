@@ -25,6 +25,7 @@ import { BUILT_IN_RECITERS, SILENT_RECITER_ID, getCustomAdhanBlob, CustomAdhanMe
 import { useMusicPlayer } from './musicPlayer';
 import { toast } from './toast';
 import { sounds } from './sounds';
+import { scheduleNativeAdhanForDay, ensureNativeAdhanPermissions, isNativeApp } from './nativeAdhan';
 
 export interface ReminderSetting {
   enabled: boolean;
@@ -184,6 +185,13 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     listCustomAdhans().then(setCustomAdhans);
   }, []);
 
+  // لو التطبيق شغال كـ APK حقيقي، نتأكد بدري إن صلاحية "الإنذارات
+  // الدقيقة" مفعّلة (Android 12+)، لأن من غيرها الأذان ممكن يتأخر
+  // شوية بدل ما يدق في معاده بالظبط.
+  useEffect(() => {
+    if (isNativeApp()) ensureNativeAdhanPermissions();
+  }, []);
+
   // ساعة حية للعدّ التنازلي وتحديد الصلاة الحالية/الجاية — بتتحدّث كل ثانية.
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 1000);
@@ -251,6 +259,19 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // الخدمة الـ Native (AlarmManager) بتشغّل الصوت حتى لو التطبيق مقفول
+  // تمامًا، لكنها مش عندها وصول لملفات مرفوعة محليًا (IndexedDB) زي
+  // JS، فبنحولها لرابط https قابل للستريمنج: رابط القارئ الجاهز لو
+  // مختار، أو "silent" لو المستخدم مسكّت الأذان، أو أول قارئ جاهز
+  // كبديل لو مختار ملف مرفوع بنفسه (أفضل من الصمت في منبّه أساسه إنه
+  // "يشتغل مهما حصل").
+  const resolveNativeSoundResource = useCallback((selection: string): string => {
+    if (selection === SILENT_RECITER_ID) return 'silent';
+    const builtIn = BUILT_IN_RECITERS.find((r) => r.id === selection);
+    if (builtIn) return builtIn.url;
+    return BUILT_IN_RECITERS[0].url;
+  }, []);
+
   // بيجدول تشغيل الأذان التلقائي + التذكيرات لباقي صلوات النهارده، وبيجدول
   // كمان إعادة الجلب عند منتصف الليل المحلي عشان مواقيت الغد تتحمّل من
   // غير ما المستخدم يحتاج يعمل أي حاجة بنفسه.
@@ -258,6 +279,19 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     (timings: DayTimings) => {
       clearScheduled();
       const referenceNow = Date.now();
+
+      // جدولة Native موازية للتايمر العادي في JS: التايمر بيشتغل بس
+      // والصفحة مفتوحة، أما دي فبتضمن التشغيل حتى لو التطبيق مقفول
+      // خالص. بنسيبهم الاتنين شغالين مع بعض؛ لو الاتنين اشتغلوا في نفس
+      // اللحظة (نادر جدًا) هيتشغل صوت مرتين، تفضيل مقبول جدًا مقابل
+      // ضمان إن الأذان ميتفوتش خالص.
+      if (isNativeApp()) {
+        scheduleNativeAdhanForDay(
+          timings,
+          resolveNativeSoundResource(settingsRef.current.reciterSelection),
+          settingsRef.current.autoPlayEnabled
+        );
+      }
 
       PRAYER_ORDER.forEach((key) => {
         const time = timings.times[key];

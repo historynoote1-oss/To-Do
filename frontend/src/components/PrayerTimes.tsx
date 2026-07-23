@@ -14,6 +14,7 @@ import {
 import { BUILT_IN_RECITERS, SILENT_RECITER_ID, saveCustomAdhan, deleteCustomAdhan } from '../lib/adhanAudio';
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
+import PrayerNativePermissions from './PrayerNativePermissions';
 
 const REMINDER_PRESETS = [5, 10, 15, 20, 30, 45, 60];
 
@@ -486,6 +487,8 @@ export default function PrayerTimes({
             <p className="prayer-note">
               <DynamicIcon name="info" size={13} /> الأذان بيشتغل تلقائيًا طول ما الموقع مفتوح عندك في المتصفح (تاب شغّال)، ولو كان مشغّل القرآن شغّال وقتها بيتوقف تلقائيًا عشان الأذان يشتغل.
             </p>
+
+            <PrayerNativePermissions />
 
             <button className="prayer-refresh-btn" type="button" onClick={refresh} disabled={loadingTimes}>
               <DynamicIcon name={loadingTimes ? 'loader' : 'refresh-cw'} size={14} className={loadingTimes ? 'spin' : ''} />

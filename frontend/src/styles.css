@@ -12384,6 +12384,41 @@ body:has(.pomodoro-bar):has(.music-player-bar) .container {
   cursor: default;
 }
 
+/* ---- قسم صلاحيات الأذان الـ Native (يظهر جوه التطبيق APK بس) ---- */
+.prayer-native-permissions {
+  margin: 4px 0 16px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  background: var(--surface-2);
+}
+
+.prayer-permission-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: right;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.prayer-permission-btn:last-child {
+  margin-bottom: 0;
+}
+
+.prayer-permission-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
 /* ---- عنصر "مواقيت الصلاة" في القائمة الجانبية (مع عدّاد حي) ---- */
 .side-menu-prayer-item {
   align-items: center;
