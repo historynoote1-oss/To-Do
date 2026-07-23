@@ -3,6 +3,7 @@ import { Reminder, getReminders, createReminder, deleteReminder, updateItemDueDa
 import { sounds } from '../lib/sounds';
 import { toast } from '../lib/toast';
 import { DynamicIcon } from '../lib/icons';
+import { scheduleLocalReminder, cancelLocalReminder } from '../lib/nativeReminders';
 import Portal from './Portal';
 
 type Target =
@@ -126,7 +127,7 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
     }
     setSubmitting(true);
     try {
-      await createReminder({
+      const created = await createReminder({
         listId: target.kind === 'list' ? target.id : undefined,
         itemId: target.kind === 'item' ? target.id : undefined,
         mode,
@@ -134,6 +135,7 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
         offsetMinutes: mode === 'BEFORE_DUE' ? totalOffsetMinutes : undefined,
         message: message.trim() || undefined,
       });
+      void scheduleLocalReminder(created);
       sounds.addItem();
       toast.success('اتضاف التذكير');
       setMessage('');
@@ -151,6 +153,7 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
     setReminders((prev) => prev.filter((r) => r.id !== id));
     try {
       await deleteReminder(id);
+      void cancelLocalReminder(id);
       sounds.deleteItem();
     } catch (err) {
       sounds.error();

@@ -17,6 +17,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { sounds } from './sounds';
+import { hapticImpact } from './nativeShell';
 import { toast } from './toast';
 
 export type PomodoroPhase = 'focus' | 'break';
@@ -567,6 +568,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     setRemainingSeconds(total);
     setStatus('running');
     sounds.timelineStart();
+    void hapticImpact('medium');
     ensureNotificationPermission();
   }, []);
 

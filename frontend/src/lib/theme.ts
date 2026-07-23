@@ -32,6 +32,11 @@ export function applyTheme(theme: Theme) {
   if (metaThemeColor) {
     metaThemeColor.setAttribute('content', theme === 'dark' ? DARK_META_COLOR : LIGHT_META_COLOR);
   }
+
+  // لو شغالين جوه التطبيق الأصلي (أندرويد)، شريط الحالة فوق بيتلوّن بنفس
+  // لون الثيم الجديد فورًا — بدون الاستيراد ده هيفضل بلون الثيم القديم
+  // لحد ما تعمل reload كامل للتطبيق.
+  void import('./nativeShell').then(({ syncStatusBar }) => syncStatusBar(theme));
 }
 
 export function useTheme(): [Theme, () => void, (theme: Theme) => void] {

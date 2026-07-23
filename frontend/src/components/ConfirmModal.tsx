@@ -1,4 +1,5 @@
 import Portal from './Portal';
+import { hapticNotification } from '../lib/nativeShell';
 
 interface Props {
   title: string;
@@ -34,6 +35,7 @@ export default function ConfirmModal({
             <button
               className={danger ? 'danger small' : 'small'}
               onClick={() => {
+                if (danger) void hapticNotification('warning');
                 onConfirm();
               }}
               type="button"

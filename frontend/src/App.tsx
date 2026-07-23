@@ -24,6 +24,9 @@ import {
 import { useUndoRedo } from './lib/undoRedo';
 import { sounds } from './lib/sounds';
 import { toast } from './lib/toast';
+import { attachHardwareBackButton, confirmExitOnDoubleBack, hapticSelection, hideSplash } from './lib/nativeShell';
+import { scheduleLocalReminder } from './lib/nativeReminders';
+import { applyNavDirection } from './lib/motion';
 import { getPushState, enablePush, disablePush, PushSupportState, PushError } from './lib/push';
 import TodoList from './components/TodoList';
 import AuthForm from './components/AuthForm';
@@ -51,6 +54,9 @@ import { DynamicIcon } from './lib/icons';
 import TaskDistributionCard from './components/TaskDistributionCard';
 import CompletionRateCard from './components/CompletionRateCard';
 import PendingRestoreSection from './components/PendingRestoreSection';
+import BottomTabBar from './components/BottomTabBar';
+import PullToRefresh from './components/PullToRefresh';
+import OfflineBanner from './components/OfflineBanner';
 
 // الصفحات دي مش بتتفتح كل زيارة (لوحة الأدمن، البروفايل، المهام
 // المتكررة، الأرشيف، مشغّل القرآن، البومودورو) وبعضها تقيل نسبيًا (لوحة
@@ -114,7 +120,13 @@ export default function App() {
   // الانتقال لشاشة تانية غير الإدارة بيصفّر تبويب الإدارة لـ"نظرة عامة"،
   // فلو المستخدم رجع للوحة الإدارة تاني يبدأ من التبويب الافتراضي.
   const setView = useCallback((next: ViewName) => {
-    setViewState(next);
+    // بنحدد اتجاه حركة الدخول (يمين/يسار) *قبل* ما نغيّر الشاشة فعليًا،
+    // عن طريق الـ state updater نفسه عشان نضمن إننا شايفين آخر شاشة حالية
+    // فعلاً (بدل ما نعتمد على closure ممكن يبقى قديم). شوف lib/motion.ts.
+    setViewState((prev) => {
+      applyNavDirection(prev, next);
+      return next;
+    });
     if (next !== 'admin') {
       setAdminTabState('overview');
     }
@@ -134,7 +146,10 @@ export default function App() {
   // كل صفحة منهم قابلة للمشاركة ورجوع المتصفح يشتغل معاها برضه — بنفس فكرة
   // setAdminTab بالظبط.
   const setArchiveTab = useCallback((next: ArchiveTab) => {
-    setViewState('archive');
+    setViewState((prev) => {
+      applyNavDirection(prev, 'archive');
+      return 'archive';
+    });
     setArchiveTabState(next);
     const path = ARCHIVE_TAB_PATHS[next];
     if (window.location.pathname !== path) {
@@ -158,12 +173,26 @@ export default function App() {
   useEffect(() => {
     function handlePopState() {
       const next = resolveFromPath();
-      setViewState(next.view);
+      setViewState((prev) => {
+        applyNavDirection(prev, next.view);
+        return next.view;
+      });
       setAdminTabState(next.adminTab);
       setArchiveTabState(next.archiveTab);
     }
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // زرار الرجوع الفيزيائي في أندرويد: لو على شاشة غير الرئيسية بيرجّع
+  // للي قبلها (زي زرار الرجوع الظاهر بالظبط)، ولو على الرئيسية أول
+  // ضغطة بتوري تلميح "اضغط تاني للخروج" وثاني ضغطة خلال ثانيتين بتقفل
+  // التطبيق فعليًا — تجربة تطبيق أندرويد عادي بدل قفل فجائي من أي شاشة.
+  useEffect(() => {
+    attachHardwareBackButton({
+      canGoBack: () => window.location.pathname !== '/',
+      onExitAttempt: () => confirmExitOnDoubleBack(() => toast.info('اضغط رجوع تاني للخروج')),
+    });
   }, []);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -183,6 +212,10 @@ export default function App() {
   // نقدر نحسب نسبة إنجاز شاملة (نشطة + مؤرشفة) في هيدر الصفحة الرئيسية.
   const [archiveStats, setArchiveStats] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [addTaskOpen, setAddTaskOpen] = useState(false);
+  const handleQuickAdd = useCallback(() => {
+    setView('todos');
+    setAddTaskOpen(true);
+  }, [setView]);
   const [highlightedListId, setHighlightedListId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -192,6 +225,10 @@ export default function App() {
   const [pushState, setPushState] = useState<PushSupportState>('unsupported');
   const [lifeAreas, setLifeAreas] = useState<LifeAreaData[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const handleOpenMenu = useCallback(() => {
+    void hapticSelection();
+    setMenuOpen(true);
+  }, []);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const shownReminderIds = useRef<Set<string>>(new Set());
   const { canUndo, canRedo, undoLabel, redoLabel, isBusy: undoRedoBusy, pushCommand, undo, redo } = useUndoRedo();
@@ -544,12 +581,13 @@ export default function App() {
     if (reminders.length > 0 && startTime) {
       for (const reminder of reminders) {
         const remindAt = new Date(new Date(startTime).getTime() - reminder.offsetMinutes * 60 * 1000).toISOString();
-        await createReminder({
+        const created = await createReminder({
           listId: list.id,
           mode: 'CUSTOM',
           remindAt,
           message: reminder.message || undefined,
         });
+        void scheduleLocalReminder(created);
       }
     }
     return list;
@@ -708,10 +746,18 @@ export default function App() {
   const groups = useMemo(() => groupByLifeArea(lists as any, lifeAreas), [lists, lifeAreas]);
   const hierGroups = useMemo(() => groupHierarchical(lists as any, lifeAreas), [lists, lifeAreas]);
 
+  // بمجرد ما أول فحص أساسي (حالة الموقع/الصيانة) يخلص وعندنا حاجة فعلية
+  // نعرضها، نقفل شاشة البداية الأصلية (Splash) بدل ما تختفي تلقائيًا قبل
+  // كده وتوري وميض شاشة فاضية.
+  useEffect(() => {
+    if (statusChecked) void hideSplash();
+  }, [statusChecked]);
+
   if (!statusChecked) {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <div className="app-boot" aria-hidden="true">
           <span className="app-boot-spinner" />
         </div>
@@ -723,6 +769,7 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <MaintenancePage
           emoji={siteStatus?.maintenanceEmoji || 'wrench'}
           message={siteStatus?.maintenanceMessage || 'الموقع تحت الصيانة حاليًا، هنرجع قريب'}
@@ -737,6 +784,7 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <ThemeToggleButton />
         <div className="auth-shell view-fade">
           <div className="auth-shell-brand">
@@ -824,6 +872,15 @@ export default function App() {
           onConfirm={confirmLogout}
         />
       )}
+      {view !== 'admin' && (
+        <BottomTabBar
+          activeView={view}
+          menuOpen={menuOpen}
+          onNavigate={setView}
+          onQuickAdd={handleQuickAdd}
+          onOpenMenu={handleOpenMenu}
+        />
+      )}
     </>
   );
 
@@ -831,13 +888,14 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <div className="view-fade">
           <Suspense fallback={<RouteLoading />}>
             <AdminDashboard
               onBack={() => setView('todos')}
               tab={adminTab}
               onTabChange={setAdminTab}
-              onOpenMenu={() => setMenuOpen(true)}
+              onOpenMenu={handleOpenMenu}
               menuOpen={menuOpen}
             />
           </Suspense>
@@ -851,12 +909,13 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
           <Profile
             onBack={() => setView('todos')}
             onDisplayNameChange={setDisplayName}
             onAvatarChange={setAvatarUrl}
-            onOpenMenu={() => setMenuOpen(true)}
+            onOpenMenu={handleOpenMenu}
             menuOpen={menuOpen}
           />
         </Suspense>
@@ -869,6 +928,7 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
           <GoalMap
             lists={lists as any}
@@ -878,7 +938,7 @@ export default function App() {
             onDeleteList={handleDelete}
             onManageLifeAreas={() => setView('lifeAreas')}
             onCreateGoal={handleCreate}
-            onOpenMenu={() => setMenuOpen(true)}
+            onOpenMenu={handleOpenMenu}
             menuOpen={menuOpen}
             onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
           />
@@ -892,6 +952,7 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
           <LifeAreasManager
             onBack={() => setView('todos')}
@@ -899,7 +960,7 @@ export default function App() {
               refreshLifeAreas();
               refresh();
             }}
-            onOpenMenu={() => setMenuOpen(true)}
+            onOpenMenu={handleOpenMenu}
             menuOpen={menuOpen}
           />
         </Suspense>
@@ -912,6 +973,7 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
           <ArchivePage
             onBack={() => setView('todos')}
@@ -919,7 +981,7 @@ export default function App() {
               refresh();
               refreshPendingRestore();
             }}
-            onOpenMenu={() => setMenuOpen(true)}
+            onOpenMenu={handleOpenMenu}
             menuOpen={menuOpen}
             lifeAreas={lifeAreas}
             onManageLifeAreas={() => setView('lifeAreas')}
@@ -936,8 +998,9 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
-          <MusicPlayer onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+          <MusicPlayer onBack={() => setView('todos')} onOpenMenu={handleOpenMenu} menuOpen={menuOpen} />
         </Suspense>
         {sideMenuAndModals}
       </>
@@ -948,8 +1011,9 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
-          <PrayerTimes onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+          <PrayerTimes onBack={() => setView('todos')} onOpenMenu={handleOpenMenu} menuOpen={menuOpen} />
         </Suspense>
         {sideMenuAndModals}
       </>
@@ -960,8 +1024,9 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
-          <Pomodoro onBack={() => setView('todos')} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
+          <Pomodoro onBack={() => setView('todos')} onOpenMenu={handleOpenMenu} menuOpen={menuOpen} />
         </Suspense>
         {sideMenuAndModals}
       </>
@@ -972,13 +1037,14 @@ export default function App() {
     return (
       <>
         <ToastContainer />
+        <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
           <RecurringTasksManager
             lifeAreas={lifeAreas}
             onBack={() => setView('todos')}
             onChange={refresh}
             onManageLifeAreas={() => setView('lifeAreas')}
-            onOpenMenu={() => setMenuOpen(true)}
+            onOpenMenu={handleOpenMenu}
             menuOpen={menuOpen}
             onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
           />
@@ -991,6 +1057,7 @@ export default function App() {
   return (
     <>
       <ToastContainer />
+        <OfflineBanner />
       <div className="container view-fade home-page">
         {isAdmin && siteStatus?.maintenanceMode && (
           <div className="maintenance-banner">
@@ -1034,7 +1101,7 @@ export default function App() {
               <NotificationsBell />
               <button
                 className="icon-btn hamburger-btn"
-                onClick={() => setMenuOpen(true)}
+                onClick={handleOpenMenu}
                 type="button"
                 title="القائمة"
                 aria-label="فتح القائمة"
@@ -1051,6 +1118,7 @@ export default function App() {
           </div>
         </header>
 
+        <PullToRefresh onRefresh={refresh} disabled={addTaskOpen || menuOpen || logoutConfirmOpen || loading}>
         <main className="home-main">
           <section className="stats-col" aria-label="إحصائيات سريعة">
             <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
@@ -1149,6 +1217,7 @@ export default function App() {
             />
           )}
         </main>
+        </PullToRefresh>
       </div>
       {sideMenuAndModals}
     </>

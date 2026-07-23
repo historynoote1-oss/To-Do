@@ -77,6 +77,30 @@ function notifySessionExpired() {
 // authed=true (الافتراضي) للطلبات اللي بتبعت توكن (Authorization header) —
 // أي 401 منها معناه الجلسة بطلت. authed=false للطلبات العامة زي تسجيل
 // الدخول/إنشاء حساب، لأن 401/400 منها معناه بيانات غلط بس، مش جلسة منتهية.
+// إعادة المحاولة التلقائية لانقطاع الشبكة المؤقت (المرحلة 6). بنطبّقها
+// بس على طلبات القراءة (GET) الأساسية اللي بتتحمل عند فتح/تحديث الشاشة
+// الرئيسية — مقصود عمدًا إننا مش بنطبّقها على طلبات الكتابة (إنشاء/تعديل/
+// حذف) عشان مانكررش إجراء ممكن يكون نفّذ فعليًا على السيرفر رغم إن
+// الاستجابة ضاعت. `fetch` نفسه (مش استجابة الخادم) هو اللي بيرمي
+// TypeError لما مفيش اتصال بالشبكة خالص — ده الحالة الوحيدة اللي بنعيد
+// المحاولة فيها، مش أي خطأ تاني (401/404/500... إلخ بترجع استجابة عادية
+// ومفروض تتعامل معاها `handle` زي ما هي).
+const RETRY_DELAYS_MS = [500, 1500, 3500];
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      lastErr = err;
+      if (attempt === RETRY_DELAYS_MS.length) break;
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+    }
+  }
+  throw lastErr;
+}
+
 async function handle(res: Response, authed: boolean = true) {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -202,7 +226,7 @@ export async function searchYoutube(query: string): Promise<YoutubeSearchResult[
 }
 
 export async function getLists() {
-  const res = await fetch(`${API_URL}/api/lists`, { headers: authHeaders() });
+  const res = await fetchWithRetry(`${API_URL}/api/lists`, { headers: authHeaders() });
   return handle(res);
 }
 
@@ -308,7 +332,7 @@ export async function unconfirmListDone(id: string) {
 // ===== الأرشيف (Archive) =====
 
 export async function getArchive() {
-  const res = await fetch(`${API_URL}/api/archive`, { headers: authHeaders() });
+  const res = await fetchWithRetry(`${API_URL}/api/archive`, { headers: authHeaders() });
   return handle(res);
 }
 
@@ -334,7 +358,7 @@ export async function restoreList(id: string) {
 // بترجع كل المهام اللي استُرجعت من الأرشيف ولسه بانتظار مراجعة/تأكيد
 // المستخدم قبل ما ترجع لقائمة المهام النشطة.
 export async function getPendingRestoreLists() {
-  const res = await fetch(`${API_URL}/api/lists/pending-restore`, { headers: authHeaders() });
+  const res = await fetchWithRetry(`${API_URL}/api/lists/pending-restore`, { headers: authHeaders() });
   return handle(res);
 }
 
@@ -383,7 +407,7 @@ export async function restoreTrashedYear(year: number) {
 // ===== مجالات الحياة (Life Areas) =====
 
 export async function getLifeAreas(): Promise<LifeAreaData[]> {
-  const res = await fetch(`${API_URL}/api/life-areas`, { headers: authHeaders() });
+  const res = await fetchWithRetry(`${API_URL}/api/life-areas`, { headers: authHeaders() });
   return handle(res);
 }
 
@@ -572,7 +596,7 @@ export async function getReminders(filter: { listId?: string; itemId?: string })
 }
 
 export async function getDueReminders() {
-  const res = await fetch(`${API_URL}/api/reminders/due`, { headers: authHeaders() });
+  const res = await fetchWithRetry(`${API_URL}/api/reminders/due`, { headers: authHeaders() });
   return handle(res) as Promise<Reminder[]>;
 }
 
@@ -640,7 +664,7 @@ export async function unsubscribePush(endpoint: string) {
 // ===== الاستريك (أيام الإنجاز المتتالية) =====
 
 export async function getStreak(): Promise<{ current: number }> {
-  const res = await fetch(`${API_URL}/api/streak?date=${localDateKey()}`, { headers: authHeaders() });
+  const res = await fetchWithRetry(`${API_URL}/api/streak?date=${localDateKey()}`, { headers: authHeaders() });
   return handle(res);
 }
 

@@ -63,6 +63,15 @@ export const ADMIN_PATH_TABS: Record<string, AdminTab> = Object.fromEntries(
 // بيقرأ الرابط الحالي ويرجّع الشاشة الرئيسية + تبويب الإدارة (لو الشاشة
 // إدارة) + صفحة الأرشيف الفرعية (لو الشاشة أرشيف) المطابقين له. مركزي عشان
 // يُستخدم مع التحميل الأول ومع popstate.
+// "عمق" كل شاشة — بيُستخدم بس عشان نقرر اتجاه حركة الانتقال (المرحلة 4):
+// الشاشة الرئيسية (`todos`) هي الجذر (عمق 0)، وكل شاشة تانية بتتفتح منها
+// أو من القائمة الجانبية هي "أعمق" (عمق 1). مش محتاجين تدرّج أكتر من كده
+// دلوقتي لأن كل الشاشات الفرعية بترجع لـ`todos` مباشرة (`onBack`)، مفيش
+// تداخل تلات مستويات فعلي في الوقت الحالي.
+export function getViewDepth(view: ViewName): number {
+  return view === 'todos' ? 0 : 1;
+}
+
 export function resolveFromPath(): { view: ViewName; adminTab: AdminTab; archiveTab: ArchiveTab } {
   const path = window.location.pathname;
   if (path in ADMIN_PATH_TABS) {

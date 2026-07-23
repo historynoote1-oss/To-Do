@@ -8,7 +8,7 @@
 // الأمان: السكريبت idempotent - لو اتنفذ أكتر من مرة على نفس المشروع
 // مش هيكرر الإضافات (بيدور على علامات مميزة قبل ما يضيف حاجة).
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +17,22 @@ const FRONTEND_DIR = path.resolve(__dirname, '..');
 const NATIVE_SRC = path.join(FRONTEND_DIR, 'android-native');
 const ANDROID_DIR = path.join(FRONTEND_DIR, 'android');
 const PACKAGE_PATH = 'com/kharita/mobile';
+
+// بينسخ مجلد بالكامل (وأي مجلدات فرعية) من المصدر للهدف، بيستبدل أي ملف
+// موجود بنفس الاسم أصلاً (زي أيقونات Capacitor الافتراضية اللي بتتولّد
+// مع كل "cap add android" من الصفر).
+function copyDirRecursive(srcDir, destDir) {
+  mkdirSync(destDir, { recursive: true });
+  for (const entry of readdirSync(srcDir)) {
+    const srcPath = path.join(srcDir, entry);
+    const destPath = path.join(destDir, entry);
+    if (statSync(srcPath).isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else {
+      copyFileSync(srcPath, destPath);
+    }
+  }
+}
 
 function fail(msg) {
   console.error(`[apply-android-native] خطأ: ${msg}`);
@@ -191,6 +207,48 @@ if (existsSync(appBuildGradlePath)) {
   writeFileSync(appBuildGradlePath, buildGradle, 'utf8');
 } else {
   console.warn('[apply-android-native] تحذير: app/build.gradle مش موجود، متأكدش من التبعيات');
+}
+
+// 7) الأيقونة التكيفية (Adaptive Icon): بنستبدل أيقونات Capacitor
+//    الافتراضية (اللي بتتولّد من قالب فاضي مع كل "cap add android") بأيقونة
+//    التطبيق الحقيقية — طبقة foreground (الشعار داخل الـ safe zone) +
+//    طبقة background (نفس لون القرص التيل بيمتد لحافة الشكل)، لكل
+//    الكثافات (mdpi → xxxhdpi)، زي أي تطبيق احترافي منشور فعليًا. الملفات
+//    مولّدة مسبقًا في android-native/res (مش بنولّدها وقت الـ CI).
+const resSrcDir = path.join(NATIVE_SRC, 'res');
+const resDestDir = path.join(ANDROID_DIR, 'app', 'src', 'main', 'res');
+const iconFolders = readdirSync(resSrcDir).filter(
+  (name) => name !== 'raw' && statSync(path.join(resSrcDir, name)).isDirectory()
+);
+for (const folder of iconFolders) {
+  copyDirRecursive(path.join(resSrcDir, folder), path.join(resDestDir, folder));
+}
+console.log(`[apply-android-native] تم استبدال أيقونة التطبيق الافتراضية بالأيقونة التكيفية (${iconFolders.length} مجلد res)`);
+
+// 8) رقم إصدار واضح ومتزايد تلقائيًا مع كل بناء — بدل ما يفضل ثابت على
+//    القيمة الافتراضية "1" / "1.0" اللي Capacitor بيحطها ولحد ما حد
+//    يفتكر يغيّرها يدويًا (وغالبًا بينسى).
+//    - versionCode: لازم يكون رقم صحيح متزايد بالظبط مع كل بناء عشان
+//      Android/Google Play يقبلوا التحديث. بناخده من رقم تشغيلة الـ CI
+//      نفسها (GITHUB_RUN_NUMBER) لأنه مضمون إنه أكبر من اللي قبله دايمًا،
+//      من غير أي عداد يدوي ممكن يتنسى. لو السكريبت اتشغّل محليًا (مش من
+//      GitHub Actions) بيرجع لـ 1 كقيمة احتياطية آمنة.
+//    - versionName: النسخة اللي بيشوفها المستخدم (زي "1.2.0")، مصدرها
+//      حقل "version" في package.json — بتتغيّر يدويًا وقت ما فيه تحديث
+//      حقيقي يستاهل رقم جديد، لكنها دايمًا موجودة وواضحة بدل ما تفضل
+//      "1.0" منسية.
+const versionCode = process.env.GITHUB_RUN_NUMBER ? parseInt(process.env.GITHUB_RUN_NUMBER, 10) : 1;
+const pkgJson = JSON.parse(readFileSync(path.join(FRONTEND_DIR, 'package.json'), 'utf8'));
+const versionName = pkgJson.version || '1.0.0';
+
+if (existsSync(appBuildGradlePath)) {
+  let buildGradle = readFileSync(appBuildGradlePath, 'utf8');
+  buildGradle = buildGradle.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`);
+  buildGradle = buildGradle.replace(/versionName\s+"[^"]*"/, `versionName "${versionName}"`);
+  writeFileSync(appBuildGradlePath, buildGradle, 'utf8');
+  console.log(`[apply-android-native] رقم الإصدار: versionCode=${versionCode} versionName=${versionName}`);
+} else {
+  console.warn('[apply-android-native] تحذير: app/build.gradle مش موجود، متأكدش من ضبط رقم الإصدار');
 }
 
 console.log('[apply-android-native] تم بنجاح ✅');

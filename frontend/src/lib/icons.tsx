@@ -8,6 +8,7 @@ import {
   Activity,
   AlertTriangle,
   Archive,
+  ArrowDown,
   ArrowRight,
   Baby,
   Ban,
@@ -66,6 +67,7 @@ import {
   ListMusic,
   LogOut,
   Lock,
+  Menu,
   Mic2,
   Minus,
   Moon,
@@ -135,6 +137,7 @@ import {
   Radio,
   Vibrate,
   Info,
+  WifiOff,
 } from 'lucide-react';
 
 // أيقونة القلب (زرار "إضافة للمفضّلة") متعمولة كـ SVG مكتوب يدويًا هنا، مش
@@ -192,6 +195,7 @@ export const ICON_MAP = {
   alert: AlertTriangle,
   archive: Archive,
   'arrow-right': ArrowRight,
+  'arrow-down': ArrowDown,
   baby: Baby,
   ban: Ban,
   'bar-chart': BarChart3,
@@ -217,6 +221,7 @@ export const ICON_MAP = {
   'chevrons-up': ChevronsUp,
   circle: Circle,
   'clipboard-list': ClipboardList,
+  menu: Menu,
   coffee: Coffee,
   compass: Compass,
   construction: Construction,
@@ -315,6 +320,7 @@ export const ICON_MAP = {
   upload: Upload,
   loader: Loader2,
   'refresh-cw': RefreshCw,
+  'wifi-off': WifiOff,
   'chevron-right': ChevronRight,
   radio: Radio,
   vibrate: Vibrate,

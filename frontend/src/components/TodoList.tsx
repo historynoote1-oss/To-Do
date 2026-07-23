@@ -15,6 +15,7 @@ import {
   reorderItems,
 } from '../lib/api';
 import { sounds } from '../lib/sounds';
+import { hapticImpact, hapticNotification } from '../lib/nativeShell';
 import { toast } from '../lib/toast';
 import { useUndoRedo } from '../lib/undoRedo';
 import TodoItemRow from './TodoItem';
@@ -730,6 +731,8 @@ export default function TodoList({
     if (item.isDone) sounds.taskUndone();
     else sounds.taskDone();
     const willBeDone = !item.isDone;
+    if (willBeDone) void hapticNotification('success');
+    else void hapticImpact('light');
     try {
       await toggleItem(item.id, willBeDone);
       pushCommand({

@@ -1,3 +1,5 @@
+import { hapticNotification } from './nativeShell';
+
 export type ToastKind = 'success' | 'error' | 'info' | 'reminder';
 
 export interface ToastMessage {
@@ -20,6 +22,12 @@ function push(kind: ToastKind, text: string, duration = 3600) {
   const id = nextId++;
   toasts = [...toasts, { id, kind, text }];
   emit();
+  // اهتزاز مناسب لنوع الرسالة — مركزي هنا بدل ما يتضاف يدويًا عند كل نداء
+  // toast.error/success في المشروع (عشرات الأماكن)، فأي toast جديد يتضاف
+  // بعدين ياخد الاهتزاز الصحيح تلقائيًا من غير ما حد يفتكر يضيفه بنفسه.
+  if (kind === 'error') void hapticNotification('error');
+  else if (kind === 'success') void hapticNotification('success');
+  else if (kind === 'reminder') void hapticNotification('warning');
   window.setTimeout(() => dismiss(id), duration);
 }
 

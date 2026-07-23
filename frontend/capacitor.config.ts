@@ -23,6 +23,24 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
   },
+  plugins: {
+    // بيتحكم في شاشة البداية *قبل* ما JS يشتغل خالص (لحظة فتح التطبيق).
+    // launchAutoHide: false عشان إحنا اللي بنقفلها يدويًا من nativeShell.ts
+    // (hideSplash) بعد ما أول شاشة فعلية تجهز — لو سبناها true هتختفي
+    // فورًا وتوري وميض أبيض قبل المحتوى.
+    SplashScreen: {
+      launchShowDuration: 0,
+      launchAutoHide: false,
+      backgroundColor: '#f1eee5',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+    },
+    StatusBar: {
+      overlaysWebView: false,
+      style: 'LIGHT',
+      backgroundColor: '#f1eee5',
+    },
+  },
 };
 
 export default config;

@@ -5,7 +5,13 @@ import { UndoRedoProvider } from './lib/undoRedo';
 import { MusicPlayerProvider } from './lib/musicPlayer';
 import { PomodoroProvider } from './lib/pomodoro';
 import { PrayerTimesProvider } from './lib/prayerTimesStore';
+import { getInitialTheme } from './lib/theme';
+import { initNativeShell } from './lib/nativeShell';
+import { initReminderChannel } from './lib/nativeReminders';
 import './styles.css';
+
+initNativeShell(getInitialTheme());
+void initReminderChannel();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

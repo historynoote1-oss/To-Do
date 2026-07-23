@@ -10,6 +10,11 @@
 }
 
 :root {
+  /* اتجاه دخول الشاشة الجديدة (المرحلة 4 — الحركة والانتقالات):
+     1 = دخول لشاشة أعمق (من اليسار)، -1 = رجوع لشاشة أعلى (من اليمين).
+     بيتحدّث فعليًا من lib/motion.ts (applyNavDirection) قبل كل تنقّل؛
+     القيمة هنا مجرد افتراضي آمن لأول تحميل. */
+  --nav-dir: 1;
   /* ---- Color (Light, warm-neutral design system) ---- */
   --bg: #f1eee5;
   --bg-glow: radial-gradient(ellipse 900px 560px at 12% -8%, rgba(29, 111, 115, 0.14), transparent 60%),
@@ -342,7 +347,7 @@ body::before {
 .container {
   max-width: 480px;
   margin: 0 auto;
-  padding: 20px 16px 80px;
+  padding: 20px 16px calc(84px + env(safe-area-inset-bottom, 0px));
   animation: fade-up var(--dur-slow) var(--ease-out) both;
 }
 
@@ -647,10 +652,20 @@ button:disabled {
 }
 
 .icon-btn.small {
+  position: relative;
   width: 28px;
   height: 28px;
   font-size: 13px;
   border-radius: 8px;
+}
+
+/* توسيع مساحة اللمس الفعلية لـ 44×44 (معيار Apple/Material) من غير ما
+   يكبّر الشكل الظاهر — نفس مبدأ `.back-button` بس بـ pseudo-element
+   شفاف عشان مانضطرش نغيّر مقاس أي زرار صغير بصريًا (المرحلة 5). */
+.icon-btn.small::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
 }
 
 /* ===== Top bar ===== */
@@ -2347,6 +2362,66 @@ li label > span:last-child {
   flex-shrink: 0;
 }
 
+/* ===== سحب المهمة الفرعية لإجراء سريع (المرحلة 4) =====
+   li.swipeable-row بياخد overflow:hidden عشان الخلفية (swipe-bg) تتقص
+   على حدود الصف، و.swipe-content هو اللي بياخد كل تنسيق li القديم
+   (flex/padding) وبيتحرك أفقيًا بالسحب. الاستخدام physical (left/right)
+   مش logical عشان يفضل صح بصريًا برضه في واجهة RTL — العنصر اللي
+   بيتكشف فعليًا هو اللي على يمين/شمال الشاشة الحقيقي، مش "بداية/نهاية"
+   منطقية بتتقلب مع الاتجاه. */
+li.swipeable-row {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  display: block;
+}
+
+li.swipeable-row .swipe-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 2px;
+  background: var(--surface);
+  touch-action: pan-y;
+}
+
+.swipe-bg {
+  position: absolute;
+  inset: 0;
+}
+
+.swipe-bg-side {
+  position: absolute;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fff;
+  opacity: 0.35;
+  transform: translateY(-50%) scale(0.9);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.swipe-bg-side.active {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* سحب لليمين (المحتوى بيتحرك يمين) بيكشف الخلفية على الشمال. */
+.swipe-bg-complete {
+  left: 14px;
+  background: var(--success, #2e7d32);
+}
+
+/* سحب لليسار (المحتوى بيتحرك شمال) بيكشف الخلفية على اليمين. */
+.swipe-bg-delete {
+  right: 14px;
+  background: var(--danger, #c0392b);
+}
+
 li .row-delete,
 li .row-edit {
   opacity: 0;
@@ -2409,6 +2484,15 @@ li.editing {
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-spring);
 }
+
+/* توسيع مساحة اللمس لـ ~44×44 من غير ما يغيّر الشكل الظاهر (23×23) —
+   نفس مبدأ `.icon-btn.small::before` (المرحلة 5). */
+.checkbox::before {
+  content: '';
+  position: absolute;
+  inset: -11px;
+}
+
 
 .checkbox:active {
   transform: scale(0.88);
@@ -3417,6 +3501,58 @@ li input[type='checkbox'] {
   padding: 24px 22px;
   box-shadow: var(--shadow-lift);
   animation: pop-in var(--dur) var(--ease-spring) both;
+}
+
+/* ===== bottom-sheet على الموبايل (المرحلة 4) =====
+   نفس المودالز بالظبط (كل استخدامات .modal-overlay/.modal-box في المشروع
+   كله — تأكيد، إضافة مهمة، تذكيرات...) لكن على الشاشات الضيقة بتدخل من
+   تحت بدل ما تنبثق في النص، وده الشكل المتعارف عليه في تطبيقات الموبايل
+   وأقرب لإحساس اللمس الطبيعي. الديسكتوب/التابلت (min-width: 640px) بيفضل
+   بالسلوك القديم (نافذة مركزية) لأن bottom-sheet مالوش معنى على شاشة واسعة. */
+@media (max-width: 639.98px) {
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-box {
+    max-width: none;
+    width: 100%;
+    max-height: 86vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 14px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+    animation: sheet-up var(--dur) var(--ease-out) both;
+    /* حواف الشاشة نفسها بتقفل من تحت، فمفيش داعي لحد سفلي على الكارت */
+    border-bottom: none;
+  }
+
+  /* مقبض سحب بصري أعلى الشيت — إشارة بديهية إنه bottom-sheet (حتى لو
+     السحب الفعلي مش مفعّل، الضغط برا الشيت أو زرار الإلغاء بيقفله).
+     بيستبدل الخط العلوي المتدرّج (مستخدم في نسخة سطح المكتب) بدل ما
+     يتراكم فوقه. */
+  .modal-box::before {
+    content: '';
+    position: static;
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 2px auto 14px;
+    border-radius: 999px;
+    background: var(--border);
+    background-image: none;
+    opacity: 0.7;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .modal-box::before {
@@ -10027,7 +10163,14 @@ details[open] > summary .hier-caret {
   }
 }
 
-/* ===== انتقال أسرع وأنعم بين الصفحات ===== */
+/* ===== انتقال اتجاهي بين الشاشات (المرحلة 4) =====
+   نفس فكرة "الشاشة الجديدة بتيجي من جنب" في أي تطبيق موبايل حقيقي، بدل
+   التبديل الجاف/الظهور الرأسي البسيط اللي كان موجود قبل كده. الاتجاه
+   نفسه (يمين/يسار) متحكَّم فيه بمتغير --nav-dir (شوف lib/motion.ts)،
+   فمفيش داعي لأي منطق حركة جوه React نفسه — مجرد كتابة property واحدة
+   قبل كل تنقّل. var(--motion-ok, 0) بيصفّر إزاحة الحركة بالكامل (يسيب
+   بس الشفافية) لو المستخدم مفعّل "تقليل الحركة" في إعدادات نظامه، لأن
+   --motion-ok مش بيتعرّف أصلاً في الحالة دي (شوف تعريفه في أول الملف). */
 
 .view-fade {
   animation: view-enter var(--dur) var(--ease-out) both;
@@ -10036,11 +10179,12 @@ details[open] > summary .hier-caret {
 @keyframes view-enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(calc(6px * var(--motion-ok, 0)))
+      translateX(calc(var(--nav-dir, 1) * 22px * var(--motion-ok, 0)));
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) translateX(0);
   }
 }
 
@@ -12447,5 +12591,179 @@ body:has(.pomodoro-bar):has(.music-player-bar) .container {
 
   .prayer-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ===== شريط التبويبات السفلي (Bottom Tab Bar) =====
+   النمط القياسي للتنقل بين الشاشات الأساسية في أي تطبيق موبايل — ظاهر
+   وثابت أسفل كل الشاشات ما عدا لوحة الإدارة (تخطيطها مختلف بالكامل).
+   z-index أقل من القائمة الجانبية (60/61) عشان القائمة تغطيه لما تتفتح،
+   وأعلى من محتوى الصفحة العادي. */
+.bottom-tab-bar {
+  position: fixed;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 56;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 4px;
+  padding: 8px 10px max(8px, env(safe-area-inset-bottom, 0px));
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border-soft);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.06);
+}
+
+.bottom-tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 44px;
+  padding: 4px 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+
+.bottom-tab-btn:active {
+  transform: scale(0.92);
+}
+
+.bottom-tab-btn.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.bottom-tab-btn span {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* زرار الإضافة المركزي — بارز شكلاً ومقاسًا عن باقي التبويبات عشان يوضح
+   إنه الفعل الأساسي للتطبيق (نفس فكرة زرار الكاميرا في تطبيقات التواصل). */
+.bottom-tab-add {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  margin-top: -22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.bottom-tab-add:active {
+  transform: scale(0.9);
+}
+
+/* بانر حالة الاتصال (المرحلة 6) — ثابت أعلى الشاشة، فوق أي محتوى آخر
+   حتى شريط التبويبات السفلي، عشان يبقى أول حاجة المستخدم يلاحظها. */
+.offline-banner {
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  animation: offline-banner-in 220ms var(--ease-out) both;
+}
+
+.offline-banner.offline {
+  background: var(--danger, #c1443a);
+  color: #fff;
+}
+
+.offline-banner.reconnected {
+  background: var(--success, #2e8b57);
+  color: #fff;
+}
+
+@keyframes offline-banner-in {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offline-banner {
+    animation: none;
+  }
+}
+
+@media (min-width: 720px) {
+  /* على الشاشات الأعرض (تابلت/ديسكتوب) شريط التبويبات السفلي أقل أهمية —
+     القائمة الجانبية مريحة بما يكفي كمدخل تنقّل وحيد، فبنخفيه ونرجّع
+     الحشو السفلي للحاوية لقيمته العادية. */
+  .bottom-tab-bar {
+    display: none;
+  }
+
+  .container {
+    padding-bottom: 40px;
+  }
+}
+
+/* سحب للتحديث (Pull-to-refresh) — المرحلة 4، الشاشة الرئيسية فقط.
+   الارتفاع بيتحكم فيه inline من الكومبوننت نفسه حسب مسافة السحب،
+   الـ CSS هنا مسؤول بس عن شكل المؤشر ودورانه. */
+.pull-refresh-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--accent);
+}
+
+.pull-refresh-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: transform 120ms linear;
+}
+
+.pull-refresh-spinner.spinning svg {
+  animation: pull-refresh-spin 0.7s linear infinite;
+}
+
+@keyframes pull-refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pull-refresh-spinner.spinning svg {
+    animation: none;
   }
 }
