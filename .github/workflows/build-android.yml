@@ -1,0 +1,82 @@
+name: Build Android APK
+
+# بيشتغل تلقائي مع كل push على main، وكمان ممكن تشغّله يدوي من تبويب
+# Actions (زرار "Run workflow") لو عايز تبني نسخة من غير ما تعمل push.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/build-android.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java (لازم لبناء Android/Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: تثبيت باكدجات الواجهة
+        run: npm ci
+
+      # ملفات .env مش متسجلة في الريبو (فيها إعدادات لكل بيئة)، فبنولّدها هنا
+      # من GitHub Secrets وقت البناء. أضف الـ secrets دي من: الريبو على
+      # GitHub → Settings → Secrets and variables → Actions → New repository
+      # secret. لو مش مضيفهم لسه، القيمة هتبقى فاضية والبناء يكمل عادي (بس
+      # الميزات اللي محتاجاها زي الباك إند/الإشعارات مش هتشتغل في التطبيق).
+      - name: توليد ملف .env
+        run: |
+          cat <<EOF > .env
+          VITE_API_URL=${{ secrets.VITE_API_URL }}
+          VITE_VAPID_PUBLIC_KEY=${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          EOF
+
+      - name: بناء الواجهة (Vite)
+        run: npm run build
+
+      - name: إضافة منصة Android (لو مش موجودة)
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+
+      - name: مزامنة Capacitor
+        run: npx cap sync android
+
+      # بيلزّق كود الأذان الـ Native (صلاحيات + receivers + service) فوق
+      # مشروع android/ اللي Capacitor ولّده. لازم يتنفذ بعد كل "cap sync"
+      # لأن Capacitor مش بيحافظ على تعديلات يدوية في AndroidManifest.xml.
+      - name: تطبيق كود الأذان الـ Native
+        run: node scripts/apply-android-native.mjs
+
+      - name: صلاحية تنفيذ لـ gradlew
+        run: chmod +x android/gradlew
+
+      - name: بناء APK (Debug)
+        working-directory: frontend/android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: رفع الـ APK كـ Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kharita-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
