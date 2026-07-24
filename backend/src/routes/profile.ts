@@ -155,40 +155,50 @@ router.post('/avatar', (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'لازم تختار صورة عشان ترفعها' });
     }
 
-    const previous = await prisma.user.findUnique({
-      where: { id: req.userId! },
-      select: { avatarUrl: true },
-    });
-
-    let avatarUrl: string;
+    // ملحوظة: الكود جوه الـ callback ده بيتنفذ خارج الـ promise chain اللي
+    // express-async-errors بيراقبها (multer بينادي الـ callback ده بنفسه،
+    // مش Express)، فأي خطأ يتضرب هنا من غير try/catch كان هيفضل "معلّق"
+    // من غير رد للعميل ومن غير ما يوصل لأي error handler. try/catch هنا
+    // ضروري تحديدًا لنفس السبب اللي خلانا نضيف express-async-errors فوق.
     try {
-      avatarUrl = CLOUDINARY_ENABLED
-        ? await uploadAvatarToCloudinary(req.file.buffer, req.file.mimetype, req.userId!)
-        : `/uploads/avatars/${req.file.filename}`;
-    } catch (uploadErr) {
-      const message = uploadErr instanceof Error ? uploadErr.message : 'تعذّر رفع الصورة';
-      return res.status(502).json({ error: message });
+      const previous = await prisma.user.findUnique({
+        where: { id: req.userId! },
+        select: { avatarUrl: true },
+      });
+
+      let avatarUrl: string;
+      try {
+        avatarUrl = CLOUDINARY_ENABLED
+          ? await uploadAvatarToCloudinary(req.file.buffer, req.file.mimetype, req.userId!)
+          : `/uploads/avatars/${req.file.filename}`;
+      } catch (uploadErr) {
+        const message = uploadErr instanceof Error ? uploadErr.message : 'تعذّر رفع الصورة';
+        return res.status(502).json({ error: message });
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: req.userId! },
+        select: {
+          username: true,
+          displayName: true,
+          bio: true,
+          avatarUrl: true,
+          isAdmin: true,
+          createdAt: true,
+          lastLoginAt: true,
+          twoFactorEnabled: true,
+          legacyAccount: true,
+        },
+        data: { avatarUrl },
+      });
+
+      if (previous?.avatarUrl) deleteAvatarFile(previous.avatarUrl);
+
+      res.json({ profile: serializeProfile(updated) });
+    } catch (err) {
+      console.error('فشل تحديث الأفتار بعد الرفع:', err);
+      res.status(500).json({ error: 'حصل خطأ غير متوقع أثناء حفظ الصورة، حاول تاني' });
     }
-
-    const updated = await prisma.user.update({
-      where: { id: req.userId! },
-      select: {
-        username: true,
-        displayName: true,
-        bio: true,
-        avatarUrl: true,
-        isAdmin: true,
-        createdAt: true,
-        lastLoginAt: true,
-        twoFactorEnabled: true,
-        legacyAccount: true,
-      },
-      data: { avatarUrl },
-    });
-
-    if (previous?.avatarUrl) deleteAvatarFile(previous.avatarUrl);
-
-    res.json({ profile: serializeProfile(updated) });
   });
 });
 

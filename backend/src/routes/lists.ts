@@ -5,6 +5,7 @@ import { requireAccountPassword } from '../middleware/requireAccountPassword';
 import { syncListArchiveState } from '../lib/core/archive';
 import { resolveActivityDay } from '../lib/core/localDate';
 import { collectGoalAndDescendantIds } from '../lib/core/goalCascade';
+import { getSiteSettings } from '../lib/core/siteSettings';
 
 const router = Router();
 
@@ -314,6 +315,21 @@ router.post('/', async (req: AuthRequest, res) => {
   const { priority } = req.body;
   if (priority && !VALID_PRIORITIES.includes(priority)) {
     return res.status(400).json({ error: 'أولوية غير صحيحة' });
+  }
+
+  // حد أقصى اختياري لعدد المهام الرئيسية لكل مستخدم — بيتظبط من لوحة
+  // الأدمن (إعدادات الموقع). 0 يعني غير محدود. بنعدّ كل المهام اللي لسه
+  // ملك المستخدم (مش في سلة المحذوفات) بغض النظر عن كونها نشطة أو مؤرشفة،
+  // عشان الحد يعكس الاستخدام الفعلي للحساب مش بس الشاشة الرئيسية.
+  const siteSettings = await getSiteSettings();
+  const maxLists = Number(siteSettings.maxListsPerUser) || 0;
+  if (maxLists > 0) {
+    const currentCount = await prisma.todoList.count({
+      where: { userId: req.userId!, trashedAt: null },
+    });
+    if (currentCount >= maxLists) {
+      return res.status(400).json({ error: `وصلت للحد الأقصى المسموح (${maxLists} مهمة رئيسية) — احذف أو أرشف مهمة قديمة الأول` });
+    }
   }
 
   let startTime: Date | null | undefined;

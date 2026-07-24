@@ -1,3 +1,8 @@
+// لازم يتحمّل قبل أي حاجة تانية بتستخدم express.Router — بيعمل "patch" لـ
+// Express عشان أي خطأ يتضرب جوه async route handler يتلقط تلقائيًا ويتبعت
+// للـ error-handling middleware في آخر الملف، بدل ما الطلب يفضل معلّق للأبد
+// (Express 4 مبيمسكش الـ rejected promises من الـ async functions لوحده).
+import 'express-async-errors';
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
@@ -162,6 +167,30 @@ app.use('/api/admin', verifyUser, rehabilitationGate, requireAdmin, adminLimiter
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, itemsRoutes);
 
 app.get('/', (_req, res) => res.send('Todo Backend يعمل ✅'));
+
+// أي مسار مش موجود أصلاً بيرجع 404 JSON واضح، بدل صفحة الـ HTML الافتراضية
+// بتاعة Express (اللي مش منطقية لـ API بيرجع JSON بس).
+app.use((_req, res) => {
+  res.status(404).json({ error: 'المسار ده غير موجود' });
+});
+
+// error-handling middleware لازم يكون آخر app.use في الملف (4 باراميترز
+// عشان Express يعرف إنه ده الـ error handler). بيلتقط أي خطأ اتضرب في أي
+// route (بما فيها الـ async ones بفضل express-async-errors فوق)، يسجّله في
+// الـ logs، وبيرجع رد JSON موحّد للعميل بدل ما الطلب يفضل معلّق أو السيرفر يقع.
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled route error:', err);
+  if (res.headersSent) return;
+  const status = typeof err?.status === 'number' ? err.status : 500;
+  res.status(status).json({ error: 'حصل خطأ غير متوقع في السيرفر، حاول تاني بعد شوية' });
+});
+
+// شبكة أمان إضافية: لو لسبب ما promise اتعمله reject من غير ما حد يلتقطه
+// (مثلاً جوه scheduler شغال في الخلفية مش جوه request/response)، نسجّله
+// بدل ما نسيب Node يوقّف البروسيس كله فجأة (السلوك الافتراضي من Node 15+).
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason);
+});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

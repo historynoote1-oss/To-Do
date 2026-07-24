@@ -344,30 +344,38 @@ router.post('/:id/icon-image', (req: AuthRequest, res) => {
     }
     if (!req.file) return res.status(400).json({ error: 'لازم تختار صورة عشان ترفعها' });
 
-    const area = await prisma.lifeArea.findFirst({ where: { id: req.params.id, userId: req.userId! } });
-    if (!area) return res.status(404).json({ error: 'مجال الحياة غير موجود' });
-
-    let imageUrl: string;
+    // نفس ملحوظة profile.ts: الكود ده بيتنفذ جوه callback بتاع multer، برّة
+    // الـ promise chain اللي express-async-errors بيراقبها، فمحتاج try/catch
+    // يدوي هنا عشان أي خطأ يرجع رد للعميل بدل ما الطلب يفضل معلّق.
     try {
-      imageUrl = CLOUDINARY_ENABLED
-        ? await uploadLifeAreaIconToCloudinary(req.file.buffer, req.file.mimetype, area.id)
-        : `/uploads/life-area-icons/${req.file.filename}`;
-    } catch (uploadErr) {
-      const message = uploadErr instanceof Error ? uploadErr.message : 'تعذّر رفع الصورة';
-      return res.status(502).json({ error: message });
+      const area = await prisma.lifeArea.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+      if (!area) return res.status(404).json({ error: 'مجال الحياة غير موجود' });
+
+      let imageUrl: string;
+      try {
+        imageUrl = CLOUDINARY_ENABLED
+          ? await uploadLifeAreaIconToCloudinary(req.file.buffer, req.file.mimetype, area.id)
+          : `/uploads/life-area-icons/${req.file.filename}`;
+      } catch (uploadErr) {
+        const message = uploadErr instanceof Error ? uploadErr.message : 'تعذّر رفع الصورة';
+        return res.status(502).json({ error: message });
+      }
+
+      const previousImageUrl = area.imageUrl;
+      const updated = await prisma.lifeArea.update({
+        where: { id: area.id },
+        data: { imageUrl },
+        include: { lists: { select: { items: { select: { isDone: true } } } } },
+      });
+
+      if (previousImageUrl) deleteLifeAreaIconFile(previousImageUrl);
+
+      const childCount = await prisma.lifeArea.count({ where: { parentId: updated.id } });
+      res.json(serializeArea(updated, ownStats(updated), ownStats(updated), childCount));
+    } catch (err) {
+      console.error('فشل تحديث أيقونة المجال بعد الرفع:', err);
+      res.status(500).json({ error: 'حصل خطأ غير متوقع أثناء حفظ الصورة، حاول تاني' });
     }
-
-    const previousImageUrl = area.imageUrl;
-    const updated = await prisma.lifeArea.update({
-      where: { id: area.id },
-      data: { imageUrl },
-      include: { lists: { select: { items: { select: { isDone: true } } } } },
-    });
-
-    if (previousImageUrl) deleteLifeAreaIconFile(previousImageUrl);
-
-    const childCount = await prisma.lifeArea.count({ where: { parentId: updated.id } });
-    res.json(serializeArea(updated, ownStats(updated), ownStats(updated), childCount));
   });
 });
 

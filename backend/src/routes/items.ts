@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../lib/core/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import { syncListArchiveState } from '../lib/core/archive';
+import { getSiteSettings } from '../lib/core/siteSettings';
 
 const router = Router();
 const VALID_PRIORITIES = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -25,6 +26,14 @@ router.post('/items', async (req: AuthRequest, res) => {
   if (list.archiveReason === 'OVERDUE') return res.status(400).json({ error: OVERDUE_LOCK_ERROR });
 
   const count = await prisma.todoItem.count({ where: { listId: list.id } });
+
+  // حد أقصى اختياري لعدد المهام الفرعية لكل مهمة رئيسية — نفس فكرة
+  // maxListsPerUser في routes/lists.ts بالظبط، بس على مستوى القائمة الواحدة.
+  const siteSettings = await getSiteSettings();
+  const maxItems = Number(siteSettings.maxItemsPerList) || 0;
+  if (maxItems > 0 && count >= maxItems) {
+    return res.status(400).json({ error: `وصلت للحد الأقصى المسموح (${maxItems} مهمة فرعية) لكل مهمة رئيسية` });
+  }
 
   const item = await prisma.todoItem.create({
     data: {
