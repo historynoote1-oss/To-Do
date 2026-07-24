@@ -14,9 +14,11 @@ import {
 import { BUILT_IN_RECITERS, SILENT_RECITER_ID, saveCustomAdhan, deleteCustomAdhan } from '@/lib/audio/adhanAudio';
 import { sounds } from '@/lib/audio/sounds';
 import { toast } from '@/lib/core/toast';
-import PrayerNativePermissions from '@/components/prayer/PrayerNativePermissions';
+import PrayerPermissionsGate from '@/components/prayer/PrayerPermissionsGate';
 
-const REMINDER_PRESETS = [5, 10, 15, 20, 30, 45, 60];
+// اقتراحات سريعة بس — المستخدم مش محدود بيها خالص، يقدر يكتب أي رقم دقايق
+// يشاؤه ويضيف بقد ما هو عايز من التذكيرات دفعة واحدة.
+const REMINDER_QUICK_ADD = [5, 10, 15, 20, 30, 45, 60];
 
 function SectionTitle({ icon, title, hint }: { icon: string; title: string; hint?: string }) {
   return (
@@ -53,7 +55,8 @@ export default function PrayerTimes({
     azanPlayingLabel,
     detectLocation,
     updateSettings,
-    updateReminder,
+    addReminder,
+    removeReminder,
     refreshCustomAdhans,
     previewReciter,
     stopAzan,
@@ -62,8 +65,26 @@ export default function PrayerTimes({
   } = usePrayerTimes();
 
   const [uploading, setUploading] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleAddCustomReminder(e: React.FormEvent) {
+    e.preventDefault();
+    const value = Number(customMinutes);
+    if (!Number.isFinite(value) || value <= 0) {
+      sounds.error();
+      toast.error('اكتب عدد دقايق صحيح أكبر من صفر');
+      return;
+    }
+    if (value > 300) {
+      sounds.error();
+      toast.error('أقصى مدة ممكنة قبل الصلاة هي 300 دقيقة');
+      return;
+    }
+    addReminder(Math.round(value));
+    setCustomMinutes('');
+    sounds.click();
+  }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -136,6 +157,7 @@ export default function PrayerTimes({
         </div>
       </div>
 
+      <PrayerPermissionsGate>
       <p className="music-page-intro">
         مواقيت دقيقة لصلواتك الخمس حسب موقعك الجغرافي فعليًا، مع أذان تلقائي بصوت القارئ اللي تختاره وتذكيرات قبل كل صلاة بالوقت اللي يناسبك.
       </p>
@@ -338,165 +360,173 @@ export default function PrayerTimes({
         </div>
       </div>
 
-      {/* ===== تذكيرات قبل كل صلاة ===== */}
+      {/* ===== تذكيرات قبل الصلاة (تنطبق على الصلوات الخمس كلها) ===== */}
       <div className="list-card">
-        <SectionTitle icon="bell" title="تذكيرات قبل كل صلاة" />
-        <div className="prayer-reminders-list">
-          {PRAYER_ORDER.map((key) => {
-            const r = settings.reminders[key];
-            return (
-              <div key={key} className="prayer-reminder-row">
+        <SectionTitle
+          icon="bell"
+          title="تذكيرات قبل الصلاة"
+          hint={settings.reminders.length ? `${settings.reminders.length} تذكير مفعّل` : 'مفيش تذكيرات'}
+        />
+        <p className="prayer-reminders-intro">
+          كل تذكير تضيفه هنا بيوصلك كإشعار قبل <strong>كل</strong> صلاة من الصلوات الخمس بالوقت اللي تحدده — تقدر تضيف
+          بقد ما تحب من غير حد أقصى.
+        </p>
+
+        {settings.reminders.length > 0 && (
+          <div className="prayer-reminder-chips">
+            {settings.reminders.map((m) => (
+              <span key={m} className="prayer-reminder-chip">
+                <DynamicIcon name="bell" size={12} />
+                قبلها بـ {m} دقيقة
                 <button
                   type="button"
-                  className="prayer-reminder-toggle"
-                  aria-pressed={r.enabled}
-                  onClick={() => updateReminder(key, { enabled: !r.enabled })}
+                  onClick={() => removeReminder(m)}
+                  aria-label={`حذف تذكير الـ ${m} دقيقة`}
+                  title="حذف"
                 >
-                  <span className={`side-menu-switch ${r.enabled ? 'on' : ''}`} aria-hidden="true">
-                    <span className="side-menu-switch-knob" />
-                  </span>
-                  <DynamicIcon name={PRAYER_ICONS[key]} size={15} />
-                  {PRAYER_LABELS[key]}
+                  <DynamicIcon name="x" size={12} />
                 </button>
-                {r.enabled && (
-                  <select
-                    className="prayer-reminder-select"
-                    value={r.minutesBefore}
-                    onChange={(e) => updateReminder(key, { minutesBefore: Number(e.target.value) })}
-                    aria-label={`عدد الدقايق قبل أذان ${PRAYER_LABELS[key]}`}
-                  >
-                    {REMINDER_PRESETS.map((m) => (
-                      <option key={m} value={m}>
-                        قبلها بـ {m} دقيقة
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            );
-          })}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="prayer-reminder-quickadd">
+          {REMINDER_QUICK_ADD.filter((m) => !settings.reminders.includes(m)).map((m) => (
+            <button key={m} type="button" className="prayer-reminder-quickadd-btn" onClick={() => addReminder(m)}>
+              <DynamicIcon name="plus" size={12} />
+              {m} د
+            </button>
+          ))}
+        </div>
+
+        <form className="prayer-reminder-custom" onSubmit={handleAddCustomReminder}>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={300}
+            placeholder="عدد دقايق مخصّص..."
+            value={customMinutes}
+            onChange={(e) => setCustomMinutes(e.target.value)}
+            aria-label="عدد الدقايق قبل الصلاة"
+          />
+          <button type="submit" className="prayer-reminder-custom-btn">
+            <DynamicIcon name="plus" size={14} /> إضافة تذكير
+          </button>
+        </form>
+      </div>
+
+      {/* ===== إعدادات الحساب الفلكي ===== */}
+      <div className="list-card">
+        <SectionTitle icon="compass" title="طريقة حساب المواقيت" />
+        <div className="prayer-settings-body">
+          <label className="prayer-field">
+            <span>طريقة الحساب الفلكي</span>
+            <select value={settings.method} onChange={(e) => updateSettings({ method: Number(e.target.value) })}>
+              {CALCULATION_METHODS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="prayer-field">
+            <span>مذهب حساب وقت العصر</span>
+            <div className="prayer-segmented">
+              <button
+                type="button"
+                className={settings.madhab === 'shafi' ? 'active' : ''}
+                onClick={() => updateSettings({ madhab: 'shafi' })}
+              >
+                شافعي / عام
+              </button>
+              <button
+                type="button"
+                className={settings.madhab === 'hanafi' ? 'active' : ''}
+                onClick={() => updateSettings({ madhab: 'hanafi' })}
+              >
+                حنفي
+              </button>
+            </div>
+          </div>
+
+          <button className="prayer-refresh-btn" type="button" onClick={refresh} disabled={loadingTimes}>
+            <DynamicIcon name={loadingTimes ? 'loader' : 'refresh-cw'} size={14} className={loadingTimes ? 'spin' : ''} />
+            إعادة حساب المواقيت
+          </button>
         </div>
       </div>
 
-      {/* ===== إعدادات متقدمة ===== */}
+      {/* ===== إعدادات العرض والصوت والإشعارات ===== */}
       <div className="list-card">
-        <button
-          type="button"
-          className="prayer-settings-toggle"
-          onClick={() => setSettingsOpen((v) => !v)}
-          aria-expanded={settingsOpen}
-        >
-          <SectionTitle icon="sliders" title="إعدادات متقدمة" />
-          <DynamicIcon name={settingsOpen ? 'chevron-up' : 'chevron-down'} size={16} />
-        </button>
+        <SectionTitle icon="settings-2" title="العرض والصوت والإشعارات" />
+        <div className="prayer-settings-body">
+          <button
+            type="button"
+            className="side-menu-item side-menu-toggle-item prayer-toggle-item"
+            onClick={() => updateSettings({ autoPlayEnabled: !settings.autoPlayEnabled })}
+            aria-pressed={settings.autoPlayEnabled}
+          >
+            <DynamicIcon name="radio" size={17} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">تشغيل الأذان تلقائيًا في معاده</span>
+            <span className={`side-menu-switch ${settings.autoPlayEnabled ? 'on' : ''}`} aria-hidden="true">
+              <span className="side-menu-switch-knob" />
+            </span>
+          </button>
 
-        {settingsOpen && (
-          <div className="prayer-settings-body">
-            <label className="prayer-field">
-              <span>طريقة الحساب الفلكي</span>
-              <select
-                value={settings.method}
-                onChange={(e) => updateSettings({ method: Number(e.target.value) })}
-              >
-                {CALCULATION_METHODS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <button
+            type="button"
+            className="side-menu-item side-menu-toggle-item prayer-toggle-item"
+            onClick={() => {
+              const next = !settings.browserNotify;
+              if (next && 'Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+              }
+              updateSettings({ browserNotify: next });
+            }}
+            aria-pressed={settings.browserNotify}
+          >
+            <DynamicIcon name="bell" size={17} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">إشعارات المتصفح مع كل أذان وتذكير</span>
+            <span className={`side-menu-switch ${settings.browserNotify ? 'on' : ''}`} aria-hidden="true">
+              <span className="side-menu-switch-knob" />
+            </span>
+          </button>
 
-            <div className="prayer-field">
-              <span>مذهب حساب وقت العصر</span>
-              <div className="prayer-segmented">
-                <button
-                  type="button"
-                  className={settings.madhab === 'shafi' ? 'active' : ''}
-                  onClick={() => updateSettings({ madhab: 'shafi' })}
-                >
-                  شافعي / عام
-                </button>
-                <button
-                  type="button"
-                  className={settings.madhab === 'hanafi' ? 'active' : ''}
-                  onClick={() => updateSettings({ madhab: 'hanafi' })}
-                >
-                  حنفي
-                </button>
-              </div>
-            </div>
+          <button
+            type="button"
+            className="side-menu-item side-menu-toggle-item prayer-toggle-item"
+            onClick={() => updateSettings({ is24h: !settings.is24h })}
+            aria-pressed={settings.is24h}
+          >
+            <DynamicIcon name="hourglass" size={17} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">عرض الوقت بنظام 24 ساعة</span>
+            <span className={`side-menu-switch ${settings.is24h ? 'on' : ''}`} aria-hidden="true">
+              <span className="side-menu-switch-knob" />
+            </span>
+          </button>
 
-            <button
-              type="button"
-              className="side-menu-item side-menu-toggle-item prayer-toggle-item"
-              onClick={() => updateSettings({ autoPlayEnabled: !settings.autoPlayEnabled })}
-              aria-pressed={settings.autoPlayEnabled}
-            >
-              <DynamicIcon name="radio" size={17} className="side-menu-item-icon" />
-              <span className="side-menu-item-label">تشغيل الأذان تلقائيًا في معاده</span>
-              <span className={`side-menu-switch ${settings.autoPlayEnabled ? 'on' : ''}`} aria-hidden="true">
-                <span className="side-menu-switch-knob" />
-              </span>
-            </button>
+          <label className="prayer-field prayer-volume-field">
+            <span>
+              <DynamicIcon name="volume-high" size={15} /> مستوى صوت الأذان — {settings.volume}%
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={settings.volume}
+              onChange={(e) => updateSettings({ volume: Number(e.target.value) })}
+            />
+          </label>
 
-            <button
-              type="button"
-              className="side-menu-item side-menu-toggle-item prayer-toggle-item"
-              onClick={() => {
-                const next = !settings.browserNotify;
-                if (next && 'Notification' in window && Notification.permission === 'default') {
-                  Notification.requestPermission();
-                }
-                updateSettings({ browserNotify: next });
-              }}
-              aria-pressed={settings.browserNotify}
-            >
-              <DynamicIcon name="bell" size={17} className="side-menu-item-icon" />
-              <span className="side-menu-item-label">إشعارات المتصفح مع كل أذان وتذكير</span>
-              <span className={`side-menu-switch ${settings.browserNotify ? 'on' : ''}`} aria-hidden="true">
-                <span className="side-menu-switch-knob" />
-              </span>
-            </button>
-
-            <button
-              type="button"
-              className="side-menu-item side-menu-toggle-item prayer-toggle-item"
-              onClick={() => updateSettings({ is24h: !settings.is24h })}
-              aria-pressed={settings.is24h}
-            >
-              <DynamicIcon name="hourglass" size={17} className="side-menu-item-icon" />
-              <span className="side-menu-item-label">عرض الوقت بنظام 24 ساعة</span>
-              <span className={`side-menu-switch ${settings.is24h ? 'on' : ''}`} aria-hidden="true">
-                <span className="side-menu-switch-knob" />
-              </span>
-            </button>
-
-            <label className="prayer-field prayer-volume-field">
-              <span>
-                <DynamicIcon name="volume-high" size={15} /> مستوى صوت الأذان — {settings.volume}%
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={settings.volume}
-                onChange={(e) => updateSettings({ volume: Number(e.target.value) })}
-              />
-            </label>
-
-            <p className="prayer-note">
-              <DynamicIcon name="info" size={13} /> الأذان بيشتغل تلقائيًا طول ما الموقع مفتوح عندك في المتصفح (تاب شغّال)، ولو كان مشغّل القرآن شغّال وقتها بيتوقف تلقائيًا عشان الأذان يشتغل.
-            </p>
-
-            <PrayerNativePermissions />
-
-            <button className="prayer-refresh-btn" type="button" onClick={refresh} disabled={loadingTimes}>
-              <DynamicIcon name={loadingTimes ? 'loader' : 'refresh-cw'} size={14} className={loadingTimes ? 'spin' : ''} />
-              إعادة حساب المواقيت
-            </button>
-          </div>
-        )}
+          <p className="prayer-note">
+            <DynamicIcon name="info" size={13} /> الأذان بيشتغل تلقائيًا طول ما الموقع مفتوح عندك في المتصفح (تاب شغّال)، ولو كان مشغّل القرآن شغّال وقتها بيتوقف تلقائيًا عشان الأذان يشتغل.
+          </p>
+        </div>
       </div>
+      </PrayerPermissionsGate>
     </div>
   );
 }

@@ -26,11 +26,7 @@ import { useMusicPlayer } from '@/lib/audio/musicPlayer';
 import { toast } from '@/lib/core/toast';
 import { sounds } from '@/lib/audio/sounds';
 import { scheduleNativeAdhanForDay, ensureNativeAdhanPermissions, isNativeApp } from '@/lib/audio/nativeAdhan';
-
-export interface ReminderSetting {
-  enabled: boolean;
-  minutesBefore: number;
-}
+import { initPrayerReminderChannel, scheduleAllNativePrayerReminders } from '@/lib/prayer/prayerNativeReminders';
 
 export interface PrayerTimesSettings {
   method: number;
@@ -40,7 +36,10 @@ export interface PrayerTimesSettings {
   volume: number; // 0-100
   is24h: boolean;
   browserNotify: boolean;
-  reminders: Record<PrayerKey, ReminderSetting>;
+  // قائمة مفتوحة (بدون حد أقصى) لعدد الدقايق قبل كل أذان — كل قيمة هنا
+  // بتتطبق تلقائيًا على الصلوات الخمس كلها، فمفيش داعي لاختيار منفصل لكل
+  // صلاة. مثال: [10, 20] يعني تذكيرين قبل كل صلاة (بعشر دقايق وبعشرين).
+  reminders: number[];
 }
 
 const DEFAULT_SETTINGS: PrayerTimesSettings = {
@@ -51,27 +50,44 @@ const DEFAULT_SETTINGS: PrayerTimesSettings = {
   volume: 85,
   is24h: false,
   browserNotify: false,
-  reminders: {
-    fajr: { enabled: false, minutesBefore: 15 },
-    dhuhr: { enabled: false, minutesBefore: 15 },
-    asr: { enabled: false, minutesBefore: 15 },
-    maghrib: { enabled: false, minutesBefore: 10 },
-    isha: { enabled: false, minutesBefore: 15 },
-  },
+  reminders: [10],
 };
 
 const SETTINGS_KEY = 'prayerTimes.settings.v1';
 const LOCATION_KEY = 'prayerTimes.location.v1';
+
+// لو المستخدم عنده إعدادات محفوظة من الشكل القديم (تذكير منفصل لكل صلاة
+// بـ enabled/minutesBefore)، بنحوّلها تلقائيًا لقائمة موحّدة بدل ما نضيّع
+// اختياره: بناخد كل قيم minutesBefore اللي كانت مفعّلة، من غير تكرار.
+function migrateLegacyReminders(raw: unknown): number[] | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const values = new Set<number>();
+  for (const v of Object.values(raw as Record<string, unknown>)) {
+    if (v && typeof v === 'object' && 'enabled' in v && 'minutesBefore' in v) {
+      const setting = v as { enabled: boolean; minutesBefore: number };
+      if (setting.enabled && Number.isFinite(setting.minutesBefore)) {
+        values.add(setting.minutesBefore);
+      }
+    }
+  }
+  return values.size ? Array.from(values).sort((a, b) => a - b) : [];
+}
 
 function loadSettings(): PrayerTimesSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
+    const legacy = migrateLegacyReminders(parsed.reminders);
+    const reminders = Array.isArray(parsed.reminders)
+      ? (parsed.reminders as unknown[]).filter((n): n is number => typeof n === 'number' && n > 0)
+      : legacy !== null
+        ? legacy
+        : DEFAULT_SETTINGS.reminders;
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
-      reminders: { ...DEFAULT_SETTINGS.reminders, ...(parsed.reminders || {}) },
+      reminders,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -122,7 +138,8 @@ interface PrayerTimesContextValue {
   azanPlayingLabel: string | null;
   detectLocation: () => Promise<void>;
   updateSettings: (patch: Partial<PrayerTimesSettings>) => void;
-  updateReminder: (prayer: PrayerKey, patch: Partial<ReminderSetting>) => void;
+  addReminder: (minutesBefore: number) => void;
+  removeReminder: (minutesBefore: number) => void;
   refreshCustomAdhans: () => Promise<void>;
   previewReciter: (selection: string) => Promise<void>;
   stopAzan: () => void;
@@ -189,7 +206,10 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
   // الدقيقة" مفعّلة (Android 12+)، لأن من غيرها الأذان ممكن يتأخر
   // شوية بدل ما يدق في معاده بالظبط.
   useEffect(() => {
-    if (isNativeApp()) ensureNativeAdhanPermissions();
+    if (isNativeApp()) {
+      ensureNativeAdhanPermissions();
+      initPrayerReminderChannel();
+    }
   }, []);
 
   // ساعة حية للعدّ التنازلي وتحديد الصلاة الحالية/الجاية — بتتحدّث كل ثانية.
@@ -303,16 +323,17 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
           scheduledTimeoutsRef.current.push(id);
         }
 
-        const reminder = settingsRef.current.reminders[key];
-        if (reminder?.enabled) {
-          const reminderDelay = delay - reminder.minutesBefore * 60_000;
+        // كل قيمة في settings.reminders بتتطبق على الصلاة دي (وعلى كل
+        // الصلوات الباقية بنفس الطريقة) — تذكير منفصل لكل قيمة.
+        settingsRef.current.reminders.forEach((minutesBefore) => {
+          const reminderDelay = delay - minutesBefore * 60_000;
           if (reminderDelay > 0) {
             const id = window.setTimeout(() => {
               sounds.reminder();
-              toast.reminder(`باقي ${reminder.minutesBefore} دقيقة على أذان ${PRAYER_LABELS[key]}`);
+              toast.reminder(`باقي ${minutesBefore} دقيقة على أذان ${PRAYER_LABELS[key]}`);
               if (settingsRef.current.browserNotify && 'Notification' in window && Notification.permission === 'granted') {
                 try {
-                  new Notification(`باقي ${reminder.minutesBefore} دقيقة على أذان ${PRAYER_LABELS[key]}`);
+                  new Notification(`باقي ${minutesBefore} دقيقة على أذان ${PRAYER_LABELS[key]}`);
                 } catch {
                   // تجميلي بس
                 }
@@ -320,8 +341,15 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
             }, reminderDelay);
             scheduledTimeoutsRef.current.push(id);
           }
-        }
+        });
       });
+
+      // جدولة Native للتذكيرات (إشعار نظامي حقيقي) بالتوازي مع التايمرات
+      // اللي فوق — دي الضمانة إن التذكير يوصل حتى لو التطبيق مقفول تمامًا،
+      // بنفس فكرة scheduleNativeAdhanForDay للأذان نفسه بالظبط.
+      if (isNativeApp()) {
+        scheduleAllNativePrayerReminders(timings, settingsRef.current.reminders);
+      }
 
       // منتصف الليل الجاي بتوقيت الجهاز المحلي — وقت مناسب لإعادة الجلب
       // لأن كل صلوات النهارده تكون خلصت أكيد قبل كده.
@@ -411,11 +439,14 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const updateReminder = useCallback((prayer: PrayerKey, patch: Partial<ReminderSetting>) => {
-    setSettings((prev) => ({
-      ...prev,
-      reminders: { ...prev.reminders, [prayer]: { ...prev.reminders[prayer], ...patch } },
-    }));
+  const addReminder = useCallback((minutesBefore: number) => {
+    if (!Number.isFinite(minutesBefore) || minutesBefore <= 0) return;
+    const rounded = Math.round(minutesBefore);
+    setSettings((prev) => (prev.reminders.includes(rounded) ? prev : { ...prev, reminders: [...prev.reminders, rounded].sort((a, b) => a - b) }));
+  }, []);
+
+  const removeReminder = useCallback((minutesBefore: number) => {
+    setSettings((prev) => ({ ...prev, reminders: prev.reminders.filter((m) => m !== minutesBefore) }));
   }, []);
 
   const refreshCustomAdhans = useCallback(async () => {
@@ -462,7 +493,8 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
     azanPlayingLabel,
     detectLocation,
     updateSettings,
-    updateReminder,
+    addReminder,
+    removeReminder,
     refreshCustomAdhans,
     previewReciter,
     stopAzan,

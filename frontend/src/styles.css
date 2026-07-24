@@ -43,7 +43,7 @@
   --streak-dim: rgba(217, 119, 6, 0.14);
   --text: #241c35;
   --text-muted: #665d80;
-  --text-faint: #948aad;
+  --text-faint: #766c8f;
 
   /* ---- Brand gradients & glass (identity layer, used across CTAs / hero
      surfaces / hover glows). Kept as separate tokens from --accent so a
@@ -10667,7 +10667,7 @@ body.modal-lock-scroll {
 .prayer-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-  gap: 10px;
+  gap: 16px 10px;
   margin-bottom: 10px;
 }
 
@@ -10721,15 +10721,18 @@ body.modal-lock-scroll {
 
 .prayer-card-badge {
   position: absolute;
-  top: -8px;
-  inset-inline-end: -6px;
-  padding: 3px 9px;
+  top: -6px;
+  inset-inline-end: -4px;
+  padding: 2px 8px;
   border-radius: var(--radius-pill);
   background: var(--gradient-brand);
   color: #fff;
   font-size: 10.5px;
+  line-height: 1.3;
   font-weight: 800;
+  white-space: nowrap;
   box-shadow: var(--shadow-sm);
+  z-index: 1;
 }
 
 .prayer-card-badge-current {
@@ -10933,75 +10936,144 @@ body.modal-lock-scroll {
 }
 
 /* ---- تذكيرات قبل كل صلاة ---- */
-.prayer-reminders-list {
+.prayer-reminders-intro {
+  margin: 2px 0 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.prayer-reminders-intro strong {
+  color: var(--accent-soft);
+}
+
+.prayer-reminder-chips {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.prayer-reminder-chip {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-}
-
-.prayer-reminder-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 4px 2px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.prayer-reminder-row:last-child {
-  border-bottom: none;
-}
-
-.prayer-reminder-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 4px;
-  background: transparent;
-  border: none;
-  color: var(--text);
-  font-size: 13.5px;
-  font-weight: 700;
-  flex: 1;
-  min-width: 0;
-}
-
-.prayer-reminder-select {
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  padding: 7px 8px 7px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-brand-soft);
+  border: 1px solid var(--border-soft);
   color: var(--text);
   font-size: 12.5px;
   font-weight: 700;
-  flex-shrink: 0;
+  animation: prayer-chip-in 0.25s var(--ease-spring) both;
 }
 
-/* ---- إعدادات متقدمة ---- */
-.prayer-settings-toggle {
+@keyframes prayer-chip-in {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.prayer-reminder-chip button {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  background: transparent;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
   border: none;
-  color: var(--text-faint);
-  padding: 0;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
+.prayer-reminder-chip button:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.prayer-reminder-quickadd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.prayer-reminder-quickadd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.prayer-reminder-quickadd-btn:hover {
+  border-color: var(--accent);
+  border-style: solid;
+  color: var(--accent-soft);
+  background: var(--accent-dim);
+}
+
+.prayer-reminder-custom {
+  display: flex;
+  gap: 8px;
+}
+
+.prayer-reminder-custom input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.prayer-reminder-custom input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.prayer-reminder-custom-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  min-height: 42px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--gradient-brand);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: transform var(--dur-fast) var(--ease-spring), filter var(--dur-fast) var(--ease-out);
+}
+
+.prayer-reminder-custom-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.prayer-reminder-custom-btn:active {
+  transform: scale(0.97);
+}
+
+/* ---- إعدادات الحساب / العرض والصوت (بطاقات دايمًا ظاهرة، مفيش إخفاء) ---- */
 .prayer-settings-body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-soft);
-  animation: prayer-settings-in 0.3s var(--ease-out) both;
-}
-
-@keyframes prayer-settings-in {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  margin-top: 10px;
 }
 
 .prayer-field {
@@ -11085,39 +11157,179 @@ body.modal-lock-scroll {
   cursor: default;
 }
 
-/* ---- قسم صلاحيات الأذان الـ Native (يظهر جوه التطبيق APK بس) ---- */
-.prayer-native-permissions {
-  margin: 4px 0 16px;
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--border);
-  background: var(--surface-2);
-}
-
-.prayer-permission-btn {
+/* ---- شاشة "أذونات الأذان" الكاملة (تحجب محتوى الصفحة لحد ما تتفعّل كلها) ---- */
+.prayer-gate-loading {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  width: 100%;
-  padding: 10px 12px;
-  margin-bottom: 8px;
+  padding: 60px 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.prayer-gate-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px 0 20px;
+  animation: prayer-settings-in 0.35s var(--ease-out) both;
+}
+
+@keyframes prayer-settings-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.prayer-gate-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 8px 6px 4px;
+}
+
+.prayer-gate-hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--gradient-brand-soft);
+  color: var(--accent-soft);
+  box-shadow: var(--shadow-glow);
+  margin-bottom: 4px;
+}
+
+.prayer-gate-hero h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.prayer-gate-hero p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  max-width: 420px;
+}
+
+.prayer-gate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prayer-gate-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.prayer-gate-item.is-granted {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--success) 10%, var(--glass-bg));
+}
+
+.prayer-gate-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--accent-soft);
+  flex-shrink: 0;
+}
+
+.prayer-gate-item.is-granted .prayer-gate-item-icon {
+  color: var(--success);
+}
+
+.prayer-gate-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.prayer-gate-item-body strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.prayer-gate-item-body p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.prayer-gate-item-btn {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--gradient-brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: transform var(--dur-fast) var(--ease-spring), filter var(--dur-fast) var(--ease-out);
+}
+
+.prayer-gate-item-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.prayer-gate-item-status {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.prayer-gate-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
-  text-align: right;
+  margin-top: 4px;
   transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
-.prayer-permission-btn:last-child {
-  margin-bottom: 0;
-}
-
-.prayer-permission-btn:hover {
+.prayer-gate-refresh:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent-soft);
+}
+
+.prayer-gate-refresh:disabled {
+  opacity: 0.7;
+  cursor: default;
 }
 
 /* ---- عنصر "مواقيت الصلاة" في القائمة الجانبية (مع عدّاد حي) ---- */
