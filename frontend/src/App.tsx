@@ -21,7 +21,14 @@ import {
 import { useUndoRedo } from '@/lib/core/undoRedo';
 import { sounds } from '@/lib/audio/sounds';
 import { toast } from '@/lib/core/toast';
-import { attachHardwareBackButton, confirmExitOnDoubleBack, hapticSelection, hideSplash } from '@/lib/core/nativeShell';
+import {
+  attachHardwareBackButton,
+  confirmExitOnDoubleBack,
+  hapticImpact,
+  hapticNotification,
+  hapticSelection,
+  hideSplash,
+} from '@/lib/core/nativeShell';
 import { scheduleLocalReminder } from '@/lib/notifications/nativeReminders';
 import { applyNavDirection } from '@/lib/core/motion';
 import { getPushState, enablePush, disablePush, PushSupportState, PushError } from '@/lib/notifications/push';
@@ -41,9 +48,11 @@ import {
   resolveFromPath,
 } from '@/lib/api/routes';
 import { LifeAreaData } from '@/lib/core/lifeArea';
-import { isListDone, earliestDueDate } from '@/lib/core/organize';
+import { isListDone } from '@/lib/core/organize';
 import { DynamicIcon } from '@/lib/core/icons';
 import BottomTabBar from '@/components/layout/BottomTabBar';
+import HomePage, { HomeUpcomingEntry } from '@/components/home/HomePage';
+import { CategoryKey } from '@/lib/core/category';
 import PullToRefresh from '@/components/layout/PullToRefresh';
 import OfflineBanner from '@/components/layout/OfflineBanner';
 
@@ -402,6 +411,43 @@ export default function App() {
     }
   }
 
+  // إنجاز مباشر لأقرب مهمة فرعية من قسم "أقرب المهام" في الصفحة الرئيسية،
+  // من غير ما المستخدم يضطر يدخل خريطة الأهداف الأول — نفس منطق التبديل
+  // والتراجع الموجود في TodoList.tsx بالظبط، عشان تفضل التجربة متسقة.
+  async function handleToggleUpcomingItem(entry: HomeUpcomingEntry) {
+    const { item } = entry;
+    if (item.isDone) sounds.taskUndone();
+    else sounds.taskDone();
+    const willBeDone = !item.isDone;
+    if (willBeDone) void hapticNotification('success');
+    else void hapticImpact('light');
+    try {
+      await toggleItem(item.id, willBeDone);
+      pushCommand({
+        label: willBeDone ? `إنجاز "${item.content}"` : `إلغاء إنجاز "${item.content}"`,
+        undo: async () => {
+          await toggleItem(item.id, !willBeDone);
+          refresh();
+        },
+        redo: async () => {
+          await toggleItem(item.id, willBeDone);
+          refresh();
+        },
+      });
+      refresh();
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تحديث المهمة');
+    }
+  }
+
+  // خريطة الأهداف لسه مالهاش آلية فلترة بحسب القسم قابلة للاستدعاء من برّه
+  // (مفيش deep-link)، فبنكتفي حاليًا بالتنقّل لها عند الضغط على أي قسم في
+  // ملخص الإحصائيات المصغّر بالصفحة الرئيسية.
+  function handleSelectHomeCategory(_key: CategoryKey) {
+    setView('goalMap');
+  }
+
   function handleAuthSuccess(name: string, admin: boolean) {
     resetSessionExpiredGuard();
     localStorage.setItem('username', name);
@@ -623,21 +669,32 @@ export default function App() {
 
     let dueToday = 0;
     let overdue = 0;
+    // إجمالي وعدد المنجز من المهام الفرعية المستحقة النهاردة (بغض النظر
+    // عن حالة الإنجاز) — ده أساس دايرة "تقدّم اليوم" في بطاقة الترحيب،
+    // وبيتحسب من نفس بيانات lists الموجودة أصلًا من غير أي طلب إضافي.
+    let dueTodayTotal = 0;
+    let dueTodayDone = 0;
 
     for (const list of lists) {
       for (const item of list.items || []) {
-        if (item.isDone || !item.dueDate) continue;
+        if (!item.dueDate) continue;
         const due = new Date(item.dueDate).getTime();
         if (Number.isNaN(due)) continue;
+        const isToday = due >= dayStart.getTime() && due <= dayEnd.getTime();
+        if (isToday) {
+          dueTodayTotal += 1;
+          if (item.isDone) dueTodayDone += 1;
+        }
+        if (item.isDone) continue;
         if (due < now) {
           overdue += 1;
-        } else if (due >= dayStart.getTime() && due <= dayEnd.getTime()) {
+        } else if (isToday) {
           dueToday += 1;
         }
       }
     }
 
-    return { dueToday, overdue };
+    return { dueToday, overdue, dueTodayTotal, dueTodayDone };
   }, [lists]);
 
   // أقرب المهام الرئيسية استحقاقًا (حسب أقرب موعد لعنصر فرعي لسه مش
@@ -647,8 +704,18 @@ export default function App() {
     const now = Date.now();
     return lists
       .filter((l) => !isListDone(l as any))
-      .map((l) => ({ list: l, due: earliestDueDate(l as any) }))
-      .filter((entry): entry is { list: List; due: number } => entry.due !== null)
+      .map((l) => {
+        // أقرب مهمة فرعية لسه مش خلصانة وليها موعد استحقاق — بنحتفظ
+        // بالعنصر نفسه (مش بس وقته) عشان مربّع التحديد في "أقرب المهام"
+        // يقدر يعلّمها منجزة مباشرة من غير الدخول لخريطة الأهداف.
+        const candidates = (l.items || [])
+          .filter((i: any) => !i.isDone && i.dueDate)
+          .map((i: any) => ({ item: i, due: new Date(i.dueDate).getTime() }))
+          .filter((c) => !Number.isNaN(c.due))
+          .sort((a, b) => a.due - b.due);
+        return candidates[0] ? { list: l, due: candidates[0].due, item: candidates[0].item } : null;
+      })
+      .filter((entry): entry is { list: List; due: number; item: any } => entry !== null)
       .sort((a, b) => a.due - b.due)
       .slice(0, 4)
       .map((entry) => ({ ...entry, overdue: entry.due < now }));
@@ -1012,117 +1079,37 @@ export default function App() {
 
         <PullToRefresh onRefresh={refresh} disabled={menuOpen || logoutConfirmOpen || loading}>
         <main className="home-main">
-          {/* بطاقة ترحيب — تحية حسب وقت اليوم + التاريخ الحالي، أول حاجة
-              المستخدم يشوفها وتخلي الصفحة حاسّة إنها حيّة ومش شاشة تعداد
-              أرقام باردة. */}
-          <section className="home-hero" aria-label="ترحيب">
-            <div className="home-hero-text">
-              <h2 className="home-hero-greeting">{greeting}</h2>
-              <p className="home-hero-date">{todayLabel}</p>
-            </div>
-            {todaySnapshot.overdue > 0 ? (
-              <span className="home-hero-status home-hero-status-danger">
-                <DynamicIcon name="alert" size={14} />
-                {todaySnapshot.overdue} مهمة اتأخر معادها
-              </span>
-            ) : todaySnapshot.dueToday > 0 ? (
-              <span className="home-hero-status home-hero-status-info">
-                <DynamicIcon name="calendar" size={14} />
-                {todaySnapshot.dueToday} مستحقة النهاردة
-              </span>
-            ) : (
-              <span className="home-hero-status home-hero-status-ok">
-                <DynamicIcon name="check-circle" size={14} />
-                كله تحت السيطرة
-              </span>
-            )}
-          </section>
-
-          {/* شبكة وصول سريع — النمط القياسي لأي شاشة رئيسية: اختصارات
-              مباشرة لأهم أقسام التطبيق بدل ما يفضل المستخدم يفتح القائمة
-              الجانبية كل مرة. */}
-          <nav className="home-quick-grid" aria-label="وصول سريع">
-            <button className="home-quick-card" onClick={() => setView('lifeAreas')} type="button">
-              <span className="home-quick-icon-wrap home-quick-icon-areas">
-                <DynamicIcon name="compass" size={20} />
-              </span>
-              <span className="home-quick-label">مجالات الحياة</span>
-            </button>
-
-            <button className="home-quick-card" onClick={() => setView('pomodoro')} type="button">
-              <span className="home-quick-icon-wrap home-quick-icon-pomodoro">
-                <DynamicIcon name="timer" size={20} />
-              </span>
-              <span className="home-quick-label">بومودورو</span>
-            </button>
-
-            <button className="home-quick-card" onClick={() => setView('prayerTimes')} type="button">
-              <span className="home-quick-icon-wrap home-quick-icon-prayer">
-                <DynamicIcon name="moon-star" size={20} />
-              </span>
-              <span className="home-quick-label">مواقيت الصلاة</span>
-            </button>
-
-            <button className="home-quick-card" onClick={() => setView('player')} type="button">
-              <span className="home-quick-icon-wrap home-quick-icon-quran">
-                <DynamicIcon name="book-open" size={20} />
-              </span>
-              <span className="home-quick-label">مشغّل القرآن</span>
-            </button>
-
-            <button className="home-quick-card" onClick={() => setView('profile')} type="button">
-              <span className="home-quick-icon-wrap home-quick-icon-profile">
-                <DynamicIcon name="user" size={20} />
-              </span>
-              <span className="home-quick-label">الملف الشخصي</span>
-            </button>
-
-            <button className="home-quick-card" onClick={handleQuickAdd} type="button">
-              <span className="home-quick-icon-wrap home-quick-icon-add">
-                <DynamicIcon name="route" size={20} />
-              </span>
-              <span className="home-quick-label">خريطة الأهداف</span>
-            </button>
-          </nav>
-
-          {loading && (
-            <div className="lists-grid">
-              <div className="skeleton skeleton-card" />
-              <div className="skeleton skeleton-card" />
-            </div>
-          )}
-
-          {/* أقرب المهام استحقاقًا — بديل قسم "نظرة عامة على مجالات حياتك"
-              اللي كان آخر عنصر في الصفحة. معاينة مباشرة لأقرب حاجات محتاجة
-              انتباه بدل ملخص عام، وبتضغط على أي واحدة تودّيك لخريطة الأهداف. */}
-          {!loading && upcomingLists.length > 0 && (
-            <section className="home-upcoming" aria-label="أقرب المهام استحقاقًا">
-              <h2 className="home-section-title">أقرب المهام استحقاقًا</h2>
-              <div className="home-upcoming-list">
-                {upcomingLists.map(({ list, due, overdue }) => (
-                  <button
-                    key={list.id}
-                    className={`home-upcoming-row ${overdue ? 'overdue' : ''}`}
-                    style={{ ['--chip-color' as any]: list.lifeArea?.color || 'var(--accent)' }}
-                    onClick={() => setView('goalMap')}
-                    type="button"
-                  >
-                    <span className="home-upcoming-row-icon">
-                      <DynamicIcon name={(list.lifeArea?.icon as any) || 'tag'} size={16} />
-                    </span>
-                    <span className="home-upcoming-row-title">{list.title}</span>
-                    <span className="home-upcoming-row-time">
-                      {overdue && <DynamicIcon name="alert" size={12} />}
-                      {new Date(due).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
+          <HomePage
+            loading={loading}
+            greeting={greeting}
+            todayLabel={todayLabel}
+            todaySnapshot={todaySnapshot}
+            streak={streak}
+            upcomingLists={upcomingLists}
+            statsLists={lists}
+            onNavigate={setView}
+            onQuickAdd={handleQuickAdd}
+            onToggleUpcomingItem={handleToggleUpcomingItem}
+            onSelectCategory={handleSelectHomeCategory}
+          />
         </main>
         </PullToRefresh>
       </div>
+      {/* زرار إضافة مهمة عائم — لازم يترسم برّه .container (مش جواه)
+          عشان أنيميشن view-fade بتاعها بيسيب transform شغّال عليها حتى
+          بعد ما يخلص (fill-mode: both)، وده بيخلي أي عنصر position:fixed
+          جواها يتصرف كـ position:absolute ويتسحب مع باقي المحتوى بدل ما
+          يفضل ثابت فوق شريط التبويبات السفلي — نفس السبب اللي BottomTabBar
+          نفسه بيترسم بره الحاوية دي. */}
+      <button
+        className="home-fab"
+        onClick={handleQuickAdd}
+        type="button"
+        title="إضافة مهمة سريعة"
+        aria-label="إضافة مهمة سريعة"
+      >
+        <DynamicIcon name="plus" size={24} />
+      </button>
       {sideMenuAndModals}
     </>
   );

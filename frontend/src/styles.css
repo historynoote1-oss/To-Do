@@ -10458,7 +10458,6 @@ body.modal-lock-scroll {
 .home-quick-icon-prayer { background: linear-gradient(155deg, #7c3aed, #4c1d95); }
 .home-quick-icon-quran { background: linear-gradient(155deg, #059669, #047857); }
 .home-quick-icon-profile { background: linear-gradient(155deg, #d97706, #b45309); }
-.home-quick-icon-add { background: linear-gradient(155deg, #6d28d9, #a21caf); }
 
 .home-quick-label {
   font-size: 12.5px;
@@ -10501,6 +10500,11 @@ body.modal-lock-scroll {
   box-shadow: var(--shadow-sm);
 }
 
+.home-hero-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .home-hero-greeting {
   margin: 0 0 3px;
   font-family: var(--font-display);
@@ -10519,12 +10523,34 @@ body.modal-lock-scroll {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-top: 9px;
   padding: 7px 12px;
   border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
   box-shadow: 0 1px 4px -1px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== دايرة تقدّم اليوم — مدموجة جوه بطاقة الترحيب نفسها بدل ما تتحط
+   في بطاقة منفصلة، بتظهر بس لو فيه مهام مستحقة النهاردة أصلًا. */
+.home-hero-ring-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.home-hero-ring-value {
+  font-size: 12px;
+}
+
+.home-hero-ring-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .home-hero-status-danger {
@@ -10545,6 +10571,129 @@ body.modal-lock-scroll {
   border: 1px solid color-mix(in srgb, var(--success) 28%, transparent);
 }
 
+/* ===== بطاقة الستريك المستقلة — قيمتها التحفيزية أعلى من رقم صغير جنب
+   الاسم في الهيدر، فبتاخد بطاقة كاملة تحت بطاقة الترحيب مباشرة. */
+.home-streak-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.home-streak-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: linear-gradient(155deg, #f59e0b, #dc2626);
+  color: #fff7ed;
+  box-shadow: var(--shadow-sm);
+}
+
+.home-streak-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-streak-count {
+  font-family: var(--font-num);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.home-streak-unit {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.home-streak-message {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ===== بحث سريع — فلترة فورية محليًا على عنوان المهام الرئيسية. */
+.home-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+}
+
+.home-search-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.home-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13.5px;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.home-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.home-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.home-search-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.home-search-result:hover,
+.home-search-result:focus-visible {
+  border-color: var(--accent);
+}
+
+.home-search-empty {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* ===== أقرب المهام استحقاقًا — بديل قسم "نظرة عامة على مجالات حياتك"
    اللي كان آخر عنصر في الصفحة. صف بسيط لكل مهمة قريبة الاستحقاق، بلون
    مجال حياتها ووقتها، بيودّي لخريطة الأهداف عند الضغط. */
@@ -10561,23 +10710,58 @@ body.modal-lock-scroll {
 .home-upcoming-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 8px 10px 8px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-inline-start: 3px solid var(--chip-color, var(--accent));
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  text-align: start;
   transition: border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
 }
 
 .home-upcoming-row:hover,
-.home-upcoming-row:focus-visible {
+.home-upcoming-row:focus-within {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lift);
+}
+
+/* مربّع تحديد صغير مستقل عن باقي الصف — بيسمح بإنجاز أقرب مهمة فرعية
+   مباشرة من غير ما الضغطة توديك لخريطة الأهداف زي باقي الصف. */
+.home-upcoming-row-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+}
+
+.home-upcoming-row-check:hover,
+.home-upcoming-row-check:focus-visible {
+  border-color: var(--success);
+  color: var(--success);
+  background: var(--success-dim);
+}
+
+.home-upcoming-row-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 4px 4px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: start;
 }
 
 .home-upcoming-row-icon {
@@ -10612,6 +10796,102 @@ body.modal-lock-scroll {
 .home-upcoming-row.overdue .home-upcoming-row-time {
   color: var(--danger);
   font-weight: 700;
+}
+
+/* ===== حالة فاضية لقسم "أقرب المهام" — بدل ما القسم يختفي بالكامل لو
+   مفيش مهام قريبة، بتشجّع المستخدم يضيف مهمة جديدة. */
+.home-upcoming-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 28px 16px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease-out);
+}
+
+.home-upcoming-empty:hover,
+.home-upcoming-empty:focus-visible {
+  border-color: var(--accent);
+}
+
+.home-upcoming-empty-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.home-upcoming-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ===== ملخص إحصائي مصغّر — نفس بطاقتي نسبة الإنجاز وتوزيع المهام
+   المستخدمة في صفحة الإحصائيات، بس هنا كخلاصة سريعة أسفل الصفحة الرئيسية. */
+.home-stats-summary {
+  margin-top: 22px;
+}
+
+.home-stats-summary-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .home-stats-summary-grid {
+    flex-direction: row;
+  }
+  .home-stats-summary-grid > * {
+    flex: 1;
+  }
+}
+
+/* ===== زرار إضافة مهمة عائم — ثابت وظاهر دايمًا فوق شريط التبويبات
+   السفلي. لازم يترسم برّه .container (شوف التعليق في App.tsx) عشان
+   position:fixed يشتغل فعليًا نسبةً للشاشة مش لعنصر أب فيه transform. */
+.home-fab {
+  position: fixed;
+  z-index: 57;
+  inset-inline-end: 18px;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--gradient-brand);
+  color: #f4fbfa;
+  box-shadow: var(--shadow-lift);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.home-fab:hover {
+  transform: translateY(-2px);
+}
+
+.home-fab:active {
+  transform: scale(0.94);
+}
+
+@media (min-width: 720px) {
+  /* شريط التبويبات السفلي مختفي على الشاشات الأعرض، فمفيش داعي لرفع
+     الزرار فوقه هنا. */
+  .home-fab {
+    bottom: 24px;
+  }
 }
 
 
