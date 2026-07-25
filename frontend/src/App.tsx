@@ -40,12 +40,9 @@ import {
   ADMIN_TAB_PATHS,
   resolveFromPath,
 } from '@/lib/api/routes';
-import { CategoryKey } from '@/lib/core/category';
 import { LifeAreaData } from '@/lib/core/lifeArea';
-import { groupByLifeArea, isListDone } from '@/lib/core/organize';
+import { isListDone, earliestDueDate } from '@/lib/core/organize';
 import { DynamicIcon } from '@/lib/core/icons';
-import TaskDistributionCard from '@/components/stats/TaskDistributionCard';
-import CompletionRateCard from '@/components/stats/CompletionRateCard';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import PullToRefresh from '@/components/layout/PullToRefresh';
 import OfflineBanner from '@/components/layout/OfflineBanner';
@@ -592,26 +589,77 @@ export default function App() {
     }
   }
 
-  // اختصار من بطاقات الإحصائيات: بعد ما اتشالت صفحة المهام، أقرب مكان
-  // منطقي يوري تفاصيل مهام تصنيف معيّن هو خريطة الأهداف نفسها — فبنوديك
-  // لها مباشرة بدل السكرول لقسم في صفحة اتلغت.
-  function jumpToCategory(_key: CategoryKey) {
-    sounds.click();
-    setView('goalMap');
-  }
-
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
 
-  // ملاحظة: القائمة النشطة (lists) بترجع من السيرفر من غير أي مهمة اكتملت
-  // بالكامل، لأنها بتتؤرشف تلقائيًا وتتنقل لصفحة الأرشيف — فمفيش داعي لتبويب
-  // "مكتملة" هنا تاني، "نشطة" هي كل حاجة موجودة أصلًا.
-  // التنظيم الجديد: بدل فلترة يدوية مستمرة، المهام بتترتب تلقائيًا حسب
-  // الأولوية وتتجمّع حسب مجال الحياة.
-  // ملحوظة أداء: التجميع حسب مجال الحياة بيلف على كل المهام في كل مرة —
-  // عملية مش رخيصة لو عدد المهام كبير. بنكاشه بـ useMemo ومنعيدش حسابه غير
-  // لما lists أو lifeAreas فعلاً يتغيّروا. بيُستخدم في نظرة عامة الصفحة
-  // الرئيسية (توزيع المهام على مجالات الحياة).
-  const groups = useMemo(() => groupByLifeArea(lists as any, lifeAreas), [lists, lifeAreas]);
+  // ===== الشاشة الرئيسية الجديدة =====
+  // التحية بتتغيّر حسب وقت اليوم (بدري / بعد الضهر / مساءً / بليل)، عشان
+  // أول حاجة المستخدم يشوفها تحس إنها "حية" ومتجاوبة مع وقته فعليًا، زي أي
+  // تطبيق تنظيم حياة احترافي.
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 12) return 'صباح الخير';
+    if (hour >= 12 && hour < 17) return 'طاب يومك';
+    if (hour >= 17 && hour < 21) return 'مساء الخير';
+    return 'ليلة سعيدة';
+  }, []);
+
+  // التاريخ الحالي بصيغة عربية كاملة (اسم اليوم + الشهر)، بيتحسب مرة واحدة
+  // بس عند فتح الصفحة — تجميلي بحت فمفيش داعي لتحديثه كل ثانية.
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' }),
+    []
+  );
+
+  // لمحة سريعة عن يوم المستخدم: بدل الأرقام العامة اللي اتشالت (إجمالي
+  // المهام / نسبة الإنجاز الكلية)، هنا بنركّز بس على "دلوقتي والنهارده":
+  // كام مهمة شغالة فعليًا دلوقتي (حسب وقت البداية/النهاية المضبوط لها)،
+  // كام حاجة مستحقة النهاردة، وكام حاجة اتأخّر معادها. الثلاثة أرقام دي
+  // بيتحسبوا من نفس بيانات lists الموجودة أصلًا من غير أي طلب إضافي للسيرفر.
+  const todaySnapshot = useMemo(() => {
+    const now = Date.now();
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date();
+    dayEnd.setHours(23, 59, 59, 999);
+
+    let activeNow = 0;
+    let dueToday = 0;
+    let overdue = 0;
+
+    for (const list of lists) {
+      const start = list.startTime ? new Date(list.startTime).getTime() : null;
+      const end = list.endTime ? new Date(list.endTime).getTime() : null;
+      if (start !== null && end !== null && now >= start && now <= end) {
+        activeNow += 1;
+      }
+      for (const item of list.items || []) {
+        if (item.isDone || !item.dueDate) continue;
+        const due = new Date(item.dueDate).getTime();
+        if (Number.isNaN(due)) continue;
+        if (due < now) {
+          overdue += 1;
+        } else if (due >= dayStart.getTime() && due <= dayEnd.getTime()) {
+          dueToday += 1;
+        }
+      }
+    }
+
+    return { activeNow, dueToday, overdue };
+  }, [lists]);
+
+  // أقرب المهام الرئيسية استحقاقًا (حسب أقرب موعد لعنصر فرعي لسه مش
+  // خلصان)، بديل قسم "نظرة عامة على مجالات حياتك" اللي اتشال — معاينة
+  // مباشرة ومفيدة أكتر لأقرب حاجات محتاجة انتباه بدل ملخص عام لكل مجال.
+  const upcomingLists = useMemo(() => {
+    const now = Date.now();
+    return lists
+      .filter((l) => !isListDone(l as any))
+      .map((l) => ({ list: l, due: earliestDueDate(l as any) }))
+      .filter((entry): entry is { list: List; due: number } => entry.due !== null)
+      .sort((a, b) => a.due - b.due)
+      .slice(0, 4)
+      .map((entry) => ({ ...entry, overdue: entry.due < now }));
+  }, [lists]);
 
   // بمجرد ما أول فحص أساسي (حالة الموقع/الصيانة) يخلص وعندنا حاجة فعلية
   // نعرضها، نقفل شاشة البداية الأصلية (Splash) بدل ما تختفي تلقائيًا قبل
@@ -942,57 +990,106 @@ export default function App() {
 
         <PullToRefresh onRefresh={refresh} disabled={menuOpen || logoutConfirmOpen || loading}>
         <main className="home-main">
-          <section className="stats-col" aria-label="إحصائيات سريعة">
-            <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
-            <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
+          {/* بطاقة ترحيب — تحية حسب وقت اليوم + التاريخ الحالي، أول حاجة
+              المستخدم يشوفها وتخلي الصفحة حاسّة إنها حيّة ومش شاشة تعداد
+              أرقام باردة. */}
+          <section className="home-hero" aria-label="ترحيب">
+            <div className="home-hero-text">
+              <h2 className="home-hero-greeting">{greeting}</h2>
+              <p className="home-hero-date">{todayLabel}</p>
+            </div>
+            {todaySnapshot.overdue > 0 ? (
+              <span className="home-hero-status home-hero-status-danger">
+                <DynamicIcon name="alert" size={14} />
+                {todaySnapshot.overdue} مهمة اتأخر معادها
+              </span>
+            ) : todaySnapshot.dueToday > 0 ? (
+              <span className="home-hero-status home-hero-status-info">
+                <DynamicIcon name="calendar" size={14} />
+                {todaySnapshot.dueToday} مستحقة النهاردة
+              </span>
+            ) : (
+              <span className="home-hero-status home-hero-status-ok">
+                <DynamicIcon name="check-circle" size={14} />
+                كله تحت السيطرة
+              </span>
+            )}
+          </section>
+
+          {/* لمحة سريعة عن النهاردة بس — بديل بطاقتي الإجمالي الكلي/نسبة
+              الإنجاز اللي اتشالوا. الأرقام هنا كلها مرتبطة بـ"دلوقتي" مش
+              بإحصائية عامة، فبتفيد فعليًا في تنظيم اليوم بدل ما تكون رقم
+              تجميلي بس. */}
+          <section className="home-today-grid" aria-label="لمحة عن اليوم">
+            <div className="home-today-chip">
+              <span className="home-today-chip-icon home-today-chip-icon-active">
+                <DynamicIcon name="zap" size={16} />
+              </span>
+              <span className="home-today-chip-value">{todaySnapshot.activeNow}</span>
+              <span className="home-today-chip-label">شغّالة دلوقتي</span>
+            </div>
+            <div className="home-today-chip">
+              <span className="home-today-chip-icon home-today-chip-icon-due">
+                <DynamicIcon name="calendar" size={16} />
+              </span>
+              <span className="home-today-chip-value">{todaySnapshot.dueToday}</span>
+              <span className="home-today-chip-label">مستحقة النهاردة</span>
+            </div>
+            <div className="home-today-chip">
+              <span className="home-today-chip-icon home-today-chip-icon-overdue">
+                <DynamicIcon name="alert" size={16} />
+              </span>
+              <span className="home-today-chip-value">{todaySnapshot.overdue}</span>
+              <span className="home-today-chip-label">اتأخر معادها</span>
+            </div>
           </section>
 
           {/* شبكة وصول سريع — النمط القياسي لأي شاشة رئيسية: اختصارات
               مباشرة لأهم أقسام التطبيق بدل ما يفضل المستخدم يفتح القائمة
-              الجانبية كل مرة. نظام إضافة المهام/الأهداف بقى موجود بس جوه
-              خريطة الأهداف، فالبطاقة دي هي المدخل الرئيسي له. */}
+              الجانبية كل مرة. الدخول لخريطة الأهداف نفسها متاح أصلًا من
+              تبويب "الأهداف" وزرار "+" في الشريط السفلي، فمفيش داعي لتكرارها
+              هنا كمان. */}
           <nav className="home-quick-grid" aria-label="وصول سريع">
-            <button className="home-quick-card home-quick-card-primary" onClick={() => setView('goalMap')} type="button">
-              <span className="home-quick-icon-wrap">
-                <DynamicIcon name="route" size={20} />
-              </span>
-              <span className="home-quick-label">خريطة الأهداف</span>
-              <span className="home-quick-sub">إضافة وتنظيم المهام والأهداف</span>
-            </button>
-
             <button className="home-quick-card" onClick={() => setView('lifeAreas')} type="button">
-              <span className="home-quick-icon-wrap">
+              <span className="home-quick-icon-wrap home-quick-icon-areas">
                 <DynamicIcon name="compass" size={20} />
               </span>
               <span className="home-quick-label">مجالات الحياة</span>
             </button>
 
             <button className="home-quick-card" onClick={() => setView('pomodoro')} type="button">
-              <span className="home-quick-icon-wrap">
+              <span className="home-quick-icon-wrap home-quick-icon-pomodoro">
                 <DynamicIcon name="timer" size={20} />
               </span>
               <span className="home-quick-label">بومودورو</span>
             </button>
 
             <button className="home-quick-card" onClick={() => setView('prayerTimes')} type="button">
-              <span className="home-quick-icon-wrap">
+              <span className="home-quick-icon-wrap home-quick-icon-prayer">
                 <DynamicIcon name="moon-star" size={20} />
               </span>
               <span className="home-quick-label">مواقيت الصلاة</span>
             </button>
 
             <button className="home-quick-card" onClick={() => setView('player')} type="button">
-              <span className="home-quick-icon-wrap">
+              <span className="home-quick-icon-wrap home-quick-icon-quran">
                 <DynamicIcon name="book-open" size={20} />
               </span>
               <span className="home-quick-label">مشغّل القرآن</span>
             </button>
 
             <button className="home-quick-card" onClick={() => setView('profile')} type="button">
-              <span className="home-quick-icon-wrap">
+              <span className="home-quick-icon-wrap home-quick-icon-profile">
                 <DynamicIcon name="user" size={20} />
               </span>
               <span className="home-quick-label">الملف الشخصي</span>
+            </button>
+
+            <button className="home-quick-card" onClick={handleQuickAdd} type="button">
+              <span className="home-quick-icon-wrap home-quick-icon-add">
+                <DynamicIcon name="plus" size={20} />
+              </span>
+              <span className="home-quick-label">إضافة مهمة</span>
             </button>
           </nav>
 
@@ -1013,33 +1110,31 @@ export default function App() {
             </p>
           )}
 
-          {!loading && lists.length > 0 && (
-            <section className="home-areas-overview" aria-label="نظرة عامة على مجالات الحياة">
-              <h2 className="home-section-title">نظرة عامة على مجالات حياتك</h2>
-              <div className="home-areas-grid">
-                {groups.map((g) => {
-                  const total = g.lists.length;
-                  const done = g.lists.filter((l) => isListDone(l as any)).length;
-                  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                  return (
-                    <button
-                      key={g.id}
-                      className="home-area-card"
-                      style={{ ['--chip-color' as any]: g.color }}
-                      onClick={() => setView('goalMap')}
-                      type="button"
-                    >
-                      <span className="home-area-card-icon">
-                        <DynamicIcon name={(g.icon as any) || 'tag'} size={18} />
-                      </span>
-                      <span className="home-area-card-name">{g.name}</span>
-                      <span className="home-area-card-count">{done}/{total}</span>
-                      <span className="home-area-card-bar">
-                        <span className="home-area-card-bar-fill" style={{ width: `${pct}%` }} />
-                      </span>
-                    </button>
-                  );
-                })}
+          {/* أقرب المهام استحقاقًا — بديل قسم "نظرة عامة على مجالات حياتك"
+              اللي كان آخر عنصر في الصفحة. معاينة مباشرة لأقرب حاجات محتاجة
+              انتباه بدل ملخص عام، وبتضغط على أي واحدة تودّيك لخريطة الأهداف. */}
+          {!loading && upcomingLists.length > 0 && (
+            <section className="home-upcoming" aria-label="أقرب المهام استحقاقًا">
+              <h2 className="home-section-title">أقرب المهام استحقاقًا</h2>
+              <div className="home-upcoming-list">
+                {upcomingLists.map(({ list, due, overdue }) => (
+                  <button
+                    key={list.id}
+                    className={`home-upcoming-row ${overdue ? 'overdue' : ''}`}
+                    style={{ ['--chip-color' as any]: list.lifeArea?.color || 'var(--accent)' }}
+                    onClick={() => setView('goalMap')}
+                    type="button"
+                  >
+                    <span className="home-upcoming-row-icon">
+                      <DynamicIcon name={(list.lifeArea?.icon as any) || 'tag'} size={16} />
+                    </span>
+                    <span className="home-upcoming-row-title">{list.title}</span>
+                    <span className="home-upcoming-row-time">
+                      {overdue && <DynamicIcon name="alert" size={12} />}
+                      {new Date(due).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}
+                    </span>
+                  </button>
+                ))}
               </div>
             </section>
           )}
