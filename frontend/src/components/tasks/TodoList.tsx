@@ -884,11 +884,6 @@ export default function TodoList({
               )}
             </div>
           )}
-          {list.recurringTaskId && (
-            <span className="recurring-origin-badge" title="اتولّدت تلقائيًا من مهمة متكررة">
-              <DynamicIcon name="repeat" size={12} />
-            </span>
-          )}
           {pendingRestore && (
             <span className="pending-restore-ribbon" title="مسترجعة من الأرشيف — بانتظار مراجعتك">
               <DynamicIcon name="undo" size={12} /> بانتظار المراجعة

@@ -105,13 +105,13 @@ router.delete('/lists/:id', requireAdminPassword, async (req: AuthRequest, res) 
 });
 
 // استرجاع مهمة "متأخرة" (اتؤرشفت تلقائيًا لأنها فاتت معادها) — الاسترجاع
-// ده ممنوع تمامًا على المستخدم نفسه (شوف POST /:id/restore في routes/lists.ts
-// وتعليق archiveReason في lib/archive.ts)، لكن الأدمن وحده يقدر يتخطاه في
-// حالات استثنائية (مثلًا المستخدم يتواصل بيطلب استرجاع مهمة مهمة اتأرشفت
-// بالغلط). زي باقي الإجراءات الحساسة في اللوحة، محتاج تأكيد بكلمة مرور
-// الأدمن. بترجعها لمنطقة "بانتظار المراجعة" (نفس مسار الاسترجاع العادي)
-// عشان صاحبها يراجعها بنفسه قبل ما تتأكد نهائيًا، وبنصفّر archiveReason
-// عشان ترجع تتعامل كمهمة عادية بعد كده (من غير التجميد الدائم بتاع OVERDUE).
+// ده ممنوع تمامًا على المستخدم نفسه (شوف تعليق archiveReason في lib/archive.ts)،
+// لكن الأدمن وحده يقدر يتخطاه في حالات استثنائية (مثلًا المستخدم يتواصل بيطلب
+// استرجاع مهمة مهمة اتأرشفت بالغلط). زي باقي الإجراءات الحساسة في اللوحة،
+// محتاج تأكيد بكلمة مرور الأدمن. بترجعها مباشرة لقائمة المهام النشطة (مفيش
+// خطوة "بانتظار مراجعة" وسيطة بعد ما اتشالت صفحة الأرشيف والمراجعة اليدوية
+// من واجهة المستخدم)، وبنصفّر archiveReason عشان ترجع تتعامل كمهمة عادية
+// بعد كده (من غير التجميد الدائم بتاع OVERDUE).
 router.post('/lists/:id/restore-overdue', requireAdminPassword, async (req: AuthRequest, res) => {
   const list = await prisma.todoList.findUnique({ where: { id: req.params.id }, include: { user: true } });
   if (!list) return res.status(404).json({ error: 'القائمة غير موجودة' });
@@ -121,7 +121,7 @@ router.post('/lists/:id/restore-overdue', requireAdminPassword, async (req: Auth
 
   const updated = await prisma.todoList.update({
     where: { id: list.id },
-    data: { archivedAt: null, pendingRestoreAt: new Date(), archiveReason: 'COMPLETED' },
+    data: { archivedAt: null, pendingRestoreAt: null, archiveReason: 'COMPLETED' },
   });
   await logAction(req.userId!, `استرجاع مهمة متأخرة "${list.title}"`, req.ip!, list.user.username);
   res.json(updated);

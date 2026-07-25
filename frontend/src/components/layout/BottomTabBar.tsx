@@ -20,7 +20,7 @@ interface Props {
 // نفس فكرة زرار الكاميرا في تطبيقات التواصل، بيوضح إنه الفعل الأساسي
 // (Primary Action) للتطبيق ككل مش مجرد تبويب زي باقي التبويبات.
 const TABS: { view: ViewName; icon: string; label: string }[] = [
-  { view: 'todos', icon: 'clipboard-list', label: 'المهام' },
+  { view: 'todos', icon: 'home', label: 'الرئيسية' },
   { view: 'goalMap', icon: 'route', label: 'الأهداف' },
 ];
 

@@ -11,7 +11,6 @@ import rateLimit from 'express-rate-limit';
 import 'dotenv/config';
 import authRoutes from './routes/auth';
 import listsRoutes from './routes/lists';
-import archiveRoutes from './routes/archive';
 import trashRoutes from './routes/trash';
 import lifeAreasRoutes from './routes/lifeAreas';
 import itemsRoutes from './routes/items';
@@ -26,14 +25,12 @@ import remindersRoutes from './routes/reminders';
 import pushRoutes from './routes/push';
 import streakRoutes from './routes/streak';
 import notificationsRoutes from './routes/notifications';
-import recurringTasksRoutes from './routes/recurringTasks';
 import youtubeRoutes from './routes/youtube';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
 import { rehabilitationGate } from './middleware/rehabilitationGate';
 import { startReminderScheduler } from './lib/schedulers/reminderScheduler';
-import { startRecurringTaskScheduler } from './lib/schedulers/recurringTaskScheduler';
 import { startOverdueScheduler } from './lib/schedulers/overdueScheduler';
 import { startTrashScheduler } from './lib/schedulers/trashScheduler';
 
@@ -149,10 +146,8 @@ app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 app.use('/api/site', siteStatusLimiter, siteRoutes);
 
 app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRoutes);
-app.use('/api/archive', verifyUser, rehabilitationGate, maintenanceGate, archiveRoutes);
 app.use('/api/trash', verifyUser, rehabilitationGate, maintenanceGate, trashRoutes);
 app.use('/api/life-areas', verifyUser, rehabilitationGate, maintenanceGate, lifeAreasRoutes);
-app.use('/api/recurring-tasks', verifyUser, rehabilitationGate, maintenanceGate, recurringTasksRoutes);
 app.use('/api/youtube', verifyUser, rehabilitationGate, maintenanceGate, youtubeLimiter, youtubeRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, remindersRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, pushRoutes);
@@ -198,6 +193,5 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // جدولة فحص التذكيرات المستحقة (كل 15 ثانية) وإرسال إشعارات الجهاز لها —
 // شغالة طول عمر البروسيس، مش محتاجة مسار API منفصل.
 startReminderScheduler();
-startRecurringTaskScheduler();
 startOverdueScheduler();
 startTrashScheduler();

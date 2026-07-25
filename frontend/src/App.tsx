@@ -11,9 +11,6 @@ import {
   resolveAvatarUrl,
   getDueReminders,
   getLifeAreas,
-  getArchive,
-  getPendingRestoreLists,
-  finalizeRestore,
   MaintenanceError,
   resetSessionExpiredGuard,
   SessionExpiredError,
@@ -39,41 +36,33 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import type { NewTaskPayload } from '@/components/tasks/AddTaskModal';
 import {
   ViewName,
-  ArchiveTab,
   VIEW_PATHS,
   ADMIN_TAB_PATHS,
-  ARCHIVE_TAB_PATHS,
   resolveFromPath,
 } from '@/lib/api/routes';
 import { CategoryKey } from '@/lib/core/category';
 import { LifeAreaData } from '@/lib/core/lifeArea';
-import { groupByLifeArea, groupHierarchical, isListDone } from '@/lib/core/organize';
-import TaskHierarchy from '@/components/tasks/TaskHierarchy';
+import { groupByLifeArea, isListDone } from '@/lib/core/organize';
 import { DynamicIcon } from '@/lib/core/icons';
 import TaskDistributionCard from '@/components/stats/TaskDistributionCard';
 import CompletionRateCard from '@/components/stats/CompletionRateCard';
-import PendingRestoreSection from '@/components/tasks/PendingRestoreSection';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import PullToRefresh from '@/components/layout/PullToRefresh';
 import OfflineBanner from '@/components/layout/OfflineBanner';
 
-// الصفحات دي مش بتتفتح كل زيارة (لوحة الأدمن، البروفايل، المهام
-// المتكررة، الأرشيف، مشغّل القرآن، البومودورو) وبعضها تقيل نسبيًا (لوحة
-// الأدمن بالذات بتجر معاها 4 لوحات فرعية). بدل ما يتحمّلوا كلهم مع أول
-// تحميل للموقع (يبطّئ أول ظهور للشاشة الرئيسية)، بنحمّلهم "عند الطلب" فقط
-// أول ما المستخدم يفتح الصفحة المعنية — الملف بتاعها بيتنزّل في الخلفية
-// في نفس لحظة الانتقال، فمفيش فرق محسوس في التجربة لكن حجم أول تحميل
-// للموقع بيقل بشكل كبير.
+// الصفحات دي مش بتتفتح كل زيارة (لوحة الأدمن، البروفايل، خريطة الأهداف،
+// مشغّل القرآن، البومودورو) وبعضها تقيل نسبيًا (لوحة الأدمن بالذات بتجر
+// معاها 4 لوحات فرعية). بدل ما يتحمّلوا كلهم مع أول تحميل للموقع (يبطّئ
+// أول ظهور للشاشة الرئيسية)، بنحمّلهم "عند الطلب" فقط أول ما المستخدم يفتح
+// الصفحة المعنية — الملف بتاعها بيتنزّل في الخلفية في نفس لحظة الانتقال،
+// فمفيش فرق محسوس في التجربة لكن حجم أول تحميل للموقع بيقل بشكل كبير.
 const AdminDashboard = lazy(() => import('@/components/admin/AdminDashboard'));
 const Profile = lazy(() => import('@/components/profile/Profile'));
 const LifeAreasManager = lazy(() => import('@/components/life-areas/LifeAreasManager'));
-const RecurringTasksManager = lazy(() => import('@/components/tasks/RecurringTasksManager'));
-const ArchivePage = lazy(() => import('@/components/tasks/Archive'));
 const GoalMap = lazy(() => import('@/components/goals/GoalMap'));
 const PrayerTimes = lazy(() => import('@/components/prayer/PrayerTimes'));
 const MusicPlayer = lazy(() => import('@/components/media/MusicPlayer'));
 const Pomodoro = lazy(() => import('@/components/media/Pomodoro'));
-const AddTaskModal = lazy(() => import('@/components/tasks/AddTaskModal'));
 
 // شاشة انتظار بسيطة (نفس سبينر شاشة الإقلاع) بتظهر لحظة تحميل صفحة جديدة
 // عند الطلب — عادةً أجزاء من الثانية على أي اتصال عادي.
@@ -96,7 +85,6 @@ interface List {
   targetYear?: number | null;
   lifeAreaId?: string | null;
   lifeArea?: { id: string; name: string; color: string; icon: string | null; imageUrl: string | null } | null;
-  recurringTaskId?: string | null;
   // ===== خريطة الأهداف الهرمية =====
   parentGoalId?: string | null;
   parentGoal?: { id: string; title: string; category: string | null; targetYear: number | null } | null;
@@ -111,7 +99,6 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem('isAdmin') === 'true');
   const [view, setViewState] = useState<ViewName>(() => resolveFromPath().view);
   const [adminTab, setAdminTabState] = useState<AdminTab>(() => resolveFromPath().adminTab);
-  const [archiveTab, setArchiveTabState] = useState<ArchiveTab>(() => resolveFromPath().archiveTab);
 
   // بيحدّث state الشاشة الحالية، وكمان بيدفع مسار جديد للمتصفح عشان الرابط
   // فوق يتغيّر فعليًا مع كل تنقّل (زي setView القديمة بالظبط من ناحية
@@ -129,30 +116,9 @@ export default function App() {
     if (next !== 'admin') {
       setAdminTabState('overview');
     }
-    // الدخول العام لشاشة الأرشيف (مثلاً من زرار الأرشيف الرئيسي في القائمة)
-    // بيوديك دايمًا لصفحة "المهام المنجزة" الافتراضية.
-    if (next === 'archive') {
-      setArchiveTabState('completed');
-    }
     const path = next === 'admin' ? ADMIN_TAB_PATHS.overview : VIEW_PATHS[next];
     if (window.location.pathname !== path) {
       window.history.pushState({ view: next }, '', path);
-    }
-  }, []);
-
-  // بيحدّث صفحة الأرشيف الفرعية الحالية (المهام المنجزة/المتأخرة)، وبيدفع
-  // الرابط الفرعي المطابق (/archive/completed، /archive/overdue) عشان تبقى
-  // كل صفحة منهم قابلة للمشاركة ورجوع المتصفح يشتغل معاها برضه — بنفس فكرة
-  // setAdminTab بالظبط.
-  const setArchiveTab = useCallback((next: ArchiveTab) => {
-    setViewState((prev) => {
-      applyNavDirection(prev, 'archive');
-      return 'archive';
-    });
-    setArchiveTabState(next);
-    const path = ARCHIVE_TAB_PATHS[next];
-    if (window.location.pathname !== path) {
-      window.history.pushState({ view: 'archive', archiveTab: next }, '', path);
     }
   }, []);
 
@@ -177,7 +143,6 @@ export default function App() {
         return next.view;
       });
       setAdminTabState(next.adminTab);
-      setArchiveTabState(next.archiveTab);
     }
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -196,27 +161,15 @@ export default function App() {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [lists, setLists] = useState<List[]>([]);
-  const [archiveCount, setArchiveCount] = useState<number>(0);
   // عدد أيام الاستريك المتتالية — بيتحسب في السيرفر من UserActivityDay
   // (شوف routes/streak.ts)، وبنعيد جلبه كل ما refresh() بيتنادى عشان يفضل
   // متزامن فورًا بعد ما المستخدم يخلّص مهمة رئيسية.
   const [streak, setStreak] = useState<number>(0);
-  // مهام استُرجعت من الأرشيف ولسه بانتظار مراجعة المستخدم قبل ما ترجع فعليًا
-  // لقائمة المهام النشطة — بتتعرض في قسم مخصص فوق الصفحة الرئيسية (شوف
-  // PendingRestoreSection). بنجيبها منفصلة عن `lists` عشان الشاشة الرئيسية
-  // تفضل مقتصرة على المهام النشطة فعليًا زي ما كانت دايمًا.
-  const [pendingRestoreLists, setPendingRestoreLists] = useState<List[]>([]);
-  // منجز/إجمالي المهام الفرعية جوه الأرشيف — بنحسبهم من نفس رد getArchive()
-  // (بيرجع القوائم المؤرشفة بتفاصيل مهامها) من غير طلب إضافي للسيرفر، عشان
-  // نقدر نحسب نسبة إنجاز شاملة (نشطة + مؤرشفة) في هيدر الصفحة الرئيسية.
-  const [archiveStats, setArchiveStats] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
-  const [addTaskOpen, setAddTaskOpen] = useState(false);
+  // زرار "إضافة" السريع في الشريط السفلي بيوديك لخريطة الأهداف مباشرة —
+  // فيها نظام إضافة المهام/الأهداف الوحيد المتبقي في التطبيق.
   const handleQuickAdd = useCallback(() => {
-    setView('todos');
-    setAddTaskOpen(true);
+    setView('goalMap');
   }, [setView]);
-  const [highlightedListId, setHighlightedListId] = useState<string | null>(null);
-  const highlightTimeoutRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [muted, setMuted] = useState(() => sounds.isMuted());
   const [siteStatus, setSiteStatus] = useState<SiteStatus | null>(null);
@@ -294,8 +247,6 @@ export default function App() {
     if (username) {
       refresh();
       refreshLifeAreas();
-      refreshArchiveCount();
-      refreshPendingRestore();
       refreshStreak();
       getProfile()
         .then((data) => {
@@ -320,9 +271,6 @@ export default function App() {
     }
   }
 
-  // بنجيب عدد المهام المؤرشفة بس (من غير تفاصيلها) عشان نعرضه كإحصائية سريعة
-  // فوق، وبنعيد جلبه بعد أي refresh() للمهام النشطة عشان يفضل متزامن مع أي
-  // أرشفة/استرجاع تلقائي حصل في السيرفر.
   // بنجيب الاستريك الحالي من السيرفر — تجميلي زي باقي إحصائيات الهيدر، فلو
   // فشل الطلب منسيبش الشاشة الرئيسية تتعطل بسببه.
   async function refreshStreak() {
@@ -331,29 +279,6 @@ export default function App() {
       setStreak(data.current);
     } catch {
       // تجميلي بس
-    }
-  }
-
-  async function refreshArchiveCount() {
-    try {
-      const data = await getArchive();
-      setArchiveCount(data.length);
-      let done = 0;
-      let total = 0;
-      // إحصائية "منجز/إجمالي" دي المفروض تعكس المهام اللي فعلاً اتخلّصت، فبنستثني
-      // منها المهام اللي اتؤرشفت لأنها "متأخرة" (archiveReason === 'OVERDUE') —
-      // دي مؤرشفة لسبب معاكس تمامًا (فاتت معادها من غير ما تخلص)، وضمّها هنا
-      // كان هيوهم بنسبة إنجاز أقل من الحقيقي.
-      for (const l of data as { items: { isDone: boolean }[]; archiveReason?: string }[]) {
-        if (l.archiveReason === 'OVERDUE') continue;
-        for (const it of l.items) {
-          total += 1;
-          if (it.isDone) done += 1;
-        }
-      }
-      setArchiveStats({ done, total });
-    } catch {
-      // إحصائية تجميلية بس — مفيش داعي نزعج المستخدم لو فشلت
     }
   }
 
@@ -380,33 +305,6 @@ export default function App() {
       window.clearInterval(interval);
     };
   }, []);
-
-  async function refreshPendingRestore() {
-    try {
-      const data = await getPendingRestoreLists();
-      setPendingRestoreLists(data);
-    } catch {
-      // تجميلي زي باقي إحصائيات الهيدر — فشل مؤقت مش لازم يعطّل الشاشة الرئيسية
-    }
-  }
-
-  // بيتنادى بعد ما المستخدم يضغط "إضافة المهمة" في قسم "بانتظار المراجعة"
-  // (شوف PendingRestoreSection) — بيؤكّد رجوع المهمة فعليًا لمكانها الطبيعي
-  // في قائمة المهام النشطة.
-  async function handleFinalizeRestore(id: string) {
-    const target = pendingRestoreLists.find((l) => l.id === id);
-    setPendingRestoreLists((prev) => prev.filter((l) => l.id !== id));
-    try {
-      await finalizeRestore(id);
-      sounds.success();
-      toast.success(target ? `"${target.title}" رجعت لقائمة مهامك النشطة` : 'المهمة رجعت لقائمة مهامك النشطة');
-      await refresh();
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر إنهاء استرجاع المهمة');
-      refreshPendingRestore();
-    }
-  }
 
   // بنجيب حالة اشتراك إشعارات الجهاز أول ما المستخدم يسجّل دخول، بدون ما
   // نطلب إذن تلقائيًا — بس عشان نعرف نعرض زرار "تفعيل" أو "مفعّل" صح.
@@ -485,7 +383,6 @@ export default function App() {
     try {
       const data = await getLists();
       setLists(data);
-      refreshArchiveCount();
       refreshStreak();
     } catch (err) {
       if (err instanceof MaintenanceError) {
@@ -687,47 +584,12 @@ export default function App() {
     }
   }
 
-  // نفس فكرة handleDelete بالظبط، بس لمهمة لسه في منطقة "بانتظار المراجعة"
-  // (مش في القائمة النشطة) — عشان الحذف يحدّث الحالة الصحيحة فورًا.
-  async function handleDeletePendingRestore(id: string) {
-    const snapshot = pendingRestoreLists;
-    sounds.deleteItem();
-    setPendingRestoreLists((prev) => prev.filter((l) => l.id !== id));
-    try {
-      await deleteList(id);
-    } catch (err) {
-      setPendingRestoreLists(snapshot);
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر حذف المهمة');
-    }
-  }
-
-  // بيودّي الشاشة لأي قسم (عاجل / مجال حياة معيّن) بالاسكرول الناعم — ده
-  // تنقّل بس (مش فلترة)، فمفيش أي مهمة بتختفي، بس بيوصلك لمكانها بثانية.
-  function scrollToSection(sectionId: string) {
+  // اختصار من بطاقات الإحصائيات: بعد ما اتشالت صفحة المهام، أقرب مكان
+  // منطقي يوري تفاصيل مهام تصنيف معيّن هو خريطة الأهداف نفسها — فبنوديك
+  // لها مباشرة بدل السكرول لقسم في صفحة اتلغت.
+  function jumpToCategory(_key: CategoryKey) {
     sounds.click();
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  // اختصار من بطاقات الإحصائيات: بيوديك لأول مهمة رئيسية غير مكتملة من
-  // نفس التصنيف ويضيء حواليها لثانيتين، بدل ما يخفي باقي المهام بفلتر.
-  // اختصار من بطاقات الإحصائيات: بيوديك لأول مهمة رئيسية غير مكتملة من
-  // نفس التصنيف ويضيء حواليها لثانيتين، بدل ما يخفي باقي المهام بفلتر.
-  // ملاحظة: التمرير (scroll) وفتح أي قسم مطوي بيحصل جوه TaskHierarchy نفسها
-  // (شوف useEffect بتاعت highlightedListId هناك) — لأنها الوحيدة العارفة
-  // مين الأقسام المطوية دلوقتي، فمينفعش نعمل getElementById هنا لأن العنصر
-  // ممكن يكون مش موجود في الـ DOM أصلًا لو القسم بتاعه مطوي.
-  function jumpToCategory(key: CategoryKey) {
-    const target = lists.find((l) => l.category === key && !isListDone(l as any));
-    if (!target) {
-      sounds.error();
-      toast.info('مفيش مهمة رئيسية غير مكتملة من التصنيف ده حاليًا');
-      return;
-    }
-    sounds.click();
-    setHighlightedListId(target.id);
-    if (highlightTimeoutRef.current) window.clearTimeout(highlightTimeoutRef.current);
-    highlightTimeoutRef.current = window.setTimeout(() => setHighlightedListId(null), 2200);
+    setView('goalMap');
   }
 
   const blockedByMaintenance = !!siteStatus?.maintenanceMode && !isAdmin;
@@ -737,13 +599,11 @@ export default function App() {
   // "مكتملة" هنا تاني، "نشطة" هي كل حاجة موجودة أصلًا.
   // التنظيم الجديد: بدل فلترة يدوية مستمرة، المهام بتترتب تلقائيًا حسب
   // الأولوية وتتجمّع حسب مجال الحياة.
-  // ملحوظة أداء: التجميع الهرمي (groupHierarchical) بيلف على كل المهام
-  // والتصنيفات والأولويات في كل مرة — عملية مش رخيصة لو عدد المهام كبير.
-  // كان بيتحسب من الصفر في *كل* re-render (حتى لو كان السبب حاجة مالهاش
-  // علاقة بالمهام زي فتح/قفل القائمة الجانبية أو كتم الصوت)، فبنكاشه بـ
-  // useMemo ومنعيدش حسابه غير لما lists أو lifeAreas فعلاً يتغيّروا.
+  // ملحوظة أداء: التجميع حسب مجال الحياة بيلف على كل المهام في كل مرة —
+  // عملية مش رخيصة لو عدد المهام كبير. بنكاشه بـ useMemo ومنعيدش حسابه غير
+  // لما lists أو lifeAreas فعلاً يتغيّروا. بيُستخدم في نظرة عامة الصفحة
+  // الرئيسية (توزيع المهام على مجالات الحياة).
   const groups = useMemo(() => groupByLifeArea(lists as any, lifeAreas), [lists, lifeAreas]);
-  const hierGroups = useMemo(() => groupHierarchical(lists as any, lifeAreas), [lists, lifeAreas]);
 
   // بمجرد ما أول فحص أساسي (حالة الموقع/الصيانة) يخلص وعندنا حاجة فعلية
   // نعرضها، نقفل شاشة البداية الأصلية (Splash) بدل ما تختفي تلقائيًا قبل
@@ -838,7 +698,6 @@ export default function App() {
         onClose={() => setMenuOpen(false)}
         isAdmin={isAdmin}
         currentView={view}
-        archiveCount={archiveCount}
         muted={muted}
         pushState={pushState}
         canUndo={canUndo}
@@ -850,9 +709,7 @@ export default function App() {
         onRedo={() => redo()}
         onOpenDashboard={openDashboard}
         onOpenGoalMap={() => setView('goalMap')}
-        onOpenArchive={() => setView('archive')}
         onOpenLifeAreas={() => setView('lifeAreas')}
-        onOpenRecurring={() => setView('recurring')}
         onOpenPlayer={() => setView('player')}
         onOpenPomodoro={() => setView('pomodoro')}
         onOpenPrayerTimes={() => setView('prayerTimes')}
@@ -968,31 +825,6 @@ export default function App() {
     );
   }
 
-  if (view === 'archive') {
-    return (
-      <>
-        <ToastContainer />
-        <OfflineBanner />
-        <Suspense fallback={<RouteLoading />}>
-          <ArchivePage
-            onBack={() => setView('todos')}
-            onChange={() => {
-              refresh();
-              refreshPendingRestore();
-            }}
-            onOpenMenu={handleOpenMenu}
-            menuOpen={menuOpen}
-            lifeAreas={lifeAreas}
-            onManageLifeAreas={() => setView('lifeAreas')}
-            activeTab={archiveTab}
-            onTabChange={setArchiveTab}
-          />
-        </Suspense>
-        {sideMenuAndModals}
-      </>
-    );
-  }
-
   if (view === 'player') {
     return (
       <>
@@ -1026,27 +858,6 @@ export default function App() {
         <OfflineBanner />
         <Suspense fallback={<RouteLoading />}>
           <Pomodoro onBack={() => setView('todos')} onOpenMenu={handleOpenMenu} menuOpen={menuOpen} />
-        </Suspense>
-        {sideMenuAndModals}
-      </>
-    );
-  }
-
-  if (view === 'recurring') {
-    return (
-      <>
-        <ToastContainer />
-        <OfflineBanner />
-        <Suspense fallback={<RouteLoading />}>
-          <RecurringTasksManager
-            lifeAreas={lifeAreas}
-            onBack={() => setView('todos')}
-            onChange={refresh}
-            onManageLifeAreas={() => setView('lifeAreas')}
-            onOpenMenu={handleOpenMenu}
-            menuOpen={menuOpen}
-            onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
-          />
         </Suspense>
         {sideMenuAndModals}
       </>
@@ -1117,61 +928,61 @@ export default function App() {
           </div>
         </header>
 
-        <PullToRefresh onRefresh={refresh} disabled={addTaskOpen || menuOpen || logoutConfirmOpen || loading}>
+        <PullToRefresh onRefresh={refresh} disabled={menuOpen || logoutConfirmOpen || loading}>
         <main className="home-main">
           <section className="stats-col" aria-label="إحصائيات سريعة">
             <TaskDistributionCard lists={lists} onSelectCategory={jumpToCategory} />
             <CompletionRateCard lists={lists} onSelectCategory={jumpToCategory} />
           </section>
 
-          <div className="quick-add-row quick-add-row-compact">
-            <button className="quick-add-card" onClick={() => setAddTaskOpen(true)} type="button">
-              <span className="quick-add-icon-wrap">
-                <DynamicIcon name="plus" size={18} />
+          {/* شبكة وصول سريع — النمط القياسي لأي شاشة رئيسية: اختصارات
+              مباشرة لأهم أقسام التطبيق بدل ما يفضل المستخدم يفتح القائمة
+              الجانبية كل مرة. نظام إضافة المهام/الأهداف بقى موجود بس جوه
+              خريطة الأهداف، فالبطاقة دي هي المدخل الرئيسي له. */}
+          <nav className="home-quick-grid" aria-label="وصول سريع">
+            <button className="home-quick-card home-quick-card-primary" onClick={() => setView('goalMap')} type="button">
+              <span className="home-quick-icon-wrap">
+                <DynamicIcon name="route" size={20} />
               </span>
-              <span className="quick-add-label">إضافة مهمة</span>
+              <span className="home-quick-label">خريطة الأهداف</span>
+              <span className="home-quick-sub">إضافة وتنظيم المهام والأهداف</span>
             </button>
 
-            <button className="quick-add-card quick-add-card-recurring" onClick={() => setView('recurring')} type="button">
-              <span className="quick-add-icon-wrap quick-add-icon-wrap-recurring">
-                <DynamicIcon name="repeat" size={18} />
-                <span className="quick-add-badge">
-                  <DynamicIcon name="plus" size={9} />
-                </span>
+            <button className="home-quick-card" onClick={() => setView('lifeAreas')} type="button">
+              <span className="home-quick-icon-wrap">
+                <DynamicIcon name="compass" size={20} />
               </span>
-              <span className="quick-add-label">إضافة مهمة متكررة</span>
+              <span className="home-quick-label">مجالات الحياة</span>
             </button>
 
-            <button className="quick-add-card quick-add-card-goalmap" onClick={() => setView('goalMap')} type="button">
-              <span className="quick-add-icon-wrap quick-add-icon-wrap-goalmap">
-                <DynamicIcon name="route" size={18} />
+            <button className="home-quick-card" onClick={() => setView('pomodoro')} type="button">
+              <span className="home-quick-icon-wrap">
+                <DynamicIcon name="timer" size={20} />
               </span>
-              <span className="quick-add-label">خريطة الأهداف</span>
+              <span className="home-quick-label">بومودورو</span>
             </button>
-          </div>
 
-          <Suspense fallback={null}>
-            <AddTaskModal
-              open={addTaskOpen}
-              lifeAreas={lifeAreas}
-              onClose={() => setAddTaskOpen(false)}
-              onManageLifeAreas={() => {
-                setAddTaskOpen(false);
-                setView('lifeAreas');
-              }}
-              onCreate={handleCreate}
-              onLifeAreaCreated={(area) => setLifeAreas((prev) => (prev.some((a) => a.id === area.id) ? prev : [...prev, area]))}
-            />
-          </Suspense>
+            <button className="home-quick-card" onClick={() => setView('prayerTimes')} type="button">
+              <span className="home-quick-icon-wrap">
+                <DynamicIcon name="moon-star" size={20} />
+              </span>
+              <span className="home-quick-label">مواقيت الصلاة</span>
+            </button>
 
-          <PendingRestoreSection
-            lists={pendingRestoreLists}
-            onChange={refreshPendingRestore}
-            onFinalize={handleFinalizeRestore}
-            onDeleteList={handleDeletePendingRestore}
-            lifeAreas={lifeAreas}
-            onManageLifeAreas={() => setView('lifeAreas')}
-          />
+            <button className="home-quick-card" onClick={() => setView('player')} type="button">
+              <span className="home-quick-icon-wrap">
+                <DynamicIcon name="book-open" size={20} />
+              </span>
+              <span className="home-quick-label">مشغّل القرآن</span>
+            </button>
+
+            <button className="home-quick-card" onClick={() => setView('profile')} type="button">
+              <span className="home-quick-icon-wrap">
+                <DynamicIcon name="user" size={20} />
+              </span>
+              <span className="home-quick-label">الملف الشخصي</span>
+            </button>
+          </nav>
 
           {loading && (
             <div className="lists-grid">
@@ -1182,38 +993,43 @@ export default function App() {
 
           {!loading && lists.length === 0 && (
             <p className="empty">
-              <DynamicIcon name="sticky-note" size={32} className="empty-icon" />
-              مفيش مهام رئيسية لسه، ابدأ بإنشاء أول مهمة
+              <DynamicIcon name="route" size={32} className="empty-icon" />
+              مفيش مهام أو أهداف لسه — ابدأ من خريطة الأهداف
+              <button className="small" onClick={() => setView('goalMap')} type="button">
+                فتح خريطة الأهداف
+              </button>
             </p>
           )}
 
-          {!loading && lists.length > 0 && groups.length > 1 && (
-            <nav className="quick-nav" aria-label="تنقّل سريع بين الأقسام">
-              {groups.map((g) => (
-                <button
-                  key={g.id}
-                  className="quick-nav-chip"
-                  style={{ ['--chip-color' as any]: g.color }}
-                  onClick={() => scrollToSection(`section-area-${g.id}`)}
-                  type="button"
-                >
-                  <DynamicIcon name={(g.icon as any) || 'tag'} size={13} /> {g.name}
-                  <span className="quick-nav-count">{g.lists.length}</span>
-                </button>
-              ))}
-            </nav>
-          )}
-
-          {!loading && (
-            <TaskHierarchy
-              groups={hierGroups}
-              onChange={refresh}
-              onDeleteList={handleDelete}
-              lifeAreas={lifeAreas}
-              onManageLifeAreas={() => setView('lifeAreas')}
-              highlightedListId={highlightedListId}
-              onCreateSubGoal={handleCreate}
-            />
+          {!loading && lists.length > 0 && (
+            <section className="home-areas-overview" aria-label="نظرة عامة على مجالات الحياة">
+              <h2 className="home-section-title">نظرة عامة على مجالات حياتك</h2>
+              <div className="home-areas-grid">
+                {groups.map((g) => {
+                  const total = g.lists.length;
+                  const done = g.lists.filter((l) => isListDone(l as any)).length;
+                  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                  return (
+                    <button
+                      key={g.id}
+                      className="home-area-card"
+                      style={{ ['--chip-color' as any]: g.color }}
+                      onClick={() => setView('goalMap')}
+                      type="button"
+                    >
+                      <span className="home-area-card-icon">
+                        <DynamicIcon name={(g.icon as any) || 'tag'} size={18} />
+                      </span>
+                      <span className="home-area-card-name">{g.name}</span>
+                      <span className="home-area-card-count">{done}/{total}</span>
+                      <span className="home-area-card-bar">
+                        <span className="home-area-card-bar-fill" style={{ width: `${pct}%` }} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
           )}
         </main>
         </PullToRefresh>

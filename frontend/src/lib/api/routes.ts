@@ -7,12 +7,7 @@
 
 import type { AdminTab } from '@/components/admin/AdminDashboard';
 
-export type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'archive' | 'recurring' | 'player' | 'pomodoro' | 'goalMap' | 'prayerTimes';
-
-// نفس فكرة صفحة الأرشيف بتبويباتها، لكن كصفحتين مستقلتين فعليًا لهم مسار
-// خاص بكل واحدة (بدل تبويب داخلي بس) — عشان تبقى كل واحدة قابلة للمشاركة
-// برابط مباشر ورجوع المتصفح يفرّق بينهم.
-export type ArchiveTab = 'completed' | 'overdue';
+export type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'player' | 'pomodoro' | 'goalMap' | 'prayerTimes';
 
 // خريطة كل شاشة لمسارها في الـ URL — ده اللي بيخلي كل قسم في الموقع يكون
 // ليه رابط فعلي (بدل ما الرابط يفضل ثابت دايمًا على الصفحة الرئيسية)، فيبقى
@@ -22,8 +17,6 @@ export const VIEW_PATHS: Record<ViewName, string> = {
   admin: '/admin',
   profile: '/profile',
   lifeAreas: '/life-areas',
-  archive: '/archive/completed',
-  recurring: '/recurring',
   player: '/player',
   pomodoro: '/pomodoro',
   goalMap: '/goals',
@@ -33,16 +26,6 @@ export const VIEW_PATHS: Record<ViewName, string> = {
 export const PATH_VIEWS: Record<string, ViewName> = Object.fromEntries(
   Object.entries(VIEW_PATHS).map(([viewName, path]) => [path, viewName])
 ) as Record<string, ViewName>;
-
-// مسارات صفحتي الأرشيف الفرعيتين (المهام المنجزة / المهام المتأخرة).
-export const ARCHIVE_TAB_PATHS: Record<ArchiveTab, string> = {
-  completed: '/archive/completed',
-  overdue: '/archive/overdue',
-};
-
-export const ARCHIVE_PATH_TABS: Record<string, ArchiveTab> = Object.fromEntries(
-  Object.entries(ARCHIVE_TAB_PATHS).map(([tab, path]) => [path, tab])
-) as Record<string, ArchiveTab>;
 
 // نفس فكرة VIEW_PATHS بالظبط، لكن لتبويبات لوحة الإدارة الداخلية — كل
 // تبويب (نظرة عامة، تحليلات، مستخدمين...) بقى ليه رابط فرعي تحت /admin
@@ -72,18 +55,10 @@ export function getViewDepth(view: ViewName): number {
   return view === 'todos' ? 0 : 1;
 }
 
-export function resolveFromPath(): { view: ViewName; adminTab: AdminTab; archiveTab: ArchiveTab } {
+export function resolveFromPath(): { view: ViewName; adminTab: AdminTab } {
   const path = window.location.pathname;
   if (path in ADMIN_PATH_TABS) {
-    return { view: 'admin', adminTab: ADMIN_PATH_TABS[path], archiveTab: 'completed' };
+    return { view: 'admin', adminTab: ADMIN_PATH_TABS[path] };
   }
-  if (path in ARCHIVE_PATH_TABS) {
-    return { view: 'archive', adminTab: 'overview', archiveTab: ARCHIVE_PATH_TABS[path] };
-  }
-  // رابط الأرشيف القديم (من غير تحديد صفحة فرعية) بيتحوّل تلقائيًا لصفحة
-  // المهام المنجزة، عشان أي رابط قديم متحفوظ يفضل شغّال.
-  if (path === '/archive') {
-    return { view: 'archive', adminTab: 'overview', archiveTab: 'completed' };
-  }
-  return { view: PATH_VIEWS[path] ?? 'todos', adminTab: 'overview', archiveTab: 'completed' };
+  return { view: PATH_VIEWS[path] ?? 'todos', adminTab: 'overview' };
 }

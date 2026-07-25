@@ -64,24 +64,6 @@ router.get('/', async (req: AuthRequest, res) => {
   res.json(lists);
 });
 
-// بترجع المهام اللي استُرجعت من الأرشيف ولسه بانتظار مراجعة/تأكيد المستخدم
-// (شوف POST /:id/restore و/:id/finalize-restore تحت). بنفس تركيب GET /
-// بالظبط عشان تقدر تستخدم نفس مكوّن عرض المهمة الرئيسية (TodoList) في
-// الواجهة من غير أي تحويل إضافي.
-router.get('/pending-restore', async (req: AuthRequest, res) => {
-  const lists = await prisma.todoList.findMany({
-    where: { userId: req.userId!, archivedAt: null, pendingRestoreAt: { not: null }, trashedAt: null },
-    include: {
-      items: { orderBy: { position: 'asc' }, include: { _count: { select: { reminders: true } } } },
-      _count: { select: { reminders: true } },
-      lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } },
-      ...GOAL_INCLUDE,
-    },
-    orderBy: { pendingRestoreAt: 'desc' },
-  });
-  res.json(lists);
-});
-
 // بترجع الأهداف المرشحة تتربط كـ"أب" لتصنيف معيّن — مثلاً ?category=WEEKLY
 // بترجع كل الأهداف الشهرية النشطة (غير المؤرشفة) بتاعة المستخدم، لأن
 // الشهري هو أب الأسبوعي في الهرم. لو التصنيف سنوي (أو مش موجود في الهرم)
@@ -105,57 +87,6 @@ router.get('/goal-options', async (req: AuthRequest, res) => {
     orderBy: { createdAt: 'asc' },
   });
   res.json(options);
-});
-
-// أرشفة يدوية — بتسمح للمستخدم يؤرشف مهمة رئيسية بنفسه حتى لو لسه مش
-// مكتملة بالكامل (يخفيها من الشاشة الرئيسية من غير ما يحذفها نهائيًا).
-router.post('/:id/archive', async (req: AuthRequest, res) => {
-  const list = await prisma.todoList.findFirst({ where: { id: req.params.id, userId: req.userId! } });
-  if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
-  const updated = await prisma.todoList.update({
-    where: { id: list.id },
-    data: { archivedAt: list.archivedAt ?? new Date(), pendingRestoreAt: null },
-    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
-  });
-  res.json(updated);
-});
-
-// الخطوة الأولى من استرجاع مهمة من الأرشيف: المهمة بتتشال من الأرشيف
-// (archivedAt = null) بس مبترجعش لقائمة المهام النشطة فورًا — بتتحط بدالها
-// في منطقة "بانتظار المراجعة" (pendingRestoreAt = دلوقتي)، وبتظهر في قسم
-// مخصص بالصفحة الرئيسية عشان المستخدم يراجعها ويعدّلها قبل ما يأكّدها
-// نهائيًا بطلب /finalize-restore.
-router.post('/:id/restore', async (req: AuthRequest, res) => {
-  const list = await prisma.todoList.findFirst({ where: { id: req.params.id, userId: req.userId! } });
-  if (!list) return res.status(404).json({ error: 'المهمة الرئيسية غير موجودة' });
-  // مهمة اتؤرشفت تلقائيًا لأنها فاتت معادها (تبويب "المهام المتأخرة") مينفعش
-  // تتسترجع نهائيًا — شوف تعليق archiveReason في schema.prisma.
-  if (list.archiveReason === 'OVERDUE') {
-    return res.status(400).json({ error: 'المهمة دي اتنقلت لـ"المهام المتأخرة" تلقائيًا لأنها فاتت معادها، ومينفعش تتسترجع' });
-  }
-  const updated = await prisma.todoList.update({
-    where: { id: list.id },
-    data: { archivedAt: null, pendingRestoreAt: new Date() },
-    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
-  });
-  res.json(updated);
-});
-
-// الخطوة الثانية والأخيرة: المستخدم يضغط "إضافة المهمة" في قسم "بانتظار
-// المراجعة" بالصفحة الرئيسية، فالمهمة بترجع فعليًا لمكانها الطبيعي في
-// قائمة المهام النشطة (pendingRestoreAt = null). لازم تكون المهمة فعلاً
-// بانتظار مراجعة (404 غير كده) عشان منسمحش بإنهاء استرجاع مهمة أصلًا نشطة.
-router.post('/:id/finalize-restore', async (req: AuthRequest, res) => {
-  const list = await prisma.todoList.findFirst({
-    where: { id: req.params.id, userId: req.userId!, pendingRestoreAt: { not: null } },
-  });
-  if (!list) return res.status(404).json({ error: 'المهمة غير موجودة أو مش بانتظار المراجعة' });
-  const updated = await prisma.todoList.update({
-    where: { id: list.id },
-    data: { pendingRestoreAt: null },
-    include: { lifeArea: { select: { id: true, name: true, color: true, icon: true, imageUrl: true, parentId: true } } },
-  });
-  res.json(updated);
 });
 
 // تأكيد الإنجاز النهائي — دي مربع الـ Check بتاع المهمة الرئيسية في الكارت.
