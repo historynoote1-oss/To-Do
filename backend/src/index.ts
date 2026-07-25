@@ -20,7 +20,6 @@ import adminContentRoutes from './routes/adminContent';
 import adminSettingsRoutes from './routes/adminSettings';
 import profileRoutes from './routes/profile';
 import siteRoutes from './routes/site';
-import twoFactorRoutes from './routes/twoFactor';
 import remindersRoutes from './routes/reminders';
 import pushRoutes from './routes/push';
 import streakRoutes from './routes/streak';
@@ -151,17 +150,6 @@ const profileLimiter = rateLimit({
   skip: (req) => req.method === 'GET' && req.path === '/',
 });
 
-// حماية إضافية صارمة لمسارات التحقق بخطوتين: تخمين كود مكوّن من 6 أرقام ممكن
-// نظريًا لو الحد الأقصى للمحاولات مش ضيّق كفاية، فهنا الحد أقل بكتير من باقي
-// المسارات (8 محاولات كل 15 دقيقة لكل جهاز) — سواء أثناء الدخول أو الإعداد.
-const twoFactorLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 8,
-  message: { error: 'محاولات كتير جدًا على التحقق بخطوتين، حاول تاني بعد شوية' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // حد معقول لعمليات بحث يوتيوب لكل جهاز: البحث بيستهلك من الحصة اليومية
 // المحدودة لمفتاح YouTube Data API (نفس المفتاح مشترك بين كل مستخدمي
 // الموقع)، فالحد ده بيمنع جهاز واحد من استهلاك الحصة كلها لوحده.
@@ -174,7 +162,6 @@ const youtubeLimiter = rateLimit({
 });
 
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/auth/2fa', twoFactorLimiter, twoFactorRoutes);
 app.use('/api/site', siteStatusLimiter, siteRoutes);
 
 app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRoutes);

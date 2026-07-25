@@ -7,7 +7,16 @@
 
 import type { AdminTab } from '@/components/admin/AdminDashboard';
 
-export type ViewName = 'todos' | 'admin' | 'profile' | 'lifeAreas' | 'player' | 'pomodoro' | 'goalMap' | 'prayerTimes';
+export type ViewName =
+  | 'todos'
+  | 'admin'
+  | 'profile'
+  | 'lifeAreas'
+  | 'player'
+  | 'pomodoro'
+  | 'goalMap'
+  | 'prayerTimes'
+  | 'settings';
 
 // خريطة كل شاشة لمسارها في الـ URL — ده اللي بيخلي كل قسم في الموقع يكون
 // ليه رابط فعلي (بدل ما الرابط يفضل ثابت دايمًا على الصفحة الرئيسية)، فيبقى
@@ -21,6 +30,7 @@ export const VIEW_PATHS: Record<ViewName, string> = {
   pomodoro: '/pomodoro',
   goalMap: '/goals',
   prayerTimes: '/prayer-times',
+  settings: '/settings',
 };
 
 export const PATH_VIEWS: Record<string, ViewName> = Object.fromEntries(
@@ -36,7 +46,6 @@ export const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
   users: '/admin/users',
   content: '/admin/content',
   settings: '/admin/settings',
-  security: '/admin/security',
 };
 
 export const ADMIN_PATH_TABS: Record<string, AdminTab> = Object.fromEntries(

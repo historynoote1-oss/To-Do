@@ -60,6 +60,7 @@ const GoalMap = lazy(() => import('@/components/goals/GoalMap'));
 const PrayerTimes = lazy(() => import('@/components/prayer/PrayerTimes'));
 const MusicPlayer = lazy(() => import('@/components/media/MusicPlayer'));
 const Pomodoro = lazy(() => import('@/components/media/Pomodoro'));
+const SettingsPage = lazy(() => import('@/components/settings/SettingsPage'));
 
 // شاشة انتظار بسيطة (نفس سبينر شاشة الإقلاع) بتظهر لحظة تحميل صفحة جديدة
 // عند الطلب — عادةً أجزاء من الثانية على أي اتصال عادي.
@@ -610,11 +611,9 @@ export default function App() {
     []
   );
 
-  // لمحة سريعة عن يوم المستخدم: بدل الأرقام العامة اللي اتشالت (إجمالي
-  // المهام / نسبة الإنجاز الكلية)، هنا بنركّز بس على "دلوقتي والنهارده":
-  // كام مهمة شغالة فعليًا دلوقتي (حسب وقت البداية/النهاية المضبوط لها)،
-  // كام حاجة مستحقة النهاردة، وكام حاجة اتأخّر معادها. الثلاثة أرقام دي
-  // بيتحسبوا من نفس بيانات lists الموجودة أصلًا من غير أي طلب إضافي للسيرفر.
+  // رسالة الحالة الديناميكية في بطاقة الترحيب (متأخرة/مستحقة النهاردة/كله
+  // تمام) مبنية على حساب بسيط لعدد العناصر الفرعية المستحقة أو المتأخرة،
+  // من غير أي طلب إضافي للسيرفر — بيتحسب من نفس بيانات lists الموجودة أصلًا.
   const todaySnapshot = useMemo(() => {
     const now = Date.now();
     const dayStart = new Date();
@@ -622,16 +621,10 @@ export default function App() {
     const dayEnd = new Date();
     dayEnd.setHours(23, 59, 59, 999);
 
-    let activeNow = 0;
     let dueToday = 0;
     let overdue = 0;
 
     for (const list of lists) {
-      const start = list.startTime ? new Date(list.startTime).getTime() : null;
-      const end = list.endTime ? new Date(list.endTime).getTime() : null;
-      if (start !== null && end !== null && now >= start && now <= end) {
-        activeNow += 1;
-      }
       for (const item of list.items || []) {
         if (item.isDone || !item.dueDate) continue;
         const due = new Date(item.dueDate).getTime();
@@ -644,7 +637,7 @@ export default function App() {
       }
     }
 
-    return { activeNow, dueToday, overdue };
+    return { dueToday, overdue };
   }, [lists]);
 
   // أقرب المهام الرئيسية استحقاقًا (حسب أقرب موعد لعنصر فرعي لسه مش
@@ -789,7 +782,6 @@ export default function App() {
           activeView={view}
           menuOpen={menuOpen}
           onNavigate={setView}
-          onQuickAdd={handleQuickAdd}
           onOpenMenu={handleOpenMenu}
         />
       )}
@@ -920,6 +912,36 @@ export default function App() {
     );
   }
 
+  if (view === 'settings') {
+    return (
+      <>
+        <ToastContainer />
+        <OfflineBanner />
+        <Suspense fallback={<RouteLoading />}>
+          <SettingsPage
+            onBack={() => setView('todos')}
+            onOpenMenu={handleOpenMenu}
+            menuOpen={menuOpen}
+            isAdmin={isAdmin}
+            muted={muted}
+            onToggleMute={handleToggleMute}
+            pushState={pushState}
+            onTogglePush={handleTogglePush}
+            onOpenProfile={() => setView('profile')}
+            onOpenLifeAreas={() => setView('lifeAreas')}
+            onOpenGoalMap={() => setView('goalMap')}
+            onOpenPlayer={() => setView('player')}
+            onOpenPomodoro={() => setView('pomodoro')}
+            onOpenPrayerTimes={() => setView('prayerTimes')}
+            onOpenDashboard={openDashboard}
+            onRequestLogout={requestLogout}
+          />
+        </Suspense>
+        {sideMenuAndModals}
+      </>
+    );
+  }
+
   return (
     <>
       <ToastContainer />
@@ -1016,39 +1038,9 @@ export default function App() {
             )}
           </section>
 
-          {/* لمحة سريعة عن النهاردة بس — بديل بطاقتي الإجمالي الكلي/نسبة
-              الإنجاز اللي اتشالوا. الأرقام هنا كلها مرتبطة بـ"دلوقتي" مش
-              بإحصائية عامة، فبتفيد فعليًا في تنظيم اليوم بدل ما تكون رقم
-              تجميلي بس. */}
-          <section className="home-today-grid" aria-label="لمحة عن اليوم">
-            <div className="home-today-chip">
-              <span className="home-today-chip-icon home-today-chip-icon-active">
-                <DynamicIcon name="zap" size={16} />
-              </span>
-              <span className="home-today-chip-value">{todaySnapshot.activeNow}</span>
-              <span className="home-today-chip-label">شغّالة دلوقتي</span>
-            </div>
-            <div className="home-today-chip">
-              <span className="home-today-chip-icon home-today-chip-icon-due">
-                <DynamicIcon name="calendar" size={16} />
-              </span>
-              <span className="home-today-chip-value">{todaySnapshot.dueToday}</span>
-              <span className="home-today-chip-label">مستحقة النهاردة</span>
-            </div>
-            <div className="home-today-chip">
-              <span className="home-today-chip-icon home-today-chip-icon-overdue">
-                <DynamicIcon name="alert" size={16} />
-              </span>
-              <span className="home-today-chip-value">{todaySnapshot.overdue}</span>
-              <span className="home-today-chip-label">اتأخر معادها</span>
-            </div>
-          </section>
-
           {/* شبكة وصول سريع — النمط القياسي لأي شاشة رئيسية: اختصارات
               مباشرة لأهم أقسام التطبيق بدل ما يفضل المستخدم يفتح القائمة
-              الجانبية كل مرة. الدخول لخريطة الأهداف نفسها متاح أصلًا من
-              تبويب "الأهداف" وزرار "+" في الشريط السفلي، فمفيش داعي لتكرارها
-              هنا كمان. */}
+              الجانبية كل مرة. */}
           <nav className="home-quick-grid" aria-label="وصول سريع">
             <button className="home-quick-card" onClick={() => setView('lifeAreas')} type="button">
               <span className="home-quick-icon-wrap home-quick-icon-areas">
@@ -1087,9 +1079,9 @@ export default function App() {
 
             <button className="home-quick-card" onClick={handleQuickAdd} type="button">
               <span className="home-quick-icon-wrap home-quick-icon-add">
-                <DynamicIcon name="plus" size={20} />
+                <DynamicIcon name="route" size={20} />
               </span>
-              <span className="home-quick-label">إضافة مهمة</span>
+              <span className="home-quick-label">خريطة الأهداف</span>
             </button>
           </nav>
 
@@ -1098,16 +1090,6 @@ export default function App() {
               <div className="skeleton skeleton-card" />
               <div className="skeleton skeleton-card" />
             </div>
-          )}
-
-          {!loading && lists.length === 0 && (
-            <p className="empty">
-              <DynamicIcon name="route" size={32} className="empty-icon" />
-              مفيش مهام أو أهداف لسه — ابدأ من خريطة الأهداف
-              <button className="small" onClick={() => setView('goalMap')} type="button">
-                فتح خريطة الأهداف
-              </button>
-            </p>
           )}
 
           {/* أقرب المهام استحقاقًا — بديل قسم "نظرة عامة على مجالات حياتك"

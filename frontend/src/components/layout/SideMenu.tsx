@@ -141,7 +141,7 @@ export default function SideMenu({
           <div className="side-menu-divider" role="separator" />
 
           <button
-            className={`side-menu-item side-menu-item-highlight side-menu-prayer-item ${currentView === 'prayerTimes' ? 'active' : ''}`}
+            className={`side-menu-item side-menu-prayer-item ${currentView === 'prayerTimes' ? 'active' : ''}`}
             type="button"
             onClick={() => go(onOpenPrayerTimes)}
             aria-current={currentView === 'prayerTimes' ? 'page' : undefined}
@@ -172,7 +172,7 @@ export default function SideMenu({
           )}
 
           <button
-            className={`side-menu-item side-menu-item-highlight ${currentView === 'goalMap' ? 'active' : ''}`}
+            className={`side-menu-item ${currentView === 'goalMap' ? 'active' : ''}`}
             type="button"
             onClick={() => go(onOpenGoalMap)}
             aria-current={currentView === 'goalMap' ? 'page' : undefined}

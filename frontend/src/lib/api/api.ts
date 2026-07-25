@@ -164,48 +164,6 @@ export async function completeRehabilitation(rehabToken: string, password: strin
   return handle(res, false);
 }
 
-// ===== التحقق بخطوتين (2FA) =====
-
-export async function verifyLoginTwoFactor(pendingToken: string, code: string) {
-  const res = await fetch(`${API_URL}/api/auth/2fa/verify-login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pendingToken, code }),
-  });
-  return handle(res, false);
-}
-
-export async function getTwoFactorStatus(): Promise<{
-  twoFactorEnabled: boolean;
-  twoFactorEnabledAt: string | null;
-}> {
-  const res = await fetch(`${API_URL}/api/auth/2fa/status`, { headers: authHeaders() });
-  return handle(res);
-}
-
-export async function setupTwoFactor(): Promise<{ secret: string; qrDataUrl: string }> {
-  const res = await fetch(`${API_URL}/api/auth/2fa/setup`, { method: 'POST', headers: authHeaders() });
-  return handle(res);
-}
-
-export async function enableTwoFactor(code: string): Promise<{ success: true; recoveryCodes: string[] }> {
-  const res = await fetch(`${API_URL}/api/auth/2fa/enable`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ code }),
-  });
-  return handle(res);
-}
-
-export async function disableTwoFactor(password: string, code: string) {
-  const res = await fetch(`${API_URL}/api/auth/2fa/disable`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ password, code }),
-  });
-  return handle(res);
-}
-
 // ===== مشغّل الصوت (بحث يوتيوب) =====
 // بيكلّم مسار /api/youtube/search بتاع الباك إند بتاعنا بس — مفتاح
 // YouTube API نفسه مش موجود هنا ولا في أي كود بيوصل للمتصفح، السيرفر هو
@@ -1057,7 +1015,6 @@ export interface ProfileData {
   isAdmin: boolean;
   createdAt: string;
   lastLoginAt: string | null;
-  twoFactorEnabled: boolean;
   legacyAccount: boolean;
 }
 

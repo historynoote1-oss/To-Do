@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
+// تفضيل المستخدم المخزَّن: تفضيل يدوي صريح (فاتح/غامق) أو "تبعية لثيم
+// النظام" (مفيش تفضيل محفوظ أصلًا). صفحة الإعدادات بتتعامل مع النوع ده،
+// بينما useTheme القديم بيتعامل مع الثيم *المطبَّق فعليًا* بس (Theme).
+export type ThemePreference = Theme | 'system';
 
 const THEME_KEY = 'theme';
 const LIGHT_META_COLOR = '#f8f6fd';
@@ -15,6 +19,11 @@ export function getStoredTheme(): Theme | null {
   if (typeof window === 'undefined') return null;
   const stored = window.localStorage.getItem(THEME_KEY);
   return stored === 'light' || stored === 'dark' ? stored : null;
+}
+
+// تفضيل المستخدم الحالي — 'system' لو مفيش تفضيل يدوي محفوظ.
+export function getThemePreference(): ThemePreference {
+  return getStoredTheme() ?? 'system';
 }
 
 export function getInitialTheme(): Theme {
@@ -39,6 +48,36 @@ export function applyTheme(theme: Theme) {
   void import('@/lib/core/nativeShell').then(({ syncStatusBar }) => syncStatusBar(theme));
 }
 
+// مستمعين خارجيين: أي مكوّن بيستخدم useTheme (زرار الهيدر، القائمة
+// الجانبية، صفحة الإعدادات...) بيفضل متزامن لحظيًا مع أي تغيير حصل من
+// مكوّن تاني — نفس فكرة نظام الاشتراك في lib/audio/sounds.ts بالظبط.
+type ThemeListener = (theme: Theme) => void;
+const listeners = new Set<ThemeListener>();
+
+function emitChange(theme: Theme) {
+  listeners.forEach((l) => l(theme));
+}
+
+// بيسمح لأي كود (مش بس مكوّنات React) يتابع تغييرات الثيم لحظيًا.
+export function subscribeTheme(listener: ThemeListener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+// بيحدّد تفضيل المستخدم الكامل بما فيه "تبعية للنظام" — ده اللي بتستخدمه
+// صفحة الإعدادات (فاتح/غامق/تلقائي) بدل toggleTheme/setTheme القديمين
+// اللي بيدعموا بس فاتح/غامق صريحين.
+export function setThemePreference(pref: ThemePreference) {
+  if (typeof window === 'undefined') return;
+  if (pref === 'system') {
+    window.localStorage.removeItem(THEME_KEY);
+    emitChange(getSystemTheme());
+  } else {
+    window.localStorage.setItem(THEME_KEY, pref);
+    emitChange(pref);
+  }
+}
+
 export function useTheme(): [Theme, () => void, (theme: Theme) => void] {
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
 
@@ -46,27 +85,54 @@ export function useTheme(): [Theme, () => void, (theme: Theme) => void] {
     applyTheme(theme);
   }, [theme]);
 
+  // بيتابع أي تغيير ثيم حصل من مكوّن تاني (مثلًا صفحة الإعدادات) ويحدّث
+  // الحالة المحلية هنا فورًا، بدل ما يفضل المكوّن ده واقف على قيمة قديمة
+  // لحد ما يتعمل له remount.
+  useEffect(() => subscribeTheme(setThemeState), []);
+
   // لو المستخدم لسه ماحددش تفضيل يدوي، تابع تغييرات ثيم النظام تلقائيًا
   useEffect(() => {
     if (getStoredTheme() || !window.matchMedia) return;
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => setThemeState(e.matches ? 'dark' : 'light');
+    const handler = (e: MediaQueryListEvent) => {
+      const next: Theme = e.matches ? 'dark' : 'light';
+      setThemeState(next);
+      emitChange(next);
+    };
     mql.addEventListener('change', handler);
     return () => mql.removeEventListener('change', handler);
   }, []);
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
     window.localStorage.setItem(THEME_KEY, next);
+    setThemeState(next);
+    emitChange(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
     setThemeState((prev) => {
       const next: Theme = prev === 'dark' ? 'light' : 'dark';
       window.localStorage.setItem(THEME_KEY, next);
+      emitChange(next);
       return next;
     });
   }, []);
 
   return [theme, toggleTheme, setTheme];
+}
+
+// نسخة "تفضيل" من useTheme لصفحة الإعدادات: بترجع فاتح/غامق/تلقائي (مش
+// بس الثيم المطبَّق فعليًا)، عشان زرار "تلقائي (حسب النظام)" يقدر يظهر
+// كاختيار فعلي قائم بذاته بدل ما يختفي جوه فاتح/غامق.
+export function useThemePreference(): [ThemePreference, (pref: ThemePreference) => void] {
+  const [pref, setPref] = useState<ThemePreference>(() => getThemePreference());
+
+  useEffect(() => subscribeTheme(() => setPref(getThemePreference())), []);
+
+  const setPreference = useCallback((next: ThemePreference) => {
+    setThemePreference(next);
+    setPref(next);
+  }, []);
+
+  return [pref, setPreference];
 }

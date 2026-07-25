@@ -4,7 +4,6 @@ import {
   hashPassword,
   comparePassword,
   signToken,
-  signPendingTwoFactorToken,
   signPendingRehabToken,
   verifyPendingRehabToken,
   MAX_FAILED_LOGIN_ATTEMPTS,
@@ -144,13 +143,6 @@ router.post('/login', async (req, res) => {
     });
     const rehabToken = signPendingRehabToken(user.id);
     return res.json({ requiresRehabilitation: true, rehabToken, username: user.username });
-  }
-
-  // الباسورد صح؛ لو الحساب أدمن ومفعّل عليه 2FA، وقّف هنا ومتديش توكن دخول كامل
-  // لحد ما يتأكد الكود من تطبيق المصادقة كمان — خطوة تانية منفصلة عن الباسورد.
-  if (user.isAdmin && user.twoFactorEnabled) {
-    const pendingToken = signPendingTwoFactorToken(user.id);
-    return res.json({ requiresTwoFactor: true, pendingToken });
   }
 
   await prisma.user.update({

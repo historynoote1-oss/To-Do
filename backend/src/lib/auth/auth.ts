@@ -23,25 +23,9 @@ export function verifyToken(token: string): { userId: string; tokenVersion: numb
   return jwt.verify(token, JWT_SECRET) as { userId: string; tokenVersion: number };
 }
 
-// توكن قصير العمر (5 دقايق بس) بيتولّد بعد ما الباسورد يتأكد صح لحساب مفعّل عليه 2FA،
-// وقبل ما نديله توكن الدخول الكامل. النوع 'pending2fa' بيمنع استخدام التوكن ده في أي
-// endpoint تاني غير التحقق من كود الـ 2FA نفسه، حتى لو حد قدر يسرقه من الشبكة.
-export function signPendingTwoFactorToken(userId: string) {
-  return jwt.sign({ userId, type: 'pending2fa' }, JWT_SECRET, { expiresIn: '5m' });
-}
-
-export function verifyPendingTwoFactorToken(token: string): { userId: string } {
-  const payload = jwt.verify(token, JWT_SECRET) as { userId: string; type?: string };
-  if (payload.type !== 'pending2fa') {
-    throw new Error('توكن غير صالح');
-  }
-  return { userId: payload.userId };
-}
-
 // توكن قصير العمر (10 دقايق) بيتولّد لحساب قديم (mustRehabilitate) بعد ما يتأكد
-// إن الباسورد القديم بتاعه صح، وقبل ما ندّيه أي وصول للموقع — نفس فكرة توكن
-// الـ 2FA المؤقت بالظبط: النوع 'pendingRehab' بيمنع استخدامه في أي مسار تاني
-// غير إكمال إعادة التأهيل نفسها.
+// إن الباسورد القديم بتاعه صح، وقبل ما ندّيه أي وصول للموقع — النوع
+// 'pendingRehab' بيمنع استخدامه في أي مسار تاني غير إكمال إعادة التأهيل نفسها.
 export function signPendingRehabToken(userId: string) {
   return jwt.sign({ userId, type: 'pendingRehab' }, JWT_SECRET, { expiresIn: '10m' });
 }

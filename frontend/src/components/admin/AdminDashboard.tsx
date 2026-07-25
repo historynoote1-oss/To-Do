@@ -3,11 +3,10 @@ import AdminAnalytics from '@/components/admin/AdminAnalytics';
 import AdminUsersPanel from '@/components/admin/AdminUsersPanel';
 import AdminContentPanel from '@/components/admin/AdminContentPanel';
 import AdminSettingsPanel from '@/components/admin/AdminSettingsPanel';
-import TwoFactorSettings from '@/components/auth/TwoFactorSettings';
 import { DynamicIcon, IconKey } from '@/lib/core/icons';
 import BackButton from '@/components/layout/BackButton';
 
-export type AdminTab = 'overview' | 'analytics' | 'users' | 'content' | 'settings' | 'security';
+export type AdminTab = 'overview' | 'analytics' | 'users' | 'content' | 'settings';
 
 const NAV: { key: AdminTab; label: string; icon: IconKey }[] = [
   { key: 'overview', label: 'نظرة عامة', icon: 'home' },
@@ -15,7 +14,6 @@ const NAV: { key: AdminTab; label: string; icon: IconKey }[] = [
   { key: 'users', label: 'المستخدمين', icon: 'users' },
   { key: 'content', label: 'المحتوى', icon: 'folder-open' },
   { key: 'settings', label: 'الإعدادات', icon: 'settings' },
-  { key: 'security', label: 'الأمان', icon: 'shield-check' },
 ];
 
 // التبويب بقى "مُتحكَّم فيه" من App (controlled) بدل ما يكون state داخلي —
@@ -116,7 +114,6 @@ export default function AdminDashboard({
           {tab === 'users' && <AdminUsersPanel />}
           {tab === 'content' && <AdminContentPanel />}
           {tab === 'settings' && <AdminSettingsPanel />}
-          {tab === 'security' && <TwoFactorSettings />}
         </div>
       </div>
     </div>

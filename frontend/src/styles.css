@@ -3507,7 +3507,7 @@ li input[type='checkbox'] {
   transform: none;
 }
 
-/* ===== v7: بحث/تصفح لوحة الأدمن، تصدير CSV، رسم النمو، والأمان (2FA) ===== */
+/* ===== v7: بحث/تصفح لوحة الأدمن، تصدير CSV، رسم النمو، والأمان ===== */
 
 .admin-section-actions {
   display: flex;
@@ -3685,35 +3685,6 @@ li input[type='checkbox'] {
 .twofa-off {
   background: var(--danger-dim);
   color: var(--danger);
-}
-
-.twofa-qr {
-  width: 190px;
-  height: 190px;
-  border-radius: var(--radius-sm);
-  align-self: center;
-  background: #fff;
-  padding: 8px;
-}
-
-.twofa-secret {
-  display: block;
-  text-align: center;
-  font-family: var(--font-num);
-  font-size: 14px;
-  letter-spacing: 1px;
-  background: var(--surface-2);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px;
-  direction: ltr;
-  word-break: break-all;
-}
-
-.twofa-recovery-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
 }
 
 /* ===== v8: لوحة تحكم أدمن احترافية — sidebar + تحليلات + محتوى + إعدادات ===== */
@@ -6361,18 +6332,6 @@ body.modal-lock-scroll {
 
 .quick-add-icon-wrap-goalmap {
   background: var(--gradient-brand);
-}
-
-/* ===== عنصر "خريطة الأهداف" في القائمة الجانبية =====
-   نفس شكل side-menu-item العادي بس بحدّ فاصل خفيف بلون الهوية عشان يلفت
-   الانتباه كوجهة رئيسية جديدة، من غير ما يكسر نمط باقي العناصر. */
-.side-menu-item-highlight {
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-  background: var(--gradient-brand-soft);
-}
-
-.side-menu-item-highlight:hover {
-  border-color: var(--accent);
 }
 
 /* ======================================================================
@@ -10433,17 +10392,13 @@ body.modal-lock-scroll {
 }
 
 /* على الشاشات العريضة (تابلت/ديسktop) الحاوية بتوسّع لحد 980px، وده كان
-   بيخلّي بطاقة الترحيب ولمحة اليوم عريضين جدًا وفاضيين بصريًا. بنحدّهم
-   بعرض أقصى مريح للقراءة وسط الشاشة بدل ما يتمططوا لعرض الحاوية بالكامل،
-   مع فضل باقي عناصر الصفحة (الشبكة، القوائم) بعرض الحاوية الكامل زي ما هو. */
+   بيخلّي بطاقة الترحيب عريضة جدًا وفاضية بصريًا. بنحدّها بعرض أقصى مريح
+   للقراءة وسط الشاشة بدل ما تتمطّط لعرض الحاوية بالكامل، مع فضل باقي
+   عناصر الصفحة (الشبكة، القوائم) بعرض الحاوية الكامل زي ما هو. */
 @media (min-width: 720px) {
-  .home-hero,
-  .home-today-grid {
+  .home-hero {
     max-width: 640px;
     margin-inline: auto;
-  }
-  .home-today-grid {
-    margin-bottom: 26px;
   }
 }
 
@@ -10588,66 +10543,6 @@ body.modal-lock-scroll {
   background: var(--success-dim);
   color: var(--success);
   border: 1px solid color-mix(in srgb, var(--success) 28%, transparent);
-}
-
-/* ===== لمحة اليوم — ثلاث شرائح مضغوطة (شغّالة دلوقتي / مستحقة النهاردة /
-   اتأخر معادها) بديل بطاقتي الإجمالي الكلي ونسبة الإنجاز اللي اتشالوا. */
-.home-today-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.home-today-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 5px;
-  padding: 12px 6px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-}
-
-.home-today-chip-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-}
-
-.home-today-chip-icon-active {
-  background: var(--accent-dim);
-  color: var(--accent);
-}
-
-.home-today-chip-icon-due {
-  background: color-mix(in srgb, var(--info) 14%, transparent);
-  color: var(--info);
-}
-
-.home-today-chip-icon-overdue {
-  background: var(--danger-dim);
-  color: var(--danger);
-}
-
-.home-today-chip-value {
-  font-family: var(--font-num);
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--text);
-  line-height: 1;
-}
-
-.home-today-chip-label {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  line-height: 1.3;
 }
 
 /* ===== أقرب المهام استحقاقًا — بديل قسم "نظرة عامة على مجالات حياتك"
@@ -11725,30 +11620,6 @@ body.modal-lock-scroll {
   white-space: nowrap;
 }
 
-/* زرار الإضافة المركزي — بارز شكلاً ومقاسًا عن باقي التبويبات عشان يوضح
-   إنه الفعل الأساسي للتطبيق (نفس فكرة زرار الكاميرا في تطبيقات التواصل).
-   حلقة بلون خلفية الصفحة (var(--bg)) حوليه عشان يبان "مقصوص" بوضوح
-   من الشريط اللي وراه بدل ما يبان عايم من غير حدود واضحة. */
-.bottom-tab-add {
-  flex-shrink: 0;
-  width: 52px;
-  height: 52px;
-  margin-top: -20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 50%;
-  background: var(--gradient-brand);
-  color: #fff;
-  box-shadow: 0 0 0 4px var(--bg), 0 8px 16px rgba(0, 0, 0, 0.22);
-  transition: transform var(--dur-fast) var(--ease-spring);
-}
-
-.bottom-tab-add:active {
-  transform: scale(0.9);
-}
-
 /* ===== إصلاحات إضافية: إلغاء التوهج والمربعات الموروثة من نمط
    الزرار العام (button{} فوق في الملف بيحط box-shadow بنفسجي +
    طبقة لمعان ::before/::after على كل <button> بالموقع، وأزرار الشريط
@@ -11768,21 +11639,6 @@ body.modal-lock-scroll {
 .bottom-tab-btn:hover {
   box-shadow: none;
   filter: none;
-}
-
-/* حلقة زرار الإضافة كانت بلون خلفية الصفحة (--bg) اللي فيه تدرّج
-   توهج، مش بلون خلفية الشريط الصلبة (--nav-bar-bg) — الفرق ده كان
-   بيبين كحافة غامقة غير متطابقة حوالين الزرار فيبان "طايح" جنب
-   الشريط مش متمركز جواه بشكل سليم. تصحيحه هنا بيخلي الحلقة تدمج مع
-   سطح الشريط تمامًا في الوضعين، مع رفعه أعلى شوية وظل بلون الهوية
-   عشان يبقى واضح إنه زرار عائم (FAB) مقصود، مش نص جوه الشريط ونص برّه. */
-.bottom-tab-add {
-  margin-top: -28px;
-  box-shadow: 0 0 0 5px var(--nav-bar-bg), 0 10px 22px -4px var(--aurora-1), 0 6px 14px rgba(0, 0, 0, 0.28);
-}
-
-.bottom-tab-add:hover {
-  box-shadow: 0 0 0 5px var(--nav-bar-bg), 0 12px 26px -4px var(--aurora-1), 0 8px 16px rgba(0, 0, 0, 0.32);
 }
 
 /* بانر حالة الاتصال (المرحلة 6) — ثابت أعلى الشاشة، فوق أي محتوى آخر
@@ -11882,4 +11738,83 @@ body.modal-lock-scroll {
   .pull-refresh-spinner.spinning svg {
     animation: none;
   }
+}
+
+/* =========================================================================
+   صفحة الإعدادات (Settings) — كل الأقسام بتستعمل .list-card/.profile-section
+   الموجودين أصلًا (نفس لغة التصميم في باقي الموقع)، والقواعد هنا بس
+   تفاصيل خاصة بيها: بطاقة ملخص الحساب، زرار التعديل، تباعد الصفوف.
+   ========================================================================= */
+
+.settings-page {
+  max-width: 640px;
+}
+
+.settings-account-card .profile-identity-top {
+  align-items: center;
+}
+
+.settings-account-name {
+  font-size: 15.5px;
+}
+
+.settings-account-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  align-self: center;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.settings-account-edit:hover {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
+/* صفوف التنقّل والمفاتيح داخل بطاقات الإعدادات — تباعد رأسي بسيط بينهم
+   عشان الصف يبقى واضح لوحده جوه الكارت بدل ما يلزق في اللي بعده. */
+.settings-nav-row,
+.settings-toggle-item {
+  margin-top: 4px;
+}
+
+.settings-toggle-item {
+  border: 1px solid var(--border-soft);
+}
+
+.settings-segmented {
+  margin-top: 4px;
+}
+
+.settings-volume-field {
+  margin-top: 14px;
+}
+
+.settings-volume-field input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.settings-danger-card {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.settings-logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+  padding: 13px;
 }

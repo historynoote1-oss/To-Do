@@ -32,7 +32,6 @@ function serializeProfile(user: {
   isAdmin: boolean;
   createdAt: Date;
   lastLoginAt: Date | null;
-  twoFactorEnabled: boolean;
   legacyAccount: boolean;
 }) {
   return {
@@ -43,7 +42,6 @@ function serializeProfile(user: {
     isAdmin: user.isAdmin,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt,
-    twoFactorEnabled: user.twoFactorEnabled,
     legacyAccount: user.legacyAccount,
   };
 }
@@ -61,7 +59,6 @@ router.get('/', async (req: AuthRequest, res) => {
       isAdmin: true,
       createdAt: true,
       lastLoginAt: true,
-      twoFactorEnabled: true,
       legacyAccount: true,
     },
   });
@@ -130,7 +127,6 @@ router.patch('/', async (req: AuthRequest, res) => {
       isAdmin: true,
       createdAt: true,
       lastLoginAt: true,
-      twoFactorEnabled: true,
       legacyAccount: true,
     },
     data,
@@ -186,7 +182,6 @@ router.post('/avatar', (req: AuthRequest, res) => {
           isAdmin: true,
           createdAt: true,
           lastLoginAt: true,
-          twoFactorEnabled: true,
           legacyAccount: true,
         },
         data: { avatarUrl },
@@ -219,7 +214,6 @@ router.delete('/avatar', async (req: AuthRequest, res) => {
       isAdmin: true,
       createdAt: true,
       lastLoginAt: true,
-      twoFactorEnabled: true,
       legacyAccount: true,
     },
     data: { avatarUrl: null },
