@@ -49,6 +49,10 @@ export default function Profile({
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // بتترجع false تلقائيًا مع أي avatarUrl جديد (رفع صورة تانية، تحميل
+  // البروفايل من جديد)، وبتتحول true بس لو الصورة فشلت تتحمّل فعليًا —
+  // وقتها بنرجع لعرض الحرف الأول بدل أيقونة صورة مكسورة ثابتة على الشاشة.
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -81,6 +85,7 @@ export default function Profile({
       setDisplayName(data.profile.displayName || '');
       setBio(data.profile.bio || '');
       setAvatarUrl(data.profile.avatarUrl);
+      setAvatarLoadFailed(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'تعذّر تحميل الملف الشخصي';
       setLoadError(message);
@@ -129,6 +134,7 @@ export default function Profile({
     try {
       const res = await uploadAvatar(file);
       setAvatarUrl(res.profile.avatarUrl);
+      setAvatarLoadFailed(false);
       onAvatarChange?.(res.profile.avatarUrl);
       sounds.success();
       toast.success('اتغيّرت صورة الأفتار');
@@ -145,6 +151,7 @@ export default function Profile({
     try {
       const res = await removeAvatar();
       setAvatarUrl(res.profile.avatarUrl);
+      setAvatarLoadFailed(false);
       onAvatarChange?.(res.profile.avatarUrl);
       sounds.click();
       toast.success('اتشالت صورة الأفتار');
@@ -271,8 +278,12 @@ export default function Profile({
         <div className="profile-identity-top">
           <div className="profile-avatar-wrap">
             <div className={`profile-avatar-circle ${uploadingAvatar ? 'is-loading' : ''}`}>
-              {avatarUrl ? (
-                <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+              {avatarUrl && !avatarLoadFailed ? (
+                <img
+                  src={resolveAvatarUrl(avatarUrl) ?? undefined}
+                  alt=""
+                  onError={() => setAvatarLoadFailed(true)}
+                />
               ) : (
                 <span aria-hidden="true">{initials}</span>
               )}

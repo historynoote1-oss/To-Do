@@ -160,6 +160,14 @@ export default function App() {
   }, []);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // زي avatarLoadFailed في Profile.tsx: لو رابط الأفتار بوّظ (ملف اتمسح
+  // من على القرص، إلخ) نرجع لحرف الاسم الأول بدل أيقونة صورة مكسورة في
+  // الهيدر. بيترجع false تلقائيًا مع أي تغيير في avatarUrl نفسه (صورة
+  // جديدة، تسجيل خروج ودخول بحساب تاني، إلخ).
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [avatarUrl]);
   const [lists, setLists] = useState<List[]>([]);
   // عدد أيام الاستريك المتتالية — بيتحسب في السيرفر من UserActivityDay
   // (شوف routes/streak.ts)، وبنعيد جلبه كل ما refresh() بيتنادى عشان يفضل
@@ -886,8 +894,12 @@ export default function App() {
               title="الملف الشخصي"
             >
               <span className="header-user-avatar">
-                {avatarUrl ? (
-                  <img src={resolveAvatarUrl(avatarUrl) ?? undefined} alt="" />
+                {avatarUrl && !avatarLoadFailed ? (
+                  <img
+                    src={resolveAvatarUrl(avatarUrl) ?? undefined}
+                    alt=""
+                    onError={() => setAvatarLoadFailed(true)}
+                  />
                 ) : (
                   (displayName || username)?.trim().charAt(0).toUpperCase()
                 )}
