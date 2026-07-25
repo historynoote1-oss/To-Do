@@ -46,6 +46,18 @@ app.set('trust proxy', 1);
 // "إخفاء الكود" اللي مش ممكنة أصلاً لأي تطبيق يشتغل جوه المتصفح.
 // الـ API ده مبيرجعش HTML خالص (json بس)، فـ CSP بتاعه مضيّق لأقصى درجة:
 // مفيش سماح لأي مصدر خارجي يحمّل سكريبت/ستايل/إطار جوه رد السيرفر نفسه.
+//
+// crossOriginResourcePolicy: 'same-site' هي اللي كانت بتسبب "Failed to
+// fetch" العشوائي في الفرونت إند. الفرونت إند (Vercel) والباك إند
+// (Railway) على دومينين مختلفين تمامًا (مش same-site)، فلما الرد بييجي
+// بهيدر same-site، المتصفح بيرفض يسيب الـ JS يقرا الرد حتى لو الطلب نفسه
+// نجح ورجع 200 — وده بالظبط شكل "Failed to fetch" (خطأ شبكة من وجهة نظر
+// fetch()، مش خطأ من السيرفر أصلاً، فمكانش هيبان في أي لوج باك إند).
+// كان فيه استثناء واحد بس لمسار /uploads (صور الأفتار) اتظبط صح قبل كده،
+// لكن باقي الـ API (بيانات البروفايل، القوائم، إلخ) فضل تحت same-site.
+// الحل: cross-origin على مستوى الـ API كله، مادام أصلاً الوصول متحكم فيه
+// بالتوكن (Authorization) + إعداد CORS تحت — مش محتاجين حاجز CORP إضافي
+// فوق ده لأداة API مبنية تتنادى من دومين تاني بالتصميم.
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -54,13 +66,21 @@ app.use(
         frameAncestors: ["'none'"],
       },
     },
-    crossOriginResourcePolicy: { policy: 'same-site' },
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   })
 );
 
+// origin بيتقارن نص مقابل نص، فأي اختلاف بسيط زي "/" زيادة في الآخر
+// (FRONTEND_URL="https://example.com/" بدل "https://example.com") كان
+// بيخلي المقارنة تفشل والـ CORS يترفض تمامًا — نفس نوع مشكلة الـ
+// trailing-slash اللي حصلت قبل كده مع Railway. بنشيل أي "/" زيادة من
+// الآخر قبل المقارنة عشان الإعداد يفضل شغال حتى لو اتحطت بمسافة زيادة
+// في متغيرات البيئة على Railway.
+const configuredFrontendUrl = process.env.FRONTEND_URL?.trim().replace(/\/+$/, '');
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || '*',
+    origin: configuredFrontendUrl || '*',
   })
 );
 app.use(express.json());
