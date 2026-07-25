@@ -1095,21 +1095,6 @@ export default function App() {
         </main>
         </PullToRefresh>
       </div>
-      {/* زرار إضافة مهمة عائم — لازم يترسم برّه .container (مش جواه)
-          عشان أنيميشن view-fade بتاعها بيسيب transform شغّال عليها حتى
-          بعد ما يخلص (fill-mode: both)، وده بيخلي أي عنصر position:fixed
-          جواها يتصرف كـ position:absolute ويتسحب مع باقي المحتوى بدل ما
-          يفضل ثابت فوق شريط التبويبات السفلي — نفس السبب اللي BottomTabBar
-          نفسه بيترسم بره الحاوية دي. */}
-      <button
-        className="home-fab"
-        onClick={handleQuickAdd}
-        type="button"
-        title="إضافة مهمة سريعة"
-        aria-label="إضافة مهمة سريعة"
-      >
-        <DynamicIcon name="plus" size={24} />
-      </button>
       {sideMenuAndModals}
     </>
   );

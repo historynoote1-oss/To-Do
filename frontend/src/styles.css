@@ -10505,6 +10505,20 @@ body.modal-lock-scroll {
   min-width: 0;
 }
 
+/* صف واحد: التحية + التاريخ على الناحية اليمين (البداية)، وحالة اليوم
+   (كله تحت السيطرة / مستحقة / متأخرة) على الشمال (النهاية) في نفس الصف. */
+.home-hero-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.home-hero-greeting-date {
+  min-width: 0;
+}
+
 .home-hero-greeting {
   margin: 0 0 3px;
   font-family: var(--font-display);
@@ -10523,7 +10537,7 @@ body.modal-lock-scroll {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 9px;
+  flex-shrink: 0;
   padding: 7px 12px;
   border-radius: var(--radius-pill);
   font-size: 12px;
@@ -10697,14 +10711,29 @@ body.modal-lock-scroll {
 /* ===== أقرب المهام استحقاقًا — بديل قسم "نظرة عامة على مجالات حياتك"
    اللي كان آخر عنصر في الصفحة. صف بسيط لكل مهمة قريبة الاستحقاق، بلون
    مجال حياتها ووقتها، بيودّي لخريطة الأهداف عند الضغط. */
+/* القسم بقى "كارت" مستقل بخلفية خفيفة (surface-2) عشان صفوف المهام
+   البيضاء تبان بوضوح فوقه، بدل ما العنوان والصفوف يطفوا على خلفية
+   الصفحة العادية من غير أي احتواء بصري. مسافة تحته (margin-bottom)
+   بقت زي المسافة بين أي قسمين تانيين في الصفحة (22px، نفس اللي تحت
+   شبكة الوصول السريع). */
 .home-upcoming {
   margin-top: 4px;
+  margin-bottom: 22px;
+  padding: 16px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.home-upcoming .home-section-title {
+  margin: 0 0 14px;
 }
 
 .home-upcoming-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
 }
 
 .home-upcoming-row {
@@ -10712,13 +10741,13 @@ body.modal-lock-scroll {
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 10px 8px 14px;
+  padding: 9px 10px 9px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-inline-start: 3px solid var(--chip-color, var(--accent));
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
-  transition: border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+  transition: border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
 }
 
 .home-upcoming-row:hover,
@@ -10835,64 +10864,6 @@ body.modal-lock-scroll {
   color: var(--accent);
 }
 
-/* ===== ملخص إحصائي مصغّر — نفس بطاقتي نسبة الإنجاز وتوزيع المهام
-   المستخدمة في صفحة الإحصائيات، بس هنا كخلاصة سريعة أسفل الصفحة الرئيسية. */
-.home-stats-summary {
-  margin-top: 22px;
-}
-
-.home-stats-summary-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-@media (min-width: 720px) {
-  .home-stats-summary-grid {
-    flex-direction: row;
-  }
-  .home-stats-summary-grid > * {
-    flex: 1;
-  }
-}
-
-/* ===== زرار إضافة مهمة عائم — ثابت وظاهر دايمًا فوق شريط التبويبات
-   السفلي. لازم يترسم برّه .container (شوف التعليق في App.tsx) عشان
-   position:fixed يشتغل فعليًا نسبةً للشاشة مش لعنصر أب فيه transform. */
-.home-fab {
-  position: fixed;
-  z-index: 57;
-  inset-inline-end: 18px;
-  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: none;
-  background: var(--gradient-brand);
-  color: #f4fbfa;
-  box-shadow: var(--shadow-lift);
-  cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-spring);
-}
-
-.home-fab:hover {
-  transform: translateY(-2px);
-}
-
-.home-fab:active {
-  transform: scale(0.94);
-}
-
-@media (min-width: 720px) {
-  /* شريط التبويبات السفلي مختفي على الشاشات الأعرض، فمفيش داعي لرفع
-     الزرار فوقه هنا. */
-  .home-fab {
-    bottom: 24px;
-  }
-}
 
 
 /* =========================================================================

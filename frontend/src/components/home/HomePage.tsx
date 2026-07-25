@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import { DynamicIcon } from '@/lib/core/icons';
 import { CategoryKey } from '@/lib/core/category';
 import { ViewName } from '@/lib/api/routes';
-import CompletionRateCard from '@/components/stats/CompletionRateCard';
-import TaskDistributionCard from '@/components/stats/TaskDistributionCard';
 
 export interface HomeUpcomingItem {
   id: string;
@@ -127,24 +125,28 @@ export default function HomePage({
           مستحقة النهاردة أصلًا (تجنّبًا لدايرة 0% بلا معنى). */}
       <section className="home-hero" aria-label="ترحيب">
         <div className="home-hero-text">
-          <h2 className="home-hero-greeting">{greeting}</h2>
-          <p className="home-hero-date">{todayLabel}</p>
-          {todaySnapshot.overdue > 0 ? (
-            <span className="home-hero-status home-hero-status-danger">
-              <DynamicIcon name="alert" size={14} />
-              {todaySnapshot.overdue} مهمة اتأخر معادها
-            </span>
-          ) : todaySnapshot.dueToday > 0 ? (
-            <span className="home-hero-status home-hero-status-info">
-              <DynamicIcon name="calendar" size={14} />
-              {todaySnapshot.dueToday} مستحقة النهاردة
-            </span>
-          ) : (
-            <span className="home-hero-status home-hero-status-ok">
-              <DynamicIcon name="check-circle" size={14} />
-              كله تحت السيطرة
-            </span>
-          )}
+          <div className="home-hero-top-row">
+            <div className="home-hero-greeting-date">
+              <h2 className="home-hero-greeting">{greeting}</h2>
+              <p className="home-hero-date">{todayLabel}</p>
+            </div>
+            {todaySnapshot.overdue > 0 ? (
+              <span className="home-hero-status home-hero-status-danger">
+                <DynamicIcon name="alert" size={14} />
+                {todaySnapshot.overdue} مهمة اتأخر معادها
+              </span>
+            ) : todaySnapshot.dueToday > 0 ? (
+              <span className="home-hero-status home-hero-status-info">
+                <DynamicIcon name="calendar" size={14} />
+                {todaySnapshot.dueToday} مستحقة النهاردة
+              </span>
+            ) : (
+              <span className="home-hero-status home-hero-status-ok">
+                <DynamicIcon name="check-circle" size={14} />
+                كله تحت السيطرة
+              </span>
+            )}
+          </div>
         </div>
         {todayRatePct !== null && (
           <div className="home-hero-ring-block">
@@ -274,18 +276,6 @@ export default function HomePage({
           </button>
         ))}
       </nav>
-
-      {/* ملخص إحصائي مصغّر — نفس بطاقتي نسبة الإنجاز وتوزيع المهام
-          المستخدمة في صفحة الإحصائيات، معروضين هنا كخلاصة سريعة. */}
-      {!loading && statsLists.length > 0 && (
-        <section className="home-stats-summary" aria-label="ملخص عام">
-          <h2 className="home-section-title">ملخص عام</h2>
-          <div className="home-stats-summary-grid">
-            <CompletionRateCard lists={statsLists} onSelectCategory={onSelectCategory} />
-            <TaskDistributionCard lists={statsLists} onSelectCategory={onSelectCategory} />
-          </div>
-        </section>
-      )}
     </>
   );
 }
