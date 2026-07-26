@@ -138,3 +138,50 @@ export function useVoiceRoomSocket(roomId: string | null) {
 
   return { status, errorMessage, roomName, messages, members, playback, sendMessage };
 }
+
+// ===== معاينة الأعضاء من برا (من غير الانضمام الفعلي) =====
+// بيُستخدم في صفحة قايمة الغرف عشان يعرض تحت كل غرفة صورة وأسماء الأعضاء
+// المتواجدين فيها فعليًا دلوقتي — بالظبط زي قايمة الأعضاء اللي بتظهر تحت
+// أي روم صوتي في ديسكورد من غير ما تدخله. الاشتراك ده لا بيدخّل السوكيت في
+// أي غرفة (roomMembers) ولا بيبعت رسالة "فلان دخل الغرفة" — مجرد مراقبة.
+export function useVoiceRoomsPreview(roomIds: string[]) {
+  const [membersByRoom, setMembersByRoom] = useState<Record<string, VoiceRoomMember[]>>({});
+  const key = roomIds.join(',');
+
+  useEffect(() => {
+    if (!key) {
+      setMembersByRoom({});
+      return;
+    }
+    const ids = key.split(',');
+    let cancelled = false;
+
+    const socket = io(API_URL, {
+      auth: { token: getToken() },
+      transports: ['websocket', 'polling'],
+    });
+
+    function watch() {
+      socket.emit('voiceRoom:watch', ids, (ack: { members?: Record<string, VoiceRoomMember[]>; error?: string }) => {
+        if (cancelled || !ack?.members) return;
+        setMembersByRoom(ack.members);
+      });
+    }
+
+    socket.on('connect', watch);
+    socket.on('voiceRoom:watchMembers', ({ roomId, members }: { roomId: string; members: VoiceRoomMember[] }) => {
+      if (cancelled) return;
+      setMembersByRoom((prev) => ({ ...prev, [roomId]: members }));
+    });
+
+    return () => {
+      cancelled = true;
+      socket.emit('voiceRoom:unwatch', ids);
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  return membersByRoom;
+}

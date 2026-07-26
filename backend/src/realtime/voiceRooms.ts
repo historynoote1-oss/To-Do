@@ -99,6 +99,27 @@ async function createSystemMessage(roomId: string, body: string) {
   return serializeMessage(saved);
 }
 
+function watchRoomName(roomId: string): string {
+  return `watch:${roomId}`;
+}
+
+// بيُستخدم من مسار REST (routes/voiceRooms.ts) عشان صفحة قايمة الغرف تقدر
+// تعرض مين متواجد فعليًا في كل غرفة *من غير ما تنضم*، بالظبط زي قايمة
+// الأعضاء اللي بتظهر تحت كل روم صوتي في ديسكورد من برا قبل ما تدخله.
+// بيبعت قايمة الأعضاء المحدّثة لكل من: (1) الأعضاء الفعليين جوه الغرفة،
+// و(2) أي حد فاتح صفحة قايمة الغرف وعامل "مراقبة" لعدد/صور أعضاء الغرفة دي
+// من غير ما يكون داخلها فعليًا (زي قايمة الأعضاء اللي بتظهر تحت الروم في
+// ديسكورد من برا).
+function broadcastMembers(io: Server, roomId: string) {
+  const members = serializeMembers(roomId);
+  io.to(roomId).emit('voiceRoom:members', members);
+  io.to(watchRoomName(roomId)).emit('voiceRoom:watchMembers', { roomId, members });
+}
+
+export function getRoomMembersSnapshot(roomId: string): RoomMemberInfo[] {
+  return serializeMembers(roomId);
+}
+
 let ioRef: Server | null = null;
 
 export function initVoiceRoomsSocket(io: Server) {
@@ -181,13 +202,39 @@ export function initVoiceRoomsSocket(io: Server) {
           members: serializeMembers(roomId),
         });
 
-        io.to(roomId).emit('voiceRoom:members', serializeMembers(roomId));
+        broadcastMembers(io, roomId);
         const sysMsg = await createSystemMessage(roomId, `${authed.username} دخل الغرفة`);
         socket.to(roomId).emit('voiceRoom:message', sysMsg);
       } catch (err) {
         console.error('voiceRoom:join failed:', err);
         ack?.({ error: 'حصل خطأ، حاول تاني' });
       }
+    });
+
+    socket.on('voiceRoom:watch', async (roomIds: unknown, ack?: (res: any) => void) => {
+      try {
+        const ids = Array.isArray(roomIds) ? roomIds.filter((id): id is string => typeof id === 'string') : [];
+        const members: Record<string, RoomMemberInfo[]> = {};
+        for (const roomId of ids) {
+          if (!authed.isAdmin) {
+            const access = await prisma.voiceRoomAccess.findUnique({
+              where: { roomId_userId: { roomId, userId: authed.userId } },
+            });
+            if (!access) continue;
+          }
+          socket.join(watchRoomName(roomId));
+          members[roomId] = serializeMembers(roomId);
+        }
+        ack?.({ members });
+      } catch (err) {
+        console.error('voiceRoom:watch failed:', err);
+        ack?.({ error: 'حصل خطأ، حاول تاني' });
+      }
+    });
+
+    socket.on('voiceRoom:unwatch', (roomIds: unknown) => {
+      const ids = Array.isArray(roomIds) ? roomIds.filter((id): id is string => typeof id === 'string') : [];
+      for (const roomId of ids) socket.leave(watchRoomName(roomId));
     });
 
     socket.on('voiceRoom:leave', async (_payload: unknown, ack?: (res: any) => void) => {
@@ -263,7 +310,7 @@ async function leaveCurrentRoom(io: Server, authed: AuthedSocket) {
   }
 
   authed.leave(roomId);
-  io.to(roomId).emit('voiceRoom:members', serializeMembers(roomId));
+  broadcastMembers(io, roomId);
   try {
     const sysMsg = await createSystemMessage(roomId, `${authed.username} خرج من الغرفة`);
     io.to(roomId).emit('voiceRoom:message', sysMsg);
@@ -292,5 +339,5 @@ export function kickUserFromRoom(roomId: string, userId: string) {
   }
 
   if (members.size === 0) roomMembers.delete(roomId);
-  ioRef.to(roomId).emit('voiceRoom:members', serializeMembers(roomId));
+  broadcastMembers(ioRef, roomId);
 }

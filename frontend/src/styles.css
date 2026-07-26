@@ -10695,11 +10695,87 @@ body.modal-lock-scroll {
   color: var(--text-faint);
 }
 
+/* --- كارت الغرفة من برا (زي ديسكورد): اسم + عدد + قايمة الأعضاء المتواجدين
+   فعليًا دلوقتي، من غير ما تدخل الغرفة. الدوس على أي حتة منه بيفتح تأكيد
+   "تنضم؟" قبل ما تدخل فعليًا. --- */
+.voice-room-preview-card {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.voice-room-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: right;
+  cursor: pointer;
+}
+
+.voice-room-preview-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+}
+
+.voice-room-preview-member-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.voice-room-preview-member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-width: 0;
+}
+
+.voice-room-preview-member-row.is-admin {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.voice-room-preview-member-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* --- شاشة الغرفة نفسها --- */
 .voice-room-page {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .voice-room-title {
@@ -10733,6 +10809,7 @@ body.modal-lock-scroll {
   align-items: stretch;
   gap: 10px;
   flex: 1;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -11017,6 +11094,7 @@ body.modal-lock-scroll {
 
 .voice-room-volume-row input[type='range'] {
   flex: 1;
+  min-width: 0;
 }
 
 .voice-room-admin-hint {
@@ -11097,6 +11175,7 @@ body.modal-lock-scroll {
 
 .voice-room-compose input {
   flex: 1;
+  min-width: 0;
   border-radius: var(--radius-pill);
   border: 1.5px solid var(--border);
   background: var(--surface-2);
