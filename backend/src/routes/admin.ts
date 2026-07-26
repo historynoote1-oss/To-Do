@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { prisma } from '../lib/core/prisma';
+import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import { requireAdminPassword } from '../middleware/requireAdminPassword';
-import { hashPassword, generateTempPassword } from '../lib/auth/auth';
+import { hashPassword, generateTempPassword } from '../services/auth';
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { DynamicIcon } from '@/lib/core/icons';
-import { hapticNotification } from '@/lib/core/nativeShell';
+import { DynamicIcon } from '@/utils/icons';
+import { hapticNotification } from '@/utils/nativeShell';
 
 // بانر ثابت أعلى الشاشة لما مفيش اتصال بالإنترنت خالص (المرحلة 6).
 // بيستمع مباشرة لحدثي 'online'/'offline' على window (مدعومين في كل

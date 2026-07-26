@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getSiteSettings } from '../lib/core/siteSettings';
+import { getSiteSettings } from '../services/siteSettings';
 
 const router = Router();
 

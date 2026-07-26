@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Reminder, getReminders, createReminder, deleteReminder, updateItemDueDate } from '@/lib/api/api';
-import { sounds } from '@/lib/audio/sounds';
-import { toast } from '@/lib/core/toast';
-import { DynamicIcon } from '@/lib/core/icons';
-import { scheduleLocalReminder, cancelLocalReminder } from '@/lib/notifications/nativeReminders';
+import { Reminder, getReminders, createReminder, deleteReminder, updateItemDueDate } from '@/services/api';
+import { sounds } from '@/services/audio/sounds';
+import { toast } from '@/utils/toast';
+import { DynamicIcon } from '@/utils/icons';
+import { scheduleLocalReminder, cancelLocalReminder } from '@/services/notifications/nativeReminders';
 import Portal from '@/components/common/Portal';
+import { toDatetimeLocalValue, formatOffsetParts } from '@/utils/dateTimeInput';
 
 type Target =
   | { kind: 'list'; id: string; title: string }
@@ -16,11 +17,6 @@ interface Props {
   onDueDateChange?: (dueDate: string | null) => void;
 }
 
-function toDatetimeLocalValue(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 // بيفكّ عدد الدقايق الكلي لثلاث خانات مستقلة (أيام / ساعات / دقايق) عشان
 // نعرضها في تعديل تذكير قائم أو في وصفه.
 function splitOffsetMinutes(totalMinutes: number) {
@@ -28,16 +24,6 @@ function splitOffsetMinutes(totalMinutes: number) {
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
   const minutes = totalMinutes % 60;
   return { days, hours, minutes };
-}
-
-// بيصيغ "يوم و٣ ساعات و٢٠ دقيقة" من قيم الخانات الثلاث، وبيتجاهل أي خانة فاضية.
-function formatOffsetParts(days: number, hours: number, minutes: number): string {
-  const parts: string[] = [];
-  if (days > 0) parts.push(days === 1 ? 'يوم' : days === 2 ? 'يومين' : `${days} أيام`);
-  if (hours > 0) parts.push(hours === 1 ? 'ساعة' : hours === 2 ? 'ساعتين' : `${hours} ساعات`);
-  if (minutes > 0) parts.push(minutes === 1 ? 'دقيقة' : minutes === 2 ? 'دقيقتين' : `${minutes} دقيقة`);
-  if (parts.length === 0) return '0 دقيقة';
-  return parts.join(' و');
 }
 
 function describeReminder(r: Reminder): string {
@@ -85,8 +71,8 @@ export default function RemindersModal({ target, onClose, onDueDateChange }: Pro
   async function load() {
     setLoading(true);
     try {
-      const data = await getReminders(target.kind === 'item' ? { itemId: target.id } : { listId: target.id });
-      setReminders(data);
+      const fetchedReminders = await getReminders(target.kind === 'item' ? { itemId: target.id } : { listId: target.id });
+      setReminders(fetchedReminders);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر تحميل التذكيرات');
     } finally {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { prisma } from '../lib/core/prisma';
+import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import multer from 'multer';
 import {
@@ -8,7 +8,7 @@ import {
   CLOUDINARY_ENABLED,
   uploadAvatarToCloudinary,
   deleteAvatarFromCloudinary,
-} from '../lib/uploads/avatarUpload';
+} from '../services/uploads/avatarUpload';
 import {
   hashPassword,
   comparePassword,
@@ -17,7 +17,7 @@ import {
   checkPwnedPassword,
   generateRecoveryCode,
   hashRecoveryCode,
-} from '../lib/auth/auth';
+} from '../services/auth';
 
 const router = Router();
 

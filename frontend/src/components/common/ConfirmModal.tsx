@@ -1,5 +1,5 @@
 import Portal from '@/components/common/Portal';
-import { hapticNotification } from '@/lib/core/nativeShell';
+import { hapticNotification } from '@/utils/nativeShell';
 
 interface Props {
   title: string;

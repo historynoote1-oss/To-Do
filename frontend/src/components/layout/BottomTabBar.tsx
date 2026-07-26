@@ -1,6 +1,6 @@
-import { DynamicIcon } from '@/lib/core/icons';
-import { hapticSelection } from '@/lib/core/nativeShell';
-import type { ViewName } from '@/lib/api/routes';
+import { DynamicIcon } from '@/utils/icons';
+import { hapticSelection } from '@/utils/nativeShell';
+import type { ViewName } from '@/services/routes';
 
 interface Props {
   activeView: ViewName;

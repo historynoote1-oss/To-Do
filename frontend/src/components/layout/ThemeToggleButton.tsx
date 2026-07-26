@@ -1,5 +1,5 @@
-import { useTheme } from '@/lib/core/theme';
-import { DynamicIcon } from '@/lib/core/icons';
+import { useTheme } from '@/utils/theme';
+import { DynamicIcon } from '@/utils/icons';
 
 interface Props {
   className?: string;

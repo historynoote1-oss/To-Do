@@ -5,9 +5,9 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
-} from '@/lib/api/api';
-import { sounds } from '@/lib/audio/sounds';
-import { DynamicIcon } from '@/lib/core/icons';
+} from '@/services/api';
+import { sounds } from '@/services/audio/sounds';
+import { DynamicIcon } from '@/utils/icons';
 import Portal from '@/components/common/Portal';
 
 function timeAgo(iso: string): string {
@@ -36,11 +36,11 @@ export default function NotificationsBell() {
 
   async function load() {
     try {
-      const data = await getNotifications();
-      setNotifications(data.notifications);
-      if (data.unreadCount > prevUnread.current) sounds.notify();
-      prevUnread.current = data.unreadCount;
-      setUnreadCount(data.unreadCount);
+      const notificationsResponse = await getNotifications();
+      setNotifications(notificationsResponse.notifications);
+      if (notificationsResponse.unreadCount > prevUnread.current) sounds.notify();
+      prevUnread.current = notificationsResponse.unreadCount;
+      setUnreadCount(notificationsResponse.unreadCount);
     } catch {
       // تجميلي بس — فشل مؤقت في الاستقصاء مش لازم يعطّل الشاشة
     } finally {

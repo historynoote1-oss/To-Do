@@ -1,4 +1,4 @@
-import { prisma } from '../lib/core/prisma';
+import { prisma } from '../config/prisma';
 
 // سكريبت بيتشغل يدوي بس من Railway Shell، مفيش أي طريقة تانية تحوّل حساب لأدمن
 // (مفيش زرار أو API endpoint عام لكده) — ده مقصود عشان محدش يقدر يعمل نفسه أدمن

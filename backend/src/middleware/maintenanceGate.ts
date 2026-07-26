@@ -1,6 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './verifyUser';
-import { getSiteSettings } from '../lib/core/siteSettings';
+import { getSiteSettings } from '../services/siteSettings';
 
 // بيتحط بعد verifyUser على أي مسار محتاج يتقفل وقت الصيانة (قوائم/مهام
 // المستخدمين العاديين). الأدمن بيعدي عادي عشان يقدر يدخل يشوف الموقع

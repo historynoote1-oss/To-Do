@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { prisma } from '../lib/core/prisma';
+import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
-import { getVapidPublicKey, isPushConfigured } from '../lib/core/push';
+import { getVapidPublicKey, isPushConfigured } from '../services/push';
 
 const router = Router();
 

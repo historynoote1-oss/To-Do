@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { prisma } from '../lib/core/prisma';
+import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import { requireAccountPassword } from '../middleware/requireAccountPassword';
-import { syncListArchiveState } from '../lib/core/archive';
-import { resolveActivityDay } from '../lib/core/localDate';
-import { collectGoalAndDescendantIds } from '../lib/core/goalCascade';
-import { getSiteSettings } from '../lib/core/siteSettings';
+import { syncListArchiveState } from '../services/archive';
+import { resolveActivityDay } from '../utils/localDate';
+import { collectGoalAndDescendantIds } from '../services/goalCascade';
+import { getSiteSettings } from '../services/siteSettings';
 
 const router = Router();
 
@@ -324,7 +324,7 @@ router.post('/', async (req: AuthRequest, res) => {
       },
     });
     res.json(list);
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: 'فيه مهمة رئيسية بنفس الاسم بالفعل' });
   }
 });

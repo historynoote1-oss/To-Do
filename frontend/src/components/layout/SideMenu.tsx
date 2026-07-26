@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { PushSupportState } from '@/lib/notifications/push';
-import { DynamicIcon } from '@/lib/core/icons';
-import { useTheme } from '@/lib/core/theme';
-import { usePrayerTimes } from '@/lib/prayer/prayerTimesStore';
-import { PRAYER_LABELS, formatCountdown } from '@/lib/prayer/prayerTimes';
+import { PushSupportState } from '@/services/notifications/push';
+import { DynamicIcon } from '@/utils/icons';
+import { useTheme } from '@/utils/theme';
+import { usePrayerTimes } from '@/hooks/prayerTimesStore';
+import { PRAYER_LABELS, formatCountdown } from '@/services/prayer/prayerTimes';
 
 interface Props {
   open: boolean;

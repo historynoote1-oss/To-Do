@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
-import { DynamicIcon } from '@/lib/core/icons';
-import { hapticImpact, hapticNotification } from '@/lib/core/nativeShell';
-import { prefersReducedMotion } from '@/lib/core/motion';
+import { DynamicIcon } from '@/utils/icons';
+import { hapticImpact, hapticNotification } from '@/utils/nativeShell';
+import { prefersReducedMotion } from '@/utils/motion';
 
 const TRIGGER_DISTANCE = 72; // مسافة السحب (px) اللازمة عشان التحديث يتفعّل فعليًا
 const MAX_PULL = 110; // أقصى مسافة مسموح نوريها بصريًا حتى لو المستخدم سحب أكتر

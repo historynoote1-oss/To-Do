@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { prisma } from '../lib/core/prisma';
+import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
 import {
   lifeAreaIconUpload,
@@ -8,7 +8,7 @@ import {
   uploadLifeAreaIconToCloudinary,
   deleteLifeAreaIconFromCloudinary,
   deleteLifeAreaIconFile,
-} from '../lib/uploads/lifeAreaUpload';
+} from '../services/uploads/lifeAreaUpload';
 
 const router = Router();
 
@@ -79,9 +79,9 @@ async function loadSerializedAreas(userId: string) {
   const childrenOf = new Map<string | null, any[]>();
   for (const area of areas) {
     const key = area.parentId ?? null;
-    const arr = childrenOf.get(key) || [];
-    arr.push(area);
-    childrenOf.set(key, arr);
+    const siblingsAtKey = childrenOf.get(key) || [];
+    siblingsAtKey.push(area);
+    childrenOf.set(key, siblingsAtKey);
   }
   const childCountOf = new Map<string, number>();
   for (const [parentId, kids] of childrenOf) {
@@ -249,7 +249,7 @@ router.post('/', async (req: AuthRequest, res) => {
       },
     });
     res.json(serializeArea({ ...area, lists: [] }, EMPTY_STATS, EMPTY_STATS, 0));
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: 'فيه مجال بنفس الاسم بالفعل' });
   }
 });
@@ -327,7 +327,7 @@ router.patch('/:id', async (req: AuthRequest, res) => {
     });
     const childCount = await prisma.lifeArea.count({ where: { parentId: updated.id } });
     res.json(serializeArea(updated, ownStats(updated), ownStats(updated), childCount));
-  } catch (err) {
+  } catch {
     res.status(400).json({ error: 'فيه مجال بنفس الاسم بالفعل' });
   }
 });

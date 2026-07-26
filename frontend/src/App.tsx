@@ -17,10 +17,10 @@ import {
   SiteStatus,
   Reminder,
   getStreak,
-} from '@/lib/api/api';
-import { useUndoRedo } from '@/lib/core/undoRedo';
-import { sounds } from '@/lib/audio/sounds';
-import { toast } from '@/lib/core/toast';
+} from '@/services/api';
+import { useUndoRedo } from '@/hooks/undoRedo';
+import { sounds } from '@/services/audio/sounds';
+import { toast } from '@/utils/toast';
 import {
   attachHardwareBackButton,
   confirmExitOnDoubleBack,
@@ -28,31 +28,30 @@ import {
   hapticNotification,
   hapticSelection,
   hideSplash,
-} from '@/lib/core/nativeShell';
-import { scheduleLocalReminder } from '@/lib/notifications/nativeReminders';
-import { applyNavDirection } from '@/lib/core/motion';
-import { getPushState, enablePush, disablePush, PushSupportState, PushError } from '@/lib/notifications/push';
-import AuthForm from '@/components/auth/AuthForm';
-import type { AdminTab } from '@/components/admin/AdminDashboard';
+} from '@/utils/nativeShell';
+import { scheduleLocalReminder } from '@/services/notifications/nativeReminders';
+import { applyNavDirection } from '@/utils/motion';
+import { getPushState, enablePush, disablePush, PushSupportState, PushError } from '@/services/notifications/push';
+import AuthForm from '@/pages/auth/AuthForm';
+import type { AdminTab } from '@/pages/admin/AdminDashboard';
 import NotificationsBell from '@/components/notifications/NotificationsBell';
 import MaintenancePage from '@/components/layout/MaintenancePage';
 import ToastContainer from '@/components/layout/ToastContainer';
 import SideMenu from '@/components/layout/SideMenu';
 import ThemeToggleButton from '@/components/layout/ThemeToggleButton';
 import ConfirmModal from '@/components/common/ConfirmModal';
-import type { NewTaskPayload } from '@/components/tasks/AddTaskModal';
+import type { NewTaskPayload } from '@/pages/tasks/AddTaskModal';
 import {
   ViewName,
   VIEW_PATHS,
   ADMIN_TAB_PATHS,
   resolveFromPath,
-} from '@/lib/api/routes';
-import { LifeAreaData } from '@/lib/core/lifeArea';
-import { isListDone } from '@/lib/core/organize';
-import { DynamicIcon } from '@/lib/core/icons';
+} from '@/services/routes';
+import { LifeAreaData } from '@/utils/lifeArea';
+import { isListDone } from '@/utils/organize';
+import { DynamicIcon } from '@/utils/icons';
 import BottomTabBar from '@/components/layout/BottomTabBar';
-import HomePage, { HomeUpcomingEntry } from '@/components/home/HomePage';
-import { CategoryKey } from '@/lib/core/category';
+import HomePage, { HomeUpcomingEntry } from '@/pages/home/HomePage';
 import PullToRefresh from '@/components/layout/PullToRefresh';
 import OfflineBanner from '@/components/layout/OfflineBanner';
 
@@ -62,14 +61,14 @@ import OfflineBanner from '@/components/layout/OfflineBanner';
 // أول ظهور للشاشة الرئيسية)، بنحمّلهم "عند الطلب" فقط أول ما المستخدم يفتح
 // الصفحة المعنية — الملف بتاعها بيتنزّل في الخلفية في نفس لحظة الانتقال،
 // فمفيش فرق محسوس في التجربة لكن حجم أول تحميل للموقع بيقل بشكل كبير.
-const AdminDashboard = lazy(() => import('@/components/admin/AdminDashboard'));
-const Profile = lazy(() => import('@/components/profile/Profile'));
-const LifeAreasManager = lazy(() => import('@/components/life-areas/LifeAreasManager'));
-const GoalMap = lazy(() => import('@/components/goals/GoalMap'));
-const PrayerTimes = lazy(() => import('@/components/prayer/PrayerTimes'));
-const MusicPlayer = lazy(() => import('@/components/media/MusicPlayer'));
-const Pomodoro = lazy(() => import('@/components/media/Pomodoro'));
-const SettingsPage = lazy(() => import('@/components/settings/SettingsPage'));
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const Profile = lazy(() => import('@/pages/profile/Profile'));
+const LifeAreasManager = lazy(() => import('@/pages/life-areas/LifeAreasManager'));
+const GoalMap = lazy(() => import('@/pages/goals/GoalMap'));
+const PrayerTimes = lazy(() => import('@/pages/prayer/PrayerTimes'));
+const MusicPlayer = lazy(() => import('@/pages/media/MusicPlayer'));
+const Pomodoro = lazy(() => import('@/pages/media/Pomodoro'));
+const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 
 // شاشة انتظار بسيطة (نفس سبينر شاشة الإقلاع) بتظهر لحظة تحميل صفحة جديدة
 // عند الطلب — عادةً أجزاء من الثانية على أي اتصال عادي.
@@ -279,8 +278,8 @@ export default function App() {
 
   async function refreshLifeAreas() {
     try {
-      const data = await getLifeAreas();
-      setLifeAreas(data);
+      const fetchedLifeAreas = await getLifeAreas();
+      setLifeAreas(fetchedLifeAreas);
     } catch {
       // مجالات الحياة تحسينية — لو فشل تحميلها منسيبش الموقع كله يتعطل بسببها
     }
@@ -290,8 +289,8 @@ export default function App() {
   // فشل الطلب منسيبش الشاشة الرئيسية تتعطل بسببه.
   async function refreshStreak() {
     try {
-      const data = await getStreak();
-      setStreak(data.current);
+      const streakData = await getStreak();
+      setStreak(streakData.current);
     } catch {
       // تجميلي بس
     }
@@ -396,8 +395,8 @@ export default function App() {
 
   async function refresh() {
     try {
-      const data = await getLists();
-      setLists(data);
+      const fetchedLists = await getLists();
+      setLists(fetchedLists);
       refreshStreak();
     } catch (err) {
       if (err instanceof MaintenanceError) {
@@ -439,13 +438,6 @@ export default function App() {
       sounds.error();
       toast.error(err instanceof Error ? err.message : 'تعذّر تحديث المهمة');
     }
-  }
-
-  // خريطة الأهداف لسه مالهاش آلية فلترة بحسب القسم قابلة للاستدعاء من برّه
-  // (مفيش deep-link)، فبنكتفي حاليًا بالتنقّل لها عند الضغط على أي قسم في
-  // ملخص الإحصائيات المصغّر بالصفحة الرئيسية.
-  function handleSelectHomeCategory(_key: CategoryKey) {
-    setView('goalMap');
   }
 
   function handleAuthSuccess(name: string, admin: boolean) {
@@ -1090,7 +1082,6 @@ export default function App() {
             onNavigate={setView}
             onQuickAdd={handleQuickAdd}
             onToggleUpcomingItem={handleToggleUpcomingItem}
-            onSelectCategory={handleSelectHomeCategory}
           />
         </main>
         </PullToRefresh>

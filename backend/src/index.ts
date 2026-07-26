@@ -29,9 +29,9 @@ import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
 import { rehabilitationGate } from './middleware/rehabilitationGate';
-import { startReminderScheduler } from './lib/schedulers/reminderScheduler';
-import { startOverdueScheduler } from './lib/schedulers/overdueScheduler';
-import { startTrashScheduler } from './lib/schedulers/trashScheduler';
+import { startReminderScheduler } from './schedulers/reminderScheduler';
+import { startOverdueScheduler } from './schedulers/overdueScheduler';
+import { startTrashScheduler } from './schedulers/trashScheduler';
 
 const app = express();
 

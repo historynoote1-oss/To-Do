@@ -68,6 +68,22 @@ if (existsSync(rawSrcDir)) {
   }
 }
 
+// 2-ب) نسخ صفحة الأوفلاين المحلية (offline.html) إلى assets/ — بتتحمّل
+// من جوه التطبيق (file:///android_asset/offline.html) لما الـ WebView
+// يفشل يوصل لموقع الويب المنشور بسبب مفيش نت، بدل صفحة خطأ النظام
+// الافتراضية. شوف OfflineFallback.kt.
+const assetsSrcDir = path.join(NATIVE_SRC, 'assets');
+const assetsDestDir = path.join(ANDROID_DIR, 'app', 'src', 'main', 'assets');
+if (existsSync(assetsSrcDir)) {
+  mkdirSync(assetsDestDir, { recursive: true });
+  for (const file of readdirSync(assetsSrcDir)) {
+    copyFileSync(path.join(assetsSrcDir, file), path.join(assetsDestDir, file));
+    console.log(`[apply-android-native] نسخ أصل ${file}`);
+  }
+} else {
+  console.warn('[apply-android-native] تحذير: مجلد android-native/assets مش موجود — صفحة الأوفلاين لن تُنسخ');
+}
+
 // 3) تعديل AndroidManifest.xml
 const manifestPath = path.join(ANDROID_DIR, 'app', 'src', 'main', 'AndroidManifest.xml');
 if (!existsSync(manifestPath)) fail('AndroidManifest.xml مش موجود');
@@ -142,12 +158,12 @@ if (!mainActivity.includes(REG_MARKER)) {
     }
     mainActivity = mainActivity.replace(
       'public class MainActivity extends BridgeActivity {',
-      `public class MainActivity extends BridgeActivity {\n  // ${REG_MARKER}\n  @Override\n  public void onCreate(android.os.Bundle savedInstanceState) {\n    registerPlugin(AdhanAlarmPlugin.class);\n    super.onCreate(savedInstanceState);\n  }`
+      `public class MainActivity extends BridgeActivity {\n  // ${REG_MARKER}\n  @Override\n  public void onCreate(android.os.Bundle savedInstanceState) {\n    registerPlugin(AdhanAlarmPlugin.class);\n    super.onCreate(savedInstanceState);\n    OfflineFallback.attach(bridge);\n  }`
     );
   } else {
     mainActivity = mainActivity.replace(
       /class MainActivity\s*:\s*BridgeActivity\s*\(\)\s*\{?/,
-      (m) => `${m.includes('{') ? m : m + ' {'}\n    // ${REG_MARKER}\n    override fun onCreate(savedInstanceState: android.os.Bundle?) {\n        registerPlugin(AdhanAlarmPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }`
+      (m) => `${m.includes('{') ? m : m + ' {'}\n    // ${REG_MARKER}\n    override fun onCreate(savedInstanceState: android.os.Bundle?) {\n        registerPlugin(AdhanAlarmPlugin::class.java)\n        super.onCreate(savedInstanceState)\n        OfflineFallback.attach(bridge)\n    }`
     );
   }
   writeFileSync(mainActivityPath, mainActivity, 'utf8');

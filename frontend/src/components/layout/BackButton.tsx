@@ -1,4 +1,4 @@
-import { DynamicIcon } from '@/lib/core/icons';
+import { DynamicIcon } from '@/utils/icons';
 
 // زرار رجوع موحّد لكل هيدرات الصفحات — أيقونة فقط من غير نص، بتصميم
 // دائري مضغوط بياخد مساحة أقل في الهيدر لكنه بيحافظ على مساحة لمس

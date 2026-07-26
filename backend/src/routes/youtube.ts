@@ -63,16 +63,16 @@ router.get('/search', async (req, res) => {
     const safeQuery = buildSafeQuery(q);
     const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=12&q=${encodeURIComponent(safeQuery)}&key=${YOUTUBE_API_KEY}`;
     const ytRes = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    const data = await ytRes.json();
+    const youtubeResponse = await ytRes.json();
 
-    if (!ytRes.ok || data.error) {
+    if (!ytRes.ok || youtubeResponse.error) {
       // بنطبع تفاصيل الخطأ في لوج السيرفر بس (يفيد في تشخيص مشاكل زي انتهاء
       // الحصة اليومية للمفتاح)، ومنرجّعش أي تفاصيل خام للمتصفح.
-      console.error('YouTube search error:', data.error || ytRes.statusText);
+      console.error('YouTube search error:', youtubeResponse.error || ytRes.statusText);
       return res.status(502).json({ error: 'تعذّر البحث حاليًا، حاول تاني بعد شوية' });
     }
 
-    const items = ((data.items || []) as YoutubeSearchApiItem[])
+    const items = ((youtubeResponse.items || []) as YoutubeSearchApiItem[])
       .filter((item) => item.id?.videoId)
       .map((item) => ({
         videoId: item.id!.videoId as string,

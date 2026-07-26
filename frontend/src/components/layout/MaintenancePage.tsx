@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import AuthForm from '@/components/auth/AuthForm';
+import AuthForm from '@/pages/auth/AuthForm';
 import ThemeToggleButton from '@/components/layout/ThemeToggleButton';
-import { DynamicIcon } from '@/lib/core/icons';
+import { DynamicIcon } from '@/utils/icons';
 
 interface Props {
   emoji: string;

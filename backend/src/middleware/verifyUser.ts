@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../lib/auth/auth';
-import { prisma } from '../lib/core/prisma';
+import { verifyToken } from '../services/auth';
+import { prisma } from '../config/prisma';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -35,7 +35,7 @@ export async function verifyUser(req: AuthRequest, res: Response, next: NextFunc
     req.isAdmin = user.isAdmin;
     req.mustRehabilitate = user.mustRehabilitate;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: 'الجلسة انتهت، سجل دخول تاني' });
   }
 }

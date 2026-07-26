@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { toast, ToastMessage } from '@/lib/core/toast';
+import { toast, ToastMessage } from '@/utils/toast';
 import { CheckCircle2, AlertCircle, Info, Bell, type LucideIcon } from 'lucide-react';
 
 const ICONS: Record<ToastMessage['kind'], LucideIcon> = {
