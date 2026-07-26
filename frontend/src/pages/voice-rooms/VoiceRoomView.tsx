@@ -1,10 +1,28 @@
-import { useEffect, useRef, useState } from 'react';
-import { useVoiceRoomSocket } from '@/hooks/voiceRoomSocket';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useVoiceRoomSocket, VoiceRoomMember } from '@/hooks/voiceRoomSocket';
 import { useVoiceRoomAudioPlayer } from '@/hooks/voiceRoomAudioPlayer';
 import { DynamicIcon } from '@/utils/icons';
 import { toast } from '@/utils/toast';
 import { sounds } from '@/services/audio/sounds';
+import { resolveAvatarUrl } from '@/services/api/profile';
 import BackButton from '@/components/layout/BackButton';
+
+// صورة عضو واحد في قايمة الأعضاء: صورة بروفايل حقيقية لو موجودة، وإلا دايرة
+// متدرّجة بأول حرف من اسمه (بنفس روح صورة البروفايل في باقي الموقع) عشان
+// محدش يفضل بأيقونة موحّدة زي كل الناس.
+function MemberAvatar({ member, size = 34 }: { member: VoiceRoomMember; size?: number }) {
+  const url = resolveAvatarUrl(member.avatarUrl);
+  const initial = member.username.trim().charAt(0).toUpperCase() || '؟';
+  return (
+    <span
+      className={`voice-room-member-avatar ${member.isAdmin ? 'is-admin' : ''}`}
+      style={{ width: size, height: size, fontSize: Math.max(11, size * 0.4) }}
+    >
+      {url ? <img src={url} alt="" /> : <span aria-hidden="true">{initial}</span>}
+      <span className="voice-room-member-online-dot" aria-hidden="true" />
+    </span>
+  );
+}
 
 // شاشة الغرفة الصوتية نفسها: قائمة الأعضاء المتواجدين، شات نصي حي، ومشغّل
 // صوت مخفي بيشتغل تلقائيًا بالتلاوة اللي شغّلها الأدمن ومتزامن (تقريبًا)
@@ -31,8 +49,18 @@ export default function VoiceRoomView({
   const { ready, needsUnmute, volume, setVolume, enableSound, containerId } = useVoiceRoomAudioPlayer(playback);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [membersOpen, setMembersOpen] = useState(false);
+  // قايمة الأعضاء دايمة الظهور جنب الشات (زي ديسكورد) — قابلة للطي/الفتح،
+  // ومفتوحة بشكل افتراضي أول ما تدخل الغرفة.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // الأدمن يظهر الأول في القايمة (زي تجميع "المشرفين" في ديسكورد)، وبعدين
+  // باقي الأعضاء بترتيب دخولهم للغرفة.
+  const sortedMembers = useMemo(
+    () => [...members].sort((a, b) => Number(b.isAdmin) - Number(a.isAdmin)),
+    [members],
+  );
+  const adminsCount = useMemo(() => members.filter((m) => m.isAdmin).length, [members]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
@@ -73,9 +101,9 @@ export default function VoiceRoomView({
           <button
             type="button"
             className="voice-room-members-toggle"
-            onClick={() => setMembersOpen((v) => !v)}
-            aria-expanded={membersOpen}
-            title="الأعضاء المتواجدين"
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            aria-expanded={!sidebarCollapsed}
+            title={sidebarCollapsed ? 'إظهار قايمة الأعضاء' : 'إخفاء قايمة الأعضاء'}
           >
             <DynamicIcon name="users" size={15} />
             {members.length}
@@ -98,27 +126,6 @@ export default function VoiceRoomView({
         </div>
       </div>
 
-      {membersOpen && (
-        <div className="list-card voice-room-members-panel">
-          {members.length === 0 ? (
-            <p className="empty" style={{ padding: '8px 0' }}>
-              مفيش حد متواجد دلوقتي
-            </p>
-          ) : (
-            <ul className="voice-room-member-list">
-              {members.map((m) => (
-                <li key={m.userId} className="voice-room-member-row">
-                  <span>
-                    <DynamicIcon name={m.isAdmin ? 'crown' : 'user'} size={13} />
-                    {m.username}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
       {status === 'connecting' && (
         <div className="voice-room-status-banner">
           <DynamicIcon name="loader" size={16} className="spin" />
@@ -134,97 +141,149 @@ export default function VoiceRoomView({
       )}
 
       {status === 'joined' && (
-        <>
-          {playback && (
-            <div className="list-card voice-room-playback-card">
-              {playback.thumbnail ? (
-                <img src={playback.thumbnail} alt="" className="voice-room-playback-thumb" />
-              ) : (
-                <span className="voice-room-playback-thumb voice-room-playback-thumb-fallback" aria-hidden="true">
-                  <DynamicIcon name="book-open" size={20} />
-                </span>
-              )}
-              <div className="voice-room-playback-info">
-                <strong>{playback.title}</strong>
-                <span>{playback.channel || 'تلاوة قرآنية'}</span>
-              </div>
-              {needsUnmute ? (
-                <button type="button" className="small voice-room-unmute-btn" onClick={enableSound}>
-                  <DynamicIcon name="volume-high" size={14} />
-                  دوس عشان تسمع
-                </button>
-              ) : (
-                <div className="voice-room-volume-row">
-                  <DynamicIcon name="volume-high" size={14} />
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={volume}
-                    onChange={(e) => setVolume(Number(e.target.value))}
-                    aria-label="مستوى صوت التلاوة"
-                    disabled={!ready}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {isAdmin && (
-            <p className="modal-hint voice-room-admin-hint">
-              اكتب <code>شغل</code> متبوعة باسم سورة أو قارئ في الشات عشان تشغّل تلاوة لكل المتواجدين.
-            </p>
-          )}
-
-          <div className="voice-room-messages">
-            {messages.length === 0 && (
-              <p className="empty" style={{ padding: '24px 0' }}>
-                <DynamicIcon name="mic-off" size={28} className="empty-icon" />
-                لسه مفيش رسائل في الغرفة دي
-              </p>
-            )}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`voice-room-message ${m.isSystem ? 'system' : ''} ${
-                  !m.isSystem && m.username === username ? 'own' : ''
-                }`}
-              >
-                {!m.isSystem && (
-                  <span className="voice-room-message-author">
-                    {m.isAdmin && <DynamicIcon name="crown" size={11} />}
-                    {m.username}
+        <div className={`voice-room-body ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+          <div className="voice-room-chat-col">
+            {playback && (
+              <div className="list-card voice-room-playback-card">
+                {playback.thumbnail ? (
+                  <img src={playback.thumbnail} alt="" className="voice-room-playback-thumb" />
+                ) : (
+                  <span className="voice-room-playback-thumb voice-room-playback-thumb-fallback" aria-hidden="true">
+                    <DynamicIcon name="book-open" size={20} />
                   </span>
                 )}
-                <span className="voice-room-message-body">{m.body}</span>
+                <div className="voice-room-playback-info">
+                  <strong>{playback.title}</strong>
+                  <span>{playback.channel || 'تلاوة قرآنية'}</span>
+                </div>
+                {needsUnmute ? (
+                  <button type="button" className="small voice-room-unmute-btn" onClick={enableSound}>
+                    <DynamicIcon name="volume-high" size={14} />
+                    دوس عشان تسمع
+                  </button>
+                ) : (
+                  <div className="voice-room-volume-row">
+                    <DynamicIcon name="volume-high" size={14} />
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={volume}
+                      onChange={(e) => setVolume(Number(e.target.value))}
+                      aria-label="مستوى صوت التلاوة"
+                      disabled={!ready}
+                    />
+                  </div>
+                )}
               </div>
-            ))}
-            <div ref={messagesEndRef} />
+            )}
+
+            {isAdmin && (
+              <p className="modal-hint voice-room-admin-hint">
+                اكتب <code>شغل</code> متبوعة باسم سورة أو قارئ في الشات عشان تشغّل تلاوة لكل المتواجدين.
+              </p>
+            )}
+
+            <div className="voice-room-messages">
+              {messages.length === 0 && (
+                <p className="empty" style={{ padding: '24px 0' }}>
+                  <DynamicIcon name="mic-off" size={28} className="empty-icon" />
+                  لسه مفيش رسائل في الغرفة دي
+                </p>
+              )}
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={`voice-room-message ${m.isSystem ? 'system' : ''} ${
+                    !m.isSystem && m.username === username ? 'own' : ''
+                  }`}
+                >
+                  {!m.isSystem && (
+                    <span className="voice-room-message-author">
+                      {m.isAdmin && <DynamicIcon name="crown" size={11} />}
+                      {m.username}
+                    </span>
+                  )}
+                  <span className="voice-room-message-body">{m.body}</span>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="voice-room-compose">
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSend();
+                }}
+                placeholder="اكتب رسالة..."
+                maxLength={500}
+                aria-label="رسالة جديدة"
+              />
+              <button
+                type="button"
+                className="icon-btn voice-room-send-btn"
+                onClick={handleSend}
+                disabled={!draft.trim() || sending}
+                aria-label="إرسال"
+                title="إرسال"
+              >
+                <DynamicIcon name="send" size={18} />
+              </button>
+            </div>
           </div>
 
-          <div className="voice-room-compose">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSend();
-              }}
-              placeholder="اكتب رسالة..."
-              maxLength={500}
-              aria-label="رسالة جديدة"
-            />
+          {/* قايمة الأعضاء دايمة الظهور جنب الشات — قابلة للطي لدايرة رفيعة
+              بصور الأعضاء بس، أو الفتح الكامل بالاسم والحالة وشارة الأدمن. */}
+          <aside className={`voice-room-sidebar ${sidebarCollapsed ? 'is-collapsed' : ''}`} aria-label="الأعضاء المتواجدين">
             <button
               type="button"
-              className="icon-btn voice-room-send-btn"
-              onClick={handleSend}
-              disabled={!draft.trim() || sending}
-              aria-label="إرسال"
-              title="إرسال"
+              className="voice-room-sidebar-collapse-btn"
+              onClick={() => setSidebarCollapsed((v) => !v)}
+              aria-expanded={!sidebarCollapsed}
+              title={sidebarCollapsed ? 'فتح قايمة الأعضاء' : 'طي قايمة الأعضاء'}
             >
-              <DynamicIcon name="send" size={18} />
+              <DynamicIcon name={sidebarCollapsed ? 'chevron-left' : 'chevron-right'} size={14} />
             </button>
-          </div>
-        </>
+
+            {!sidebarCollapsed && (
+              <div className="voice-room-sidebar-header">
+                <span className="voice-room-sidebar-title">
+                  <DynamicIcon name="users" size={14} />
+                  الأعضاء — {members.length}
+                </span>
+                {adminsCount > 0 && (
+                  <span className="voice-room-sidebar-admins-count">
+                    <DynamicIcon name="crown" size={11} />
+                    {adminsCount}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <ul className="voice-room-sidebar-list">
+              {sortedMembers.length === 0 && !sidebarCollapsed && (
+                <li className="voice-room-sidebar-empty">مفيش حد متواجد دلوقتي</li>
+              )}
+              {sortedMembers.map((m) => (
+                <li key={m.userId} className={`voice-room-sidebar-row ${m.isAdmin ? 'is-admin' : ''}`} title={m.username}>
+                  <MemberAvatar member={m} size={sidebarCollapsed ? 30 : 34} />
+                  {!sidebarCollapsed && (
+                    <span className="voice-room-sidebar-name">
+                      {m.username}
+                      {m.isAdmin && (
+                        <span className="voice-room-sidebar-admin-badge">
+                          <DynamicIcon name="crown" size={11} />
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </aside>
+        </div>
       )}
     </div>
   );

@@ -18,6 +18,7 @@ interface AuthedSocket extends Socket {
   userId: string;
   username: string;
   isAdmin: boolean;
+  avatarUrl: string | null;
   currentRoomId: string | null;
 }
 
@@ -36,6 +37,7 @@ interface RoomMemberInfo {
   userId: string;
   username: string;
   isAdmin: boolean;
+  avatarUrl: string | null;
 }
 
 // roomId -> حالة التشغيل الحالية (لو مفيش، الغرفة ساكتة حاليًا)
@@ -115,7 +117,7 @@ export function initVoiceRoomsSocket(io: Server) {
       const payload = verifyToken(token);
       const user = await prisma.user.findUnique({
         where: { id: payload.userId },
-        select: { id: true, username: true, isAdmin: true, isActive: true, tokenVersion: true },
+        select: { id: true, username: true, isAdmin: true, isActive: true, tokenVersion: true, avatarUrl: true },
       });
       if (!user || !user.isActive || user.tokenVersion !== payload.tokenVersion) {
         return next(new Error('unauthorized'));
@@ -125,6 +127,7 @@ export function initVoiceRoomsSocket(io: Server) {
       authed.userId = user.id;
       authed.username = user.username;
       authed.isAdmin = user.isAdmin;
+      authed.avatarUrl = user.avatarUrl || null;
       authed.currentRoomId = null;
       next();
     } catch {
@@ -162,6 +165,7 @@ export function initVoiceRoomsSocket(io: Server) {
           userId: authed.userId,
           username: authed.username,
           isAdmin: authed.isAdmin,
+          avatarUrl: authed.avatarUrl,
         });
 
         const recentMessages = await prisma.voiceRoomMessage.findMany({

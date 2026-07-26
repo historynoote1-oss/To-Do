@@ -23,6 +23,7 @@ export interface VoiceRoomMember {
   userId: string;
   username: string;
   isAdmin: boolean;
+  avatarUrl: string | null;
 }
 
 export interface VoiceRoomPlayback {
