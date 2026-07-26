@@ -42,6 +42,7 @@ export default function SettingsPage({
   onOpenPlayer,
   onOpenPomodoro,
   onOpenPrayerTimes,
+  onOpenVoiceRooms,
   onOpenDashboard,
   onRequestLogout,
 }: {
@@ -59,6 +60,7 @@ export default function SettingsPage({
   onOpenPlayer: () => void;
   onOpenPomodoro: () => void;
   onOpenPrayerTimes: () => void;
+  onOpenVoiceRooms: () => void;
   onOpenDashboard: () => void;
   onRequestLogout: () => void;
 }) {
@@ -338,6 +340,11 @@ export default function SettingsPage({
         <button type="button" className="side-menu-item settings-nav-row" onClick={onOpenPlayer}>
           <DynamicIcon name="book-open" size={17} className="side-menu-item-icon" />
           <span className="side-menu-item-label">مشغّل القرآن</span>
+          <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+        </button>
+        <button type="button" className="side-menu-item settings-nav-row" onClick={onOpenVoiceRooms}>
+          <DynamicIcon name="radio" size={17} className="side-menu-item-icon" />
+          <span className="side-menu-item-label">الغرف الصوتية</span>
           <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
         </button>
         {isAdmin && (

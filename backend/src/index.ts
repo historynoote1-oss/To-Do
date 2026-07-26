@@ -4,6 +4,8 @@
 // (Express 4 مبيمسكش الـ rejected promises من الـ async functions لوحده).
 import 'express-async-errors';
 import express from 'express';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -18,6 +20,7 @@ import adminRoutes from './routes/admin';
 import adminAnalyticsRoutes from './routes/adminAnalytics';
 import adminContentRoutes from './routes/adminContent';
 import adminSettingsRoutes from './routes/adminSettings';
+import adminVoiceRoomsRoutes from './routes/adminVoiceRooms';
 import profileRoutes from './routes/profile';
 import siteRoutes from './routes/site';
 import remindersRoutes from './routes/reminders';
@@ -25,6 +28,7 @@ import pushRoutes from './routes/push';
 import streakRoutes from './routes/streak';
 import notificationsRoutes from './routes/notifications';
 import youtubeRoutes from './routes/youtube';
+import voiceRoomsRoutes from './routes/voiceRooms';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
@@ -32,6 +36,7 @@ import { rehabilitationGate } from './middleware/rehabilitationGate';
 import { startReminderScheduler } from './schedulers/reminderScheduler';
 import { startOverdueScheduler } from './schedulers/overdueScheduler';
 import { startTrashScheduler } from './schedulers/trashScheduler';
+import { initVoiceRoomsSocket } from './realtime/voiceRooms';
 
 const app = express();
 
@@ -168,6 +173,7 @@ app.use('/api/lists', verifyUser, rehabilitationGate, maintenanceGate, listsRout
 app.use('/api/trash', verifyUser, rehabilitationGate, maintenanceGate, trashRoutes);
 app.use('/api/life-areas', verifyUser, rehabilitationGate, maintenanceGate, lifeAreasRoutes);
 app.use('/api/youtube', verifyUser, rehabilitationGate, maintenanceGate, youtubeLimiter, youtubeRoutes);
+app.use('/api/voice-rooms', verifyUser, rehabilitationGate, maintenanceGate, voiceRoomsRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, remindersRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, pushRoutes);
 app.use('/api/streak', verifyUser, rehabilitationGate, maintenanceGate, streakRoutes);
@@ -176,6 +182,7 @@ app.use('/api/profile', verifyUser, rehabilitationGate, maintenanceGate, profile
 app.use('/api/admin/analytics', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminAnalyticsRoutes);
 app.use('/api/admin/content', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminContentRoutes);
 app.use('/api/admin/settings', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminSettingsRoutes);
+app.use('/api/admin/voice-rooms', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminVoiceRoomsRoutes);
 app.use('/api/admin', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminRoutes);
 // المسار العام ده لازم يكون آخر واحد، لأنه بيتطابق مع أي حاجة تبدأ بـ /api
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, itemsRoutes);
@@ -207,7 +214,17 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// بنلف الـ app جوه http.Server صراحةً (بدل app.listen مباشرة) عشان
+// Socket.IO (المستخدم في الغرف الصوتية الحيّة) محتاج نفس السيرفر ده بالظبط
+// يشتغل عليه، مش سيرفر منفصل على بورت تاني.
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+  cors: { origin: configuredFrontendUrl || '*' },
+});
+initVoiceRoomsSocket(io);
+
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // جدولة فحص التذكيرات المستحقة (كل 15 ثانية) وإرسال إشعارات الجهاز لها —
 // شغالة طول عمر البروسيس، مش محتاجة مسار API منفصل.

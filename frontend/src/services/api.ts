@@ -23,3 +23,5 @@ export * from './api/admin/users';
 export * from './api/admin/analytics';
 export * from './api/admin/content';
 export * from './api/admin/settings';
+export * from './api/admin/voiceRooms';
+export * from './api/voiceRooms';

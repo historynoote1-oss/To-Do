@@ -25,6 +25,7 @@ interface Props {
   onOpenPlayer: () => void;
   onOpenPomodoro: () => void;
   onOpenPrayerTimes: () => void;
+  onOpenVoiceRooms: () => void;
   onToggleMute: () => void;
   onTogglePush: () => void;
   onRequestLogout: () => void;
@@ -53,6 +54,7 @@ export default function SideMenu({
   onOpenPlayer,
   onOpenPomodoro,
   onOpenPrayerTimes,
+  onOpenVoiceRooms,
   onToggleMute,
   onTogglePush,
   onRequestLogout,
@@ -212,6 +214,17 @@ export default function SideMenu({
           >
             <DynamicIcon name="book-open" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">مشغّل القرآن</span>
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+          </button>
+
+          <button
+            className={`side-menu-item ${currentView === 'voiceRooms' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenVoiceRooms)}
+            aria-current={currentView === 'voiceRooms' ? 'page' : undefined}
+          >
+            <DynamicIcon name="radio" size={18} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">الغرف الصوتية</span>
             <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
           </button>
 

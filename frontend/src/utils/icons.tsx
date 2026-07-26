@@ -139,6 +139,10 @@ import {
   Vibrate,
   Info,
   WifiOff,
+  SendHorizontal,
+  MicOff,
+  Crown,
+  DoorOpen,
 } from 'lucide-react';
 
 // أيقونة القلب (زرار "إضافة للمفضّلة") متعمولة كـ SVG مكتوب يدويًا هنا، مش
@@ -327,6 +331,10 @@ export const ICON_MAP = {
   radio: Radio,
   vibrate: Vibrate,
   info: Info,
+  send: SendHorizontal,
+  'mic-off': MicOff,
+  crown: Crown,
+  'door-open': DoorOpen,
 } satisfies Record<string, IconComponent>;
 
 export type IconKey = keyof typeof ICON_MAP;

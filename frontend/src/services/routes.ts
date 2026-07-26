@@ -16,6 +16,7 @@ export type ViewName =
   | 'pomodoro'
   | 'goalMap'
   | 'prayerTimes'
+  | 'voiceRooms'
   | 'settings';
 
 // خريطة كل شاشة لمسارها في الـ URL — ده اللي بيخلي كل قسم في الموقع يكون
@@ -30,6 +31,7 @@ export const VIEW_PATHS: Record<ViewName, string> = {
   pomodoro: '/pomodoro',
   goalMap: '/goals',
   prayerTimes: '/prayer-times',
+  voiceRooms: '/voice-rooms',
   settings: '/settings',
 };
 
@@ -45,6 +47,7 @@ export const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
   analytics: '/admin/analytics',
   users: '/admin/users',
   content: '/admin/content',
+  voiceRooms: '/admin/voice-rooms',
   settings: '/admin/settings',
 };
 

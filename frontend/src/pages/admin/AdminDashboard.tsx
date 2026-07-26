@@ -3,16 +3,18 @@ import AdminAnalytics from '@/pages/admin/AdminAnalytics';
 import AdminUsersPanel from '@/pages/admin/AdminUsersPanel';
 import AdminContentPanel from '@/pages/admin/AdminContentPanel';
 import AdminSettingsPanel from '@/pages/admin/AdminSettingsPanel';
+import AdminVoiceRoomsPanel from '@/pages/admin/AdminVoiceRoomsPanel';
 import { DynamicIcon, IconKey } from '@/utils/icons';
 import BackButton from '@/components/layout/BackButton';
 
-export type AdminTab = 'overview' | 'analytics' | 'users' | 'content' | 'settings';
+export type AdminTab = 'overview' | 'analytics' | 'users' | 'content' | 'voiceRooms' | 'settings';
 
 const NAV: { key: AdminTab; label: string; icon: IconKey }[] = [
   { key: 'overview', label: 'نظرة عامة', icon: 'home' },
   { key: 'analytics', label: 'التحليلات', icon: 'bar-chart' },
   { key: 'users', label: 'المستخدمين', icon: 'users' },
   { key: 'content', label: 'المحتوى', icon: 'folder-open' },
+  { key: 'voiceRooms', label: 'الغرف الصوتية', icon: 'radio' },
   { key: 'settings', label: 'الإعدادات', icon: 'settings' },
 ];
 
@@ -113,6 +115,7 @@ export default function AdminDashboard({
           {tab === 'analytics' && <AdminAnalytics />}
           {tab === 'users' && <AdminUsersPanel />}
           {tab === 'content' && <AdminContentPanel />}
+          {tab === 'voiceRooms' && <AdminVoiceRoomsPanel />}
           {tab === 'settings' && <AdminSettingsPanel />}
         </div>
       </div>

@@ -69,6 +69,7 @@ const PrayerTimes = lazy(() => import('@/pages/prayer/PrayerTimes'));
 const MusicPlayer = lazy(() => import('@/pages/media/MusicPlayer'));
 const Pomodoro = lazy(() => import('@/pages/media/Pomodoro'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
+const VoiceRoomsPage = lazy(() => import('@/pages/voice-rooms/VoiceRoomsPage'));
 
 // شاشة انتظار بسيطة (نفس سبينر شاشة الإقلاع) بتظهر لحظة تحميل صفحة جديدة
 // عند الطلب — عادةً أجزاء من الثانية على أي اتصال عادي.
@@ -821,6 +822,7 @@ export default function App() {
         onOpenPlayer={() => setView('player')}
         onOpenPomodoro={() => setView('pomodoro')}
         onOpenPrayerTimes={() => setView('prayerTimes')}
+        onOpenVoiceRooms={() => setView('voiceRooms')}
         onToggleMute={handleToggleMute}
         onTogglePush={handleTogglePush}
         onRequestLogout={requestLogout}
@@ -945,6 +947,25 @@ export default function App() {
     );
   }
 
+  if (view === 'voiceRooms') {
+    return (
+      <>
+        <ToastContainer />
+        <OfflineBanner />
+        <Suspense fallback={<RouteLoading />}>
+          <VoiceRoomsPage
+            isAdmin={isAdmin}
+            username={username}
+            onBack={() => setView('todos')}
+            onOpenMenu={handleOpenMenu}
+            menuOpen={menuOpen}
+          />
+        </Suspense>
+        {sideMenuAndModals}
+      </>
+    );
+  }
+
   if (view === 'prayerTimes') {
     return (
       <>
@@ -992,6 +1013,7 @@ export default function App() {
             onOpenPlayer={() => setView('player')}
             onOpenPomodoro={() => setView('pomodoro')}
             onOpenPrayerTimes={() => setView('prayerTimes')}
+            onOpenVoiceRooms={() => setView('voiceRooms')}
             onOpenDashboard={openDashboard}
             onRequestLogout={requestLogout}
           />

@@ -69,6 +69,11 @@ model User {
   activityDays      UserActivityDay[]
   notifications     Notification[]
 
+  // ===== الغرف الصوتية =====
+  createdVoiceRooms VoiceRoom[]        @relation("VoiceRoomCreator")
+  voiceRoomAccess   VoiceRoomAccess[]  @relation("VoiceRoomMember")
+  voiceRoomMessages VoiceRoomMessage[]
+
   @@index([createdAt])
 }
 
@@ -429,4 +434,68 @@ model SiteSetting {
   value     String
   updatedAt DateTime @updatedAt
   updatedBy String?
+}
+
+// ===== الغرف الصوتية (Voice Rooms) =====
+// غرفة "صوتية" بدون مايك: زي غرف ديسكورد الصوتية لكن بدون كلام حي. الدخول
+// محصور بالأعضاء اللي الأدمن دّاهم صلاحية دخول ليها بس (VoiceRoomAccess)،
+// وجوه الغرفة فيه شات نصي بين الأعضاء المتواجدين. الأدمن بس يقدر يكتب أمر
+// "شغل ..." في شات الغرفة، فيتشغّل صوت تلاوة (عن طريق نفس محرك بحث يوتيوب
+// بتاع مشغّل القرآن، شوف services/quranSearch.ts) لكل الأعضاء المتواجدين
+// في نفس اللحظة، وكل عضو يتحكم في مستوى صوته هو بس عنده (شوف
+// realtime/voiceRooms.ts لمنطق الانضمام/الشات/البث نفسه — الحالة الحيّة
+// لكل غرفة (مين متواجد دلوقتي، وهي شغّالة إيه) بتتخزّن في الذاكرة بس، مش
+// في القاعدة، عشان دي حالة لحظية مش سجل دائم).
+model VoiceRoom {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  createdById String?
+  createdBy   User?   @relation("VoiceRoomCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  access   VoiceRoomAccess[]
+  messages VoiceRoomMessage[]
+
+  @@index([createdAt])
+}
+
+// صلاحية دخول عضو معيّن لغرفة معيّنة — العضو اللي معندوش صف هنا (ومش
+// أدمن) مش هيقدر ينضم للغرفة خالص، لا من الواجهة ولا حتى لو حاول يكلّم
+// الـ socket مباشرة (الفحص بيتم في السيرفر وقت الانضمام).
+model VoiceRoomAccess {
+  id     String    @id @default(cuid())
+  roomId String
+  room   VoiceRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId String
+  user   User      @relation("VoiceRoomMember", fields: [userId], references: [id], onDelete: Cascade)
+
+  // اسم الأدمن اللي منح الصلاحية دي، محفوظ كنص ثابت وقت المنح (مش علاقة)
+  // عشان يفضل واضح مين اللي سمح حتى لو حساب الأدمن ده اتغيّر أو اتحذف بعدين.
+  grantedByUsername String?
+  createdAt         DateTime @default(now())
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+// رسالة شات داخل غرفة صوتية. isSystem بتتحط true للرسائل التلقائية (عضو
+// دخل/خرج، الأدمن شغّل تلاوة...) عشان الواجهة تعرضها بشكل مختلف عن رسائل
+// الأعضاء العادية. username محفوظ كنص ثابت وقت الإرسال (مش بس علاقة مع
+// User) عشان لو المستخدم اتحذف بعدين الرسايل القديمة تفضل مفهومة.
+model VoiceRoomMessage {
+  id     String    @id @default(cuid())
+  roomId String
+  room   VoiceRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  userId   String?
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  username String
+  isAdmin  Boolean @default(false)
+  body     String
+  isSystem Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([roomId, createdAt])
 }
