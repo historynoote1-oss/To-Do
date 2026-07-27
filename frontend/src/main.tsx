@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import { UndoRedoProvider } from '@/hooks/undoRedo';
 import { MusicPlayerProvider } from '@/hooks/musicPlayer';
+import { VoiceRoomSessionProvider } from '@/hooks/voiceRoomSession';
 import { PomodoroProvider } from '@/hooks/pomodoro';
 import { PrayerTimesProvider } from '@/hooks/prayerTimesStore';
 import { getInitialTheme } from '@/utils/theme';
@@ -19,7 +20,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <MusicPlayerProvider>
         <PrayerTimesProvider>
           <PomodoroProvider>
-            <App />
+            <VoiceRoomSessionProvider>
+              <App />
+            </VoiceRoomSessionProvider>
           </PomodoroProvider>
         </PrayerTimesProvider>
       </MusicPlayerProvider>

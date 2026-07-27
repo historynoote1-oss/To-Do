@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { prisma } from '../config/prisma';
 import { AuthRequest } from '../middleware/verifyUser';
-import { getRoomMembersSnapshot } from '../realtime/voiceRooms';
+import { getRoomMembersSnapshot, getRoomSessionStart } from '../realtime/voiceRooms';
+import { voiceRoomAttachmentUpload, resolveAttachmentType } from '../services/uploads/voiceRoomAttachmentUpload';
 
 const router = Router();
 
@@ -22,9 +24,47 @@ router.get('/', async (req: AuthRequest, res) => {
     rooms: rooms.map((r) => ({
       id: r.id,
       name: r.name,
+      description: r.description || null,
       createdAt: r.createdAt,
       members: getRoomMembersSnapshot(r.id),
+      sessionStartedAtMs: getRoomSessionStart(r.id),
     })),
+  });
+});
+
+// رفع مرفق (صورة/فيديو/رسالة صوتية/ملف) عشان يتبعت في شات غرفة صوتية.
+// لازم يكون معاه صلاحية دخول الغرفة دي (أو يبقى أدمن). بيرجّع رابط الملف
+// وبيانات كافية عشان الفرونت إند يبعتها مع الرسالة عن طريق الـ socket.
+router.post('/:roomId/attachments', async (req: AuthRequest, res) => {
+  const room = await prisma.voiceRoom.findUnique({ where: { id: req.params.roomId } });
+  if (!room) return res.status(404).json({ error: 'الغرفة دي مش موجودة' });
+
+  if (!req.isAdmin) {
+    const access = await prisma.voiceRoomAccess.findUnique({
+      where: { roomId_userId: { roomId: room.id, userId: req.userId! } },
+    });
+    if (!access || access.isBanned) return res.status(403).json({ error: 'مالكش صلاحية دخول الغرفة دي' });
+  }
+
+  voiceRoomAttachmentUpload(req, res, (err: unknown) => {
+    if (err) {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'الملف كبير جدًا (الحد الأقصى 25 ميجا)' });
+      }
+      const message = err instanceof Error ? err.message : 'تعذّر رفع الملف';
+      return res.status(400).json({ error: message });
+    }
+    if (!req.file) return res.status(400).json({ error: 'اختار ملف الأول' });
+
+    res.status(201).json({
+      attachment: {
+        url: `/uploads/voice-room-attachments/${req.file.filename}`,
+        type: resolveAttachmentType(req.file.mimetype),
+        name: req.file.originalname,
+        mime: req.file.mimetype,
+        size: req.file.size,
+      },
+    });
   });
 });
 

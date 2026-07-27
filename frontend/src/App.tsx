@@ -54,6 +54,7 @@ import BottomTabBar from '@/components/layout/BottomTabBar';
 import HomePage, { HomeUpcomingEntry } from '@/pages/home/HomePage';
 import PullToRefresh from '@/components/layout/PullToRefresh';
 import OfflineBanner from '@/components/layout/OfflineBanner';
+import VoiceRoomMiniBar from '@/components/voice-rooms/VoiceRoomMiniBar';
 
 // الصفحات دي مش بتتفتح كل زيارة (لوحة الأدمن، البروفايل، خريطة الأهداف،
 // مشغّل القرآن، البومودورو) وبعضها تقيل نسبيًا (لوحة الأدمن بالذات بتجر
@@ -846,6 +847,7 @@ export default function App() {
           onOpenMenu={handleOpenMenu}
         />
       )}
+      <VoiceRoomMiniBar hidden={view === 'voiceRooms'} onOpen={() => setView('voiceRooms')} />
     </>
   );
 

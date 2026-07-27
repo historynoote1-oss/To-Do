@@ -3,6 +3,7 @@ import {
   AdminVoiceRoomEntry,
   getAdminVoiceRooms,
   createAdminVoiceRoom,
+  updateAdminVoiceRoom,
   deleteAdminVoiceRoom,
   grantVoiceRoomAccess,
   revokeVoiceRoomAccess,
@@ -19,11 +20,18 @@ export default function AdminVoiceRoomsPanel() {
   const [rooms, setRooms] = useState<AdminVoiceRoomEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomDescription, setNewRoomDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [grantUsername, setGrantUsername] = useState<Record<string, string>>({});
   const [grantingId, setGrantingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AdminVoiceRoomEntry | null>(null);
+  // تعديل اسم/وصف غرفة موجودة — بيتفتح كفورم جوه الكارت المفتوح، وبيتطبّق
+  // فورًا لكل حد فاتح الغرفة دي دلوقتي (البث الحي في voiceRoomSocket).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     load();
@@ -49,9 +57,10 @@ export default function AdminVoiceRoomsPanel() {
     }
     setCreating(true);
     try {
-      const room = await createAdminVoiceRoom(name);
+      const room = await createAdminVoiceRoom(name, newRoomDescription.trim() || undefined);
       setRooms((prev) => [room, ...prev]);
       setNewRoomName('');
+      setNewRoomDescription('');
       sounds.success();
       toast.success(`اتعملت غرفة "${room.name}"`);
     } catch (err) {
@@ -100,6 +109,35 @@ export default function AdminVoiceRoomsPanel() {
     }
   }
 
+  function startEdit(room: AdminVoiceRoomEntry) {
+    setEditingId(room.id);
+    setEditName(room.name);
+    setEditDescription(room.description || '');
+  }
+
+  async function handleSaveEdit(roomId: string) {
+    const name = editName.trim();
+    if (!name) {
+      toast.error('لازم تكتب اسم للغرفة');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const updated = await updateAdminVoiceRoom(roomId, { name, description: editDescription.trim() });
+      setRooms((prev) =>
+        prev.map((r) => (r.id === roomId ? { ...r, name: updated.name, description: updated.description } : r)),
+      );
+      setEditingId(null);
+      sounds.success();
+      toast.success('اتحدّثت بيانات الغرفة');
+    } catch (err) {
+      sounds.error();
+      toast.error(err instanceof Error ? err.message : 'تعذّر تعديل الغرفة');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   async function handleRevoke(roomId: string, userId: string, username: string) {
     try {
       await revokeVoiceRoomAccess(roomId, userId);
@@ -129,14 +167,20 @@ export default function AdminVoiceRoomsPanel() {
         <input
           value={newRoomName}
           onChange={(e) => setNewRoomName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleCreate();
-          }}
           placeholder="اسم الغرفة الجديدة"
           maxLength={60}
         />
+        <input
+          value={newRoomDescription}
+          onChange={(e) => setNewRoomDescription(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleCreate();
+          }}
+          placeholder="وصف الغرفة (اختياري)"
+          maxLength={200}
+        />
         <button className="small" type="button" onClick={handleCreate} disabled={creating || !newRoomName.trim()}>
-          <DynamicIcon name="plus" size={14} />
+          <DynamicIcon name={creating ? 'loader' : 'plus'} size={14} className={creating ? 'spin' : ''} />
           إنشاء غرفة
         </button>
       </div>
@@ -167,6 +211,7 @@ export default function AdminVoiceRoomsPanel() {
                   <span className="voice-room-admin-card-name">
                     <DynamicIcon name="radio" size={16} />
                     {room.name}
+                    {room.description && <span className="voice-room-admin-card-desc">{room.description}</span>}
                   </span>
                   <span className="voice-room-admin-card-meta">
                     <DynamicIcon name="users" size={13} />
@@ -177,6 +222,42 @@ export default function AdminVoiceRoomsPanel() {
 
                 {expanded && (
                   <div className="voice-room-admin-card-body">
+                    {editingId === room.id ? (
+                      <div className="admin-form voice-room-edit-form">
+                        <input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          placeholder="اسم الغرفة"
+                          maxLength={60}
+                        />
+                        <input
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          placeholder="وصف الغرفة (اختياري)"
+                          maxLength={200}
+                        />
+                        <div className="voice-room-edit-form-actions">
+                          <button
+                            className="small"
+                            type="button"
+                            onClick={() => handleSaveEdit(room.id)}
+                            disabled={savingEdit || !editName.trim()}
+                          >
+                            <DynamicIcon name={savingEdit ? 'loader' : 'check'} size={14} className={savingEdit ? 'spin' : ''} />
+                            حفظ
+                          </button>
+                          <button className="small ghost" type="button" onClick={() => setEditingId(null)} disabled={savingEdit}>
+                            إلغاء
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button type="button" className="small ghost voice-room-edit-trigger-btn" onClick={() => startEdit(room)}>
+                        <DynamicIcon name="pencil" size={14} />
+                        تعديل الاسم والوصف
+                      </button>
+                    )}
+
                     <div className="admin-form voice-room-grant-form">
                       <input
                         value={grantUsername[room.id] || ''}

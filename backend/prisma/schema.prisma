@@ -447,9 +447,14 @@ model SiteSetting {
 // لكل غرفة (مين متواجد دلوقتي، وهي شغّالة إيه) بتتخزّن في الذاكرة بس، مش
 // في القاعدة، عشان دي حالة لحظية مش سجل دائم).
 model VoiceRoom {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  // الأدمن يقدر يقفل الشات مؤقتًا (مايمنعش هو من الكتابة، بس بيمنع باقي
+  // الأعضاء) — بيتفحص وقت إرسال أي رسالة عادية في realtime/voiceRooms.ts.
+  chatLocked Boolean @default(false)
 
   createdById String?
   createdBy   User?   @relation("VoiceRoomCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -475,6 +480,18 @@ model VoiceRoomAccess {
   grantedByUsername String?
   createdAt         DateTime @default(now())
 
+  // دور العضو جوه الغرفة دي بالذات (مش نفس isAdmin العام بتاع الحساب):
+  // "member" العادي، أو "moderator"/"admin" لو الأدمن العام رقّاه — بيدّيله
+  // صلاحيات زي أدمن الغرفة (تثبيت/حذف رسايل، طرد/كتم أعضاء...) جوه الغرفة
+  // دي بس، من غير ما يبقى أدمن عام على التطبيق كله.
+  role String @default("member")
+
+  // كتم في الشات — يقدر يسمع ويتواجد بس مايقدرش يكتب رسايل.
+  isMuted Boolean @default(false)
+  // حظر — زي الحرمان بس أدوم؛ حتى لو اتمنح صلاحية دخول تانية بعدين، الحظر
+  // بيفضل شغال لحد ما الأدمن يفكّه صراحة (مختلف عن مجرد سحب الصلاحية).
+  isBanned Boolean @default(false)
+
   @@unique([roomId, userId])
   @@index([userId])
 }
@@ -494,6 +511,23 @@ model VoiceRoomMessage {
   isAdmin  Boolean @default(false)
   body     String
   isSystem Boolean @default(false)
+
+  // تثبيت الرسالة — الأدمن بس يقدر يثبّت/يفك تثبيت (زي ديسكورد).
+  isPinned Boolean @default(false)
+  // حذف منطقي (soft delete) — الأدمن يقدر يحذف رسالة أي حد، أو أي عضو
+  // يقدر يحذف رسالته هو بس. الرسالة بتفضل في القاعدة لكن بتظهر "تم حذفها".
+  isDeleted Boolean @default(false)
+  // أسماء المستخدمين اللي اتعمللهم منشن (@اسم) في الرسالة دي، متخزّنة كنص
+  // JSON بسيط (مصفوفة usernames) عشان نبعت إشعار فوري للي اتعمله منشن.
+  mentions String?
+
+  // مرفق اختياري (صورة / فيديو / رسالة صوتية / ملف عام). لو موجود، ممكن
+  // body يبقى فاضي (رسالة مرفق بس من غير نص).
+  attachmentUrl  String?
+  attachmentType String? // image | video | audio | file
+  attachmentName String?
+  attachmentMime String?
+  attachmentSize Int?
 
   createdAt DateTime @default(now())
 
