@@ -12,10 +12,9 @@ import {
 import {
   LifeAreaData,
   LifeAreaNode,
-  LIFE_AREA_COLOR_GROUPS,
   LIFE_AREA_ICON_GROUPS,
   DEFAULT_LIFE_AREA_COLOR,
-  hexToGradient,
+  hexToSoftBg,
   buildLifeAreaTree,
   flattenLifeAreaTree,
   getLifeAreaDescendantIds,
@@ -25,6 +24,7 @@ import { toast } from '@/utils/toast';
 import { sounds } from '@/services/audio/sounds';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import BackButton from '@/components/layout/BackButton';
+import { ColorPicker } from '@/components/common/ColorPicker';
 
 const ALLOWED_ICON_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_ICON_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -64,61 +64,34 @@ function AreaAvatar({
       </span>
     );
   }
+  // اللون بيتحط على الأيقونة نفسها بس — شكل الأفتار فضل محايد (خلفية
+  // فاتحة جدًا من نفس اللون بنسبة شفافية بسيطة، عشان الأيقونة تفضل
+  // واضحة ومتباينة) بدل ما يتلوّن الشكل بالكامل بتدرج قوي.
   return (
     <span
       className="life-area-avatar"
-      style={{ width: size, height: size, borderRadius: size / 3.2, background: hexToGradient(color) }}
+      style={{ width: size, height: size, borderRadius: size / 3.2, background: hexToSoftBg(color, 0.16) }}
     >
-      <DynamicIcon name={icon || 'tag'} size={iconSize} className="life-area-avatar-icon" />
+      <DynamicIcon name={icon || 'tag'} size={iconSize} className="life-area-avatar-icon" style={{ color }} />
     </span>
   );
 }
 
-// ===== شبكة الألوان المُقسّمة لعائلات — بتُستخدم في نموذج الإنشاء والتعديل.
-// معرّفة برا الكومبوننت الرئيسي عشان تحتفظ بهويتها بين كل render (لو
-// اتعرّفت جوه، ريأكت كان هيعمل remount كامل ليها كل مرة وده كان هيكسر
-// التفاعل مع input[type=color]). =====
-export function ColorGroups({ value, onSelect }: { value: string; onSelect: (color: string) => void }) {
-  return (
-    <div className="life-area-color-groups">
-      {LIFE_AREA_COLOR_GROUPS.map((group) => (
-        <div key={group.label} className="life-area-color-group">
-          <span className="life-area-color-group-label">{group.label}</span>
-          <div className="life-area-color-grid">
-            {group.colors.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`life-area-color-swatch ${value === c ? 'selected' : ''}`}
-                style={{ background: hexToGradient(c) }}
-                onClick={() => onSelect(c)}
-                aria-label={`اختيار اللون ${c}`}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-      <div className="life-area-color-group">
-        <span className="life-area-color-group-label">لون مخصص</span>
-        <div className="life-area-color-grid">
-          <label className="life-area-color-custom" title="لون مخصص" style={{ background: hexToGradient(value) }}>
-            <input type="color" value={value} onChange={(e) => onSelect(e.target.value)} />
-          </label>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ملحوظة: شبكة الألوان الجاهزة (Predefined Swatches) القديمة اتشالت
+// بالكامل — اختيار اللون بقى حصريًا عبر ColorPicker (مكوّن منفصل في
+// components/common/ColorPicker.tsx) اللي بيوفّر مربّع تشبّع/سطوع + شريط
+// hue + إدخال HEX مباشر، بفلسفة شبيهة بـ Figma/Photoshop.
 
-// ===== شبكة الأيقونات — بقت مقسّمة لأقسام (زي شبكة الألوان بالظبط) عشان
-// تتعرض كـ"اقتراحات" مبوّبة حسب جانب الحياة بدل قائمة طويلة عشوائية.
-// معرّفة برا الكومبوننت الرئيسي لنفس سبب ColorGroups. =====
+// ===== شبكة الأيقونات — مقسّمة لأقسام عشان تتعرض كـ"اقتراحات" مبوّبة
+// حسب جانب الحياة بدل قائمة طويلة عشوائية. معرّفة برا الكومبوننت الرئيسي
+// عشان تحتفظ بهويتها بين كل render (لو اتعرّفت جوه، ريأكت كان هيعمل
+// remount كامل ليها كل مرة). =====
 export function IconGroups({ value, onSelect }: { value: string; onSelect: (icon: string) => void }) {
   return (
     <div className="life-area-icon-groups">
       {LIFE_AREA_ICON_GROUPS.map((group) => (
         <div key={group.label} className="life-area-icon-group">
-          <span className="life-area-color-group-label">{group.label}</span>
+          <span className="life-area-group-label">{group.label}</span>
           <div className="life-area-icon-grid">
             {group.icons.map((icon) => (
               <button
@@ -217,6 +190,17 @@ export default function LifeAreasManager({
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [confirmDeleteArea, setConfirmDeleteArea] = useState<LifeAreaData | null>(null);
   const [reordering, setReordering] = useState(false);
+
+  // ===== الكارت بقى مضغوط بالتصميم الجديد (أيقونة + اسم + سهم بس) —
+  // الإحصائيات وشريط التقدم بقوا "تفاصيل" اختيارية بتتفتح بالضغط على اسم
+  // المجال، بدل ما تتفرض على العين طول الوقت (Progressive disclosure). =====
+  const [detailsOpen, setDetailsOpen] = useState<Set<string>>(new Set());
+
+  // ===== سحب وإفلات (Drag & Drop) لإعادة الترتيب — إضافة فوق أزرار
+  // الأعلى/الأسفل الموجودة أصلاً (بتفضل شغالة كـ fallback يسهل الوصول
+  // له بدون فأرة/لمس دقيق). السحب مسموح بس بين إخوة على نفس المستوى. =====
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -453,8 +437,19 @@ export default function LifeAreasManager({
 
     const nextSiblings = [...siblings];
     [nextSiblings[index], nextSiblings[target]] = [nextSiblings[target], nextSiblings[index]];
-    const orderedIds = nextSiblings.map((a) => a.id);
+    await reorderTo(parentId, nextSiblings.map((a) => a.id));
+  }
 
+  function toggleDetails(id: string) {
+    setDetailsOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function reorderTo(parentId: string | null, orderedIds: string[]) {
     setAreas((prev) => {
       const positionOf = new Map(orderedIds.map((sid, i) => [sid, i]));
       return prev.map((a) => (positionOf.has(a.id) ? { ...a, position: positionOf.get(a.id)! } : a));
@@ -470,6 +465,51 @@ export default function LifeAreasManager({
     } finally {
       setReordering(false);
     }
+  }
+
+  function handleDragStart(e: React.DragEvent, id: string) {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', id);
+    } catch {
+      /* بعض المتصفحات بتشتكي لو الداتا فاضية — مش مؤثر على السحب نفسه */
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent, node: LifeAreaNode) {
+    if (!dragId || dragId === node.id) return;
+    const dragged = areas.find((a) => a.id === dragId);
+    // السحب مسموح بس بين إخوة (نفس الأب) — نقل مجال لمستوى تاني عن طريق
+    // السحب مش مدعوم دلوقتي، بيتم عن طريق "مكان المجال" في نموذج التعديل.
+    if (!dragged || (dragged.parentId ?? null) !== (node.parentId ?? null)) return;
+    e.preventDefault();
+    setDragOverId(node.id);
+  }
+
+  async function handleDrop(e: React.DragEvent, node: LifeAreaNode) {
+    e.preventDefault();
+    const id = dragId;
+    setDragId(null);
+    setDragOverId(null);
+    if (!id || id === node.id) return;
+    const dragged = areas.find((a) => a.id === id);
+    if (!dragged) return;
+    const parentId = dragged.parentId ?? null;
+    if (parentId !== (node.parentId ?? null)) return;
+    const siblings = siblingsOf(parentId);
+    const fromIndex = siblings.findIndex((a) => a.id === id);
+    const toIndex = siblings.findIndex((a) => a.id === node.id);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const next = [...siblings];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    await reorderTo(parentId, next.map((a) => a.id));
+  }
+
+  function handleDragEnd() {
+    setDragId(null);
+    setDragOverId(null);
   }
 
   function handlePickImage(id: string) {
@@ -524,10 +564,20 @@ export default function LifeAreasManager({
     const isExpanded = expanded.has(node.id);
     const hasChildren = node.children.length > 0;
     const isSubCreateOpen = subCreateParentId === node.id;
+    const isDetailsOpen = detailsOpen.has(node.id);
+    const isDragging = dragId === node.id;
+    const isDragOver = dragOverId === node.id;
 
     return (
       <div key={node.id} className="life-area-node-wrap" style={{ ['--depth' as any]: node.depth }}>
-        <div className={`life-area-node ${node.depth > 0 ? 'is-nested' : ''}`} style={{ ['--card-accent' as any]: node.color }}>
+        <div
+          className={`life-area-node ${node.depth > 0 ? 'is-nested' : ''} ${isDragging ? 'is-dragging' : ''} ${isDragOver ? 'is-drag-over' : ''}`}
+          draggable={!isEditing}
+          onDragStart={(e) => handleDragStart(e, node.id)}
+          onDragOver={(e) => handleDragOver(e, node)}
+          onDrop={(e) => handleDrop(e, node)}
+          onDragEnd={handleDragEnd}
+        >
           <button
             type="button"
             className={`life-area-node-expand ${hasChildren ? '' : 'is-leaf'}`}
@@ -544,36 +594,13 @@ export default function LifeAreasManager({
             )}
           </button>
 
-          <div className="life-area-node-reorder">
-            <button
-              type="button"
-              className="icon-btn small"
-              onClick={() => move(node.id, -1)}
-              disabled={indexInSiblings <= 0 || reordering}
-              aria-label="نقل لأعلى"
-              title="نقل لأعلى"
-            >
-              <DynamicIcon name="chevron-up" size={14} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn small"
-              onClick={() => move(node.id, 1)}
-              disabled={indexInSiblings === siblings.length - 1 || reordering}
-              aria-label="نقل لأسفل"
-              title="نقل لأسفل"
-            >
-              <DynamicIcon name="chevron-down" size={14} />
-            </button>
-          </div>
-
           <div className="life-area-node-glyph-wrap">
             <AreaAvatar
               color={node.color}
               icon={node.icon}
               imageUrl={resolveLifeAreaImageUrl(node.imageUrl)}
-              size={node.depth > 0 ? 36 : 44}
-              iconSize={node.depth > 0 ? 17 : 20}
+              size={node.depth > 0 ? 34 : 40}
+              iconSize={node.depth > 0 ? 16 : 18}
             />
             {isUploading && <span className="avatar-upload-spinner" aria-hidden="true" />}
           </div>
@@ -588,7 +615,7 @@ export default function LifeAreasManager({
                   autoFocus
                 />
                 <label className="life-area-edit-subtitle">اللون</label>
-                <ColorGroups value={editForm.color} onSelect={(color) => setEditForm((f) => ({ ...f, color }))} />
+                <ColorPicker value={editForm.color} onChange={(color) => setEditForm((f) => ({ ...f, color }))} />
                 <label className="life-area-edit-subtitle">الأيقونة</label>
                 <IconGroups value={editForm.icon} onSelect={(icon) => setEditForm((f) => ({ ...f, icon }))} />
                 <label className="life-area-edit-subtitle">مكان المجال في الهيكل الهرمي</label>
@@ -621,11 +648,23 @@ export default function LifeAreasManager({
               </div>
             ) : (
               <>
+                {/* ===== الصف المضغوط الافتراضي: أيقونة (فوق) + اسم بس. الضغط
+                    على الاسم بيفتح/يقفل لوحة التفاصيل (إحصائيات + تقدّم +
+                    ترتيب) تحت الكارت — إفصاح تدريجي (progressive disclosure)
+                    بدل ما نفرض كل الأرقام على العين طول الوقت. ===== */}
                 <div className="life-area-node-header">
-                  <h3>
-                    {node.name}
-                    {hasChildren && <span className="life-area-node-child-count">{node.childCount}</span>}
-                  </h3>
+                  <button
+                    type="button"
+                    className="life-area-node-name-btn"
+                    onClick={() => toggleDetails(node.id)}
+                    aria-expanded={isDetailsOpen}
+                    title={isDetailsOpen ? 'إخفاء التفاصيل' : 'عرض التفاصيل والتقدّم'}
+                  >
+                    <h3>
+                      {node.name}
+                      {hasChildren && <span className="life-area-node-child-count">{node.childCount}</span>}
+                    </h3>
+                  </button>
                   <div className="row-actions">
                     <button
                       className="icon-btn small"
@@ -639,34 +678,68 @@ export default function LifeAreasManager({
                     <button className="icon-btn small" onClick={() => startEdit(node)} aria-label="تعديل المجال" type="button" title="تعديل">
                       <DynamicIcon name="pencil" size={14} />
                     </button>
-                    <button className="danger small" onClick={() => handleDelete(node)} type="button">
-                      حذف
+                    <button
+                      className="icon-btn small danger"
+                      onClick={() => handleDelete(node)}
+                      aria-label="حذف المجال"
+                      type="button"
+                      title="حذف"
+                    >
+                      <DynamicIcon name="trash-2" size={14} />
                     </button>
                   </div>
                 </div>
 
-                <div className="life-area-stats-row">
-                  <span className="life-area-stat">{node.stats.totalLists} مهمة رئيسية</span>
-                  <span className="life-area-stat life-area-stat-success">{node.stats.completedLists} مكتملة</span>
-                  <span className="life-area-stat">
-                    {node.stats.doneItems}/{node.stats.totalItems} مهمة فرعية
-                  </span>
-                  {hasChildren && (
-                    <span className="life-area-stat life-area-stat-aggregate" title="شامل كل المجالات الفرعية">
-                      <DynamicIcon name="folder-open" size={11} /> {node.aggregatedStats.totalLists} إجمالاً مع الفروع
-                    </span>
-                  )}
-                </div>
+                {isDetailsOpen && (
+                  <div className="life-area-details-panel">
+                    <div className="life-area-stats-row">
+                      <span className="life-area-stat">{node.stats.totalLists} مهمة رئيسية</span>
+                      <span className="life-area-stat life-area-stat-success">{node.stats.completedLists} مكتملة</span>
+                      <span className="life-area-stat">
+                        {node.stats.doneItems}/{node.stats.totalItems} مهمة فرعية
+                      </span>
+                      {hasChildren && (
+                        <span className="life-area-stat life-area-stat-aggregate" title="شامل كل المجالات الفرعية">
+                          <DynamicIcon name="folder-open" size={11} /> {node.aggregatedStats.totalLists} إجمالاً مع الفروع
+                        </span>
+                      )}
+                    </div>
 
-                <div className="list-progress-row">
-                  <div className="list-progress">
-                    <div
-                      className="list-progress-fill"
-                      style={{ width: `${node.stats.completionRate}%`, background: node.color }}
-                    />
+                    <div className="list-progress-row">
+                      <div className="list-progress">
+                        <div
+                          className="list-progress-fill"
+                          style={{ width: `${node.stats.completionRate}%`, background: node.color }}
+                        />
+                      </div>
+                      <span className="list-progress-label">{node.stats.completionRate}٪</span>
+                    </div>
+
+                    <div className="life-area-node-reorder">
+                      <span className="modal-hint">الترتيب: اسحب الكارت لمكانه، أو</span>
+                      <button
+                        type="button"
+                        className="icon-btn small"
+                        onClick={() => move(node.id, -1)}
+                        disabled={indexInSiblings <= 0 || reordering}
+                        aria-label="نقل لأعلى"
+                        title="نقل لأعلى"
+                      >
+                        <DynamicIcon name="chevron-up" size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn small"
+                        onClick={() => move(node.id, 1)}
+                        disabled={indexInSiblings === siblings.length - 1 || reordering}
+                        aria-label="نقل لأسفل"
+                        title="نقل لأسفل"
+                      >
+                        <DynamicIcon name="chevron-down" size={14} />
+                      </button>
+                    </div>
                   </div>
-                  <span className="list-progress-label">{node.stats.completionRate}٪</span>
-                </div>
+                )}
               </>
             )}
           </div>
@@ -686,7 +759,7 @@ export default function LifeAreasManager({
               />
               <details className="life-area-subcreate-style">
                 <summary>اللون والأيقونة</summary>
-                <ColorGroups value={subCreateForm.color} onSelect={(color) => setSubCreateForm((f) => ({ ...f, color }))} />
+                <ColorPicker value={subCreateForm.color} onChange={(color) => setSubCreateForm((f) => ({ ...f, color }))} />
                 <IconGroups value={subCreateForm.icon} onSelect={(icon) => setSubCreateForm((f) => ({ ...f, icon }))} />
               </details>
             </div>
@@ -734,18 +807,6 @@ export default function LifeAreasManager({
               <span />
             </span>
           </button>
-        </div>
-      </div>
-
-      <div className="life-area-intro">
-        <DynamicIcon name="compass" size={28} className="life-area-intro-icon" />
-        <div>
-          <h1>مجالات الحياة</h1>
-          <p>
-            نظّم مهامك حسب جوانب حياتك المختلفة — صحة، شغل، عائلة، تعلّم، وأي حاجة تانية تهمك. أنشئ عدد غير محدود من
-            المجالات، وقسّم كل مجال لمجالات فرعية (مثلاً "الصحة واللياقة" ← "الجيم"، "الجري"، "الأكل الصحي")، رتّبهم
-            زي ما تحب، وتابع تقدمك في كل واحد منهم — وفي كل الفرع مع بعضه — على حدة.
-          </p>
         </div>
       </div>
 
@@ -810,7 +871,7 @@ export default function LifeAreasManager({
             </div>
             <div className="settings-field">
               <label>اللون</label>
-              <ColorGroups value={createForm.color} onSelect={(color) => setCreateForm((f) => ({ ...f, color }))} />
+              <ColorPicker value={createForm.color} onChange={(color) => setCreateForm((f) => ({ ...f, color }))} />
             </div>
             <div className="settings-field">
               <label>الأيقونة {createImagePreview && <span className="modal-hint">(هتتستخدم الصورة اللي اخترتها بدلها)</span>}</label>
