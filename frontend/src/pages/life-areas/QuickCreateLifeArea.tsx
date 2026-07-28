@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createLifeArea } from '@/services/api';
 import { LifeAreaData, DEFAULT_LIFE_AREA_COLOR, hexToGradient } from '@/utils/lifeArea';
-import { ColorGroups, IconGroups } from '@/pages/life-areas/LifeAreasManager';
+import { IconGroups } from '@/pages/life-areas/LifeAreasManager';
+import { ColorPicker } from '@/components/common/ColorPicker';
 import { DynamicIcon } from '@/utils/icons';
 import { sounds } from '@/services/audio/sounds';
 import { toast } from '@/utils/toast';
@@ -127,7 +128,7 @@ export default function QuickCreateLifeArea({ open, onClose, onCreated }: Props)
 
           <div className="add-task-field">
             <span className="add-task-label">اللون</span>
-            <ColorGroups value={color} onSelect={setColor} />
+            <ColorPicker value={color} onChange={setColor} />
           </div>
 
           <div className="add-task-field">
