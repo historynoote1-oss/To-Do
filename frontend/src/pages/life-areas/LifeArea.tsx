@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { hexToSoftBg, hexToGradient, DEFAULT_LIFE_AREA_ICON } from '@/utils/lifeArea';
+import { hexToSoftBg, DEFAULT_LIFE_AREA_ICON } from '@/utils/lifeArea';
 import { resolveLifeAreaImageUrl } from '@/services/api';
 import { sounds } from '@/services/audio/sounds';
 import { DynamicIcon } from '@/utils/icons';
@@ -85,7 +85,7 @@ export function AreaGlyph({ area, size = 'md' }: { area: LifeAreaLite | null | u
   return (
     <span
       className="life-area-glyph-chip"
-      style={{ width: px, height: px, background: hexToGradient(area.color) }}
+      style={{ width: px, height: px, background: area.color }}
     >
       <DynamicIcon name={area.icon || DEFAULT_LIFE_AREA_ICON} size={iconPx} className="life-area-glyph-chip-icon" />
     </span>

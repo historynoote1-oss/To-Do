@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createLifeArea } from '@/services/api';
-import { LifeAreaData, DEFAULT_LIFE_AREA_COLOR, hexToGradient } from '@/utils/lifeArea';
+import { LifeAreaData, DEFAULT_LIFE_AREA_COLOR } from '@/utils/lifeArea';
 import { IconGroups } from '@/pages/life-areas/LifeAreasManager';
 import { ColorPicker } from '@/components/common/ColorPicker';
 import { DynamicIcon } from '@/utils/icons';
@@ -86,7 +86,7 @@ export default function QuickCreateLifeArea({ open, onClose, onCreated }: Props)
       >
         <div className="add-task-header">
           <h2 id="quick-life-area-title">
-            <span className="add-task-header-icon" style={{ background: hexToGradient(color), color: '#fff' }}>
+            <span className="add-task-header-icon" style={{ background: color, color: '#fff' }}>
               <DynamicIcon name={icon || 'compass'} size={20} strokeWidth={2.25} />
             </span>
             <span className="add-task-header-text">
