@@ -14,7 +14,6 @@ import {
   LifeAreaNode,
   LIFE_AREA_ICON_GROUPS,
   DEFAULT_LIFE_AREA_COLOR,
-  hexToSoftBg,
   buildLifeAreaTree,
   flattenLifeAreaTree,
   getLifeAreaDescendantIds,
@@ -64,15 +63,15 @@ function AreaAvatar({
       </span>
     );
   }
-  // اللون بيتحط على الأيقونة نفسها بس — شكل الأفتار فضل محايد (خلفية
-  // فاتحة جدًا من نفس اللون بنسبة شفافية بسيطة، عشان الأيقونة تفضل
-  // واضحة ومتباينة) بدل ما يتلوّن الشكل بالكامل بتدرج قوي.
+  // رجّعنا اللون لخلفية الأفتار زي الأول — بس بلون واحد صافي (solid) هو
+  // نفسه اللون المحدد بالظبط، من غير تدرّج (gradient) أو تفتيح/تغميق
+  // (كان hexToGradient بيولّد تدرّج من درجتين مختلفتين من نفس اللون).
   return (
     <span
       className="life-area-avatar"
-      style={{ width: size, height: size, borderRadius: size / 3.2, background: hexToSoftBg(color, 0.16) }}
+      style={{ width: size, height: size, borderRadius: size / 3.2, background: color }}
     >
-      <DynamicIcon name={icon || 'tag'} size={iconSize} className="life-area-avatar-icon" style={{ color }} />
+      <DynamicIcon name={icon || 'tag'} size={iconSize} className="life-area-avatar-icon" />
     </span>
   );
 }

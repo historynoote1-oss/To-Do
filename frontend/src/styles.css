@@ -5101,6 +5101,7 @@ li input[type='checkbox'] {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 10;
+  min-height: 150px;
   border-radius: var(--radius-sm);
   cursor: crosshair;
   touch-action: none;
