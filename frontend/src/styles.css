@@ -5293,6 +5293,86 @@ li input[type='checkbox'] {
 }
 
 /* =========================================================================
+   شريط أدوات مجالات الحياة — زرار "مجال حياة جديد" الصغير اللي بيفتح
+   الويزارد، بدل النموذج الطويل القديم اللي كان مفروض على الصفحة.
+   ========================================================================= */
+
+.life-area-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 4px 0 16px;
+}
+
+.life-area-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: linear-gradient(135deg, var(--accent, #7c3aed), var(--accent-2, #6d28d9));
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.life-area-new-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift);
+}
+
+.life-area-new-btn:active {
+  transform: translateY(0);
+}
+
+/* =========================================================================
+   شبكة كروت مجالات الحياة — كل مجال جذري بقى "كارت" مستقل بحدود وظل،
+   وأي مجالات فرعية تحته بتتعرض جوه نفس الكارت (شجرة مصغّرة داخلية) بدل
+   قائمة مسطّحة طويلة. الشبكة بترتب الكروت تلقائيًا حسب عرض الشاشة.
+   ========================================================================= */
+
+.life-area-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.life-area-card {
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid color-mix(in srgb, var(--area-color, var(--accent, #7c3aed)) 22%, transparent);
+  box-shadow: var(--shadow-sm);
+  padding: 14px;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  /* شريط لوني رفيع أعلى الكارت بلون المجال — بيدّي هوية بصرية سريعة لكل
+     كارت من غير ما نلوّن الخلفية كلها. */
+  border-top: 3px solid var(--area-color, var(--accent, #7c3aed));
+}
+
+.life-area-card:hover {
+  box-shadow: var(--shadow-lift);
+}
+
+.life-area-card > .life-area-node-wrap {
+  gap: 4px;
+}
+
+.life-area-card .life-area-node-children {
+  margin-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .life-area-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================================
    شجرة مجالات الحياة الهرمية (Life Area Tree)
    ========================================================================= */
 
@@ -7358,6 +7438,133 @@ body.modal-lock-scroll {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* =========================================================================
+   ويزارد إنشاء مجال الحياة (LifeAreaWizard) — عناصر خاصة بيه فوق شكل
+   الويزارد العام (add-task-modal/wizard-steps) المشترك مع ويزارد المهام.
+   ========================================================================= */
+
+/* ---- خطوة المجالات الفرعية: صف الإدخال + زرار الإضافة ---- */
+.life-area-wizard-sub-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.life-area-wizard-sub-input-row .add-task-title-input {
+  flex: 1;
+}
+
+.life-area-wizard-sub-input-row button.small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ---- قائمة المجالات الفرعية المضافة (خطوة الفرعيين + خطوة المراجعة) ---- */
+.life-area-wizard-sub-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.life-area-wizard-sub-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.life-area-wizard-sub-chip span {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.life-area-wizard-sub-chip .icon-btn {
+  flex-shrink: 0;
+}
+
+.life-area-wizard-sub-chip.is-review {
+  background: transparent;
+  border: 1px solid var(--border-soft);
+}
+
+/* ---- خطوة الشكل واللون: معاينة حية كبيرة فوق منتقي اللون/الأيقونة،
+   بتتحدث فورًا مع أي تغيير في اللون أو الأيقونة عشان المستخدم يشوف
+   الشكل النهائي قبل ما يكمل. ---- */
+.life-area-wizard-live-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 12px;
+  margin-bottom: 16px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.life-area-wizard-live-preview > strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.life-area-wizard-live-subs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.life-area-wizard-live-sub-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ---- خطوة المراجعة: المجال الرئيسي كصف بارز فوق قائمة الفروع ---- */
+.life-area-wizard-review-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px 16px;
+}
+
+.life-area-wizard-review-main > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.life-area-wizard-review-main strong {
+  font-size: 16px;
+  color: var(--text);
+}
+
+/* ---- عرض أعرض شوية للويزارد نفسه عشان قائمة الفروع تفضل مريحة ---- */
+.life-area-wizard-modal {
+  max-width: 460px;
 }
 
 /* ----- إضاءة مؤقتة لمهمة اتوصّل لها من بطاقات الإحصائيات ----- */

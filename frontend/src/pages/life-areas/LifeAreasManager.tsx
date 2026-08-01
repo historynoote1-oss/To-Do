@@ -12,7 +12,6 @@ import {
 import {
   LifeAreaData,
   LifeAreaNode,
-  LIFE_AREA_ICON_GROUPS,
   DEFAULT_LIFE_AREA_COLOR,
   buildLifeAreaTree,
   flattenLifeAreaTree,
@@ -24,6 +23,8 @@ import { sounds } from '@/services/audio/sounds';
 import ConfirmModal from '@/components/common/ConfirmModal';
 import BackButton from '@/components/layout/BackButton';
 import { ColorPicker } from '@/components/common/ColorPicker';
+import { AreaAvatar, IconGroups } from '@/pages/life-areas/LifeAreaShared';
+import LifeAreaWizard from '@/pages/life-areas/LifeAreaWizard';
 
 const ALLOWED_ICON_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_ICON_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -36,80 +37,12 @@ interface AreaFormState {
 
 const EMPTY_FORM: AreaFormState = { name: '', color: DEFAULT_LIFE_AREA_COLOR, icon: '' };
 
-// شارة معاينة (Avatar) موحّدة — نفس فلسفة AreaGlyph في LifeArea.tsx، لكن
-// بمقاس أكبر ومرن (px) عشان تتستخدم في نموذج الإنشاء/التعديل كمعاينة حية
-// وفي صف المجال في الشجرة. لو فيه صورة بتتعرض هي، ولو أيقونة بس بتتحط
-// جوه دائرة بتدرج لوني متولّد من لون المجال.
-function AreaAvatar({
-  color,
-  icon,
-  imageUrl,
-  size = 44,
-  iconSize = 20,
-}: {
-  color: string;
-  icon: string | null | undefined;
-  imageUrl?: string | null;
-  size?: number;
-  iconSize?: number;
-}) {
-  if (imageUrl) {
-    return (
-      <span
-        className="life-area-avatar life-area-avatar-img"
-        style={{ width: size, height: size, borderRadius: size / 3.2 }}
-      >
-        <img src={imageUrl} alt="" />
-      </span>
-    );
-  }
-  // رجّعنا اللون لخلفية الأفتار زي الأول — بس بلون واحد صافي (solid) هو
-  // نفسه اللون المحدد بالظبط، من غير تدرّج (gradient) أو تفتيح/تغميق
-  // (كان hexToGradient بيولّد تدرّج من درجتين مختلفتين من نفس اللون).
-  return (
-    <span
-      className="life-area-avatar"
-      style={{ width: size, height: size, borderRadius: size / 3.2, background: color }}
-    >
-      <DynamicIcon name={icon || 'tag'} size={iconSize} className="life-area-avatar-icon" />
-    </span>
-  );
-}
-
-// ملحوظة: شبكة الألوان الجاهزة (Predefined Swatches) القديمة اتشالت
-// بالكامل — اختيار اللون بقى حصريًا عبر ColorPicker (مكوّن منفصل في
-// components/common/ColorPicker.tsx) اللي بيوفّر مربّع تشبّع/سطوع + شريط
-// hue + إدخال HEX مباشر، بفلسفة شبيهة بـ Figma/Photoshop.
-
-// ===== شبكة الأيقونات — مقسّمة لأقسام عشان تتعرض كـ"اقتراحات" مبوّبة
-// حسب جانب الحياة بدل قائمة طويلة عشوائية. معرّفة برا الكومبوننت الرئيسي
-// عشان تحتفظ بهويتها بين كل render (لو اتعرّفت جوه، ريأكت كان هيعمل
-// remount كامل ليها كل مرة). =====
-export function IconGroups({ value, onSelect }: { value: string; onSelect: (icon: string) => void }) {
-  return (
-    <div className="life-area-icon-groups">
-      {LIFE_AREA_ICON_GROUPS.map((group) => (
-        <div key={group.label} className="life-area-icon-group">
-          <span className="life-area-group-label">{group.label}</span>
-          <div className="life-area-icon-grid">
-            {group.icons.map((icon) => (
-              <button
-                key={icon}
-                type="button"
-                className={`life-area-icon-choice ${value === icon ? 'selected' : ''}`}
-                onClick={() => onSelect(icon)}
-                aria-label={`اختيار الأيقونة ${icon}`}
-                title={icon}
-              >
-                <DynamicIcon name={icon} size={18} />
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// ملحوظة: AreaAvatar وIconGroups اتنقلوا لملف مشترك (LifeAreaShared.tsx)
+// عشان يقدر يستخدمهم ويزارد الإنشاء خطوة-بخطوة (LifeAreaWizard.tsx) من
+// غير استيراد دائري مع الملف ده — بيتصدّروا هنا تاني (re-export) عشان أي
+// كود قديم بيستوردهم من هنا (زي QuickCreateLifeArea.tsx) يفضل شغال من
+// غير تعديل.
+export { AreaAvatar, IconGroups };
 
 // ===== منتقي "مجال الأب" — قائمة مسطّحة من الشجرة بمسافة بادئة تعكس
 // العمق، بتستثني المجال نفسه وكل أحفاده (منطقيًا مينفعش يبقى تابع
@@ -159,17 +92,13 @@ export default function LifeAreasManager({
 }) {
   const [loading, setLoading] = useState(true);
   const [areas, setAreas] = useState<LifeAreaData[]>([]);
-  const [createForm, setCreateForm] = useState<AreaFormState>(EMPTY_FORM);
-  const [createParentId, setCreateParentId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
 
-  // ملف الصورة اللي المستخدم اختاره أثناء تعبئة نموذج الإنشاء — لسه معندناش
-  // ID للمجال (لسه ملتاسّسش)، فبنحتفظ بالملف محليًا ونعاينه، وبعد ما
-  // المجال يتنشئ فعليًا بنرفعه فورًا في نفس عملية الإنشاء (نقرة واحدة من
-  // وجهة نظر المستخدم = "اختار صورة قبل إنشاء المجال").
-  const [createImageFile, setCreateImageFile] = useState<File | null>(null);
-  const [createImagePreview, setCreateImagePreview] = useState<string | null>(null);
-  const createFileInputRef = useRef<HTMLInputElement | null>(null);
+  // ===== إنشاء مجال حياة رئيسي جديد =====
+  // النموذج الطويل القديم (اسم + مكان + لون + أيقونة + صورة كلهم في نفس
+  // الشاشة) اتشال بالكامل — دلوقتي بس زرار صغير بيفتح ويزارد خطوة-بخطوة
+  // (LifeAreaWizard.tsx): اسم → مجالات فرعية → لون/أيقونة مع معاينة حية →
+  // مراجعة وإنشاء. باقي الصفحة بقت مساحة كاملة لعرض كروت المجالات.
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<AreaFormState>(EMPTY_FORM);
@@ -205,15 +134,6 @@ export default function LifeAreasManager({
 
   useEffect(() => {
     load();
-  }, []);
-
-  // بتنضّف الـ object URL بتاع معاينة الصورة عند الخروج من الصفحة، عشان
-  // منسبّبش تسريب ذاكرة (memory leak) في المتصفح.
-  useEffect(() => {
-    return () => {
-      if (createImagePreview) URL.revokeObjectURL(createImagePreview);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function load() {
@@ -252,67 +172,19 @@ export default function LifeAreasManager({
     return null;
   }
 
-  function handlePickCreateImage() {
-    createFileInputRef.current?.click();
-  }
-
-  function handleCreateImageSelected(file: File | undefined) {
-    if (!file) return;
-    const error = validateImageFile(file);
-    if (error) {
-      toast.error(error);
-      return;
-    }
-    if (createImagePreview) URL.revokeObjectURL(createImagePreview);
-    setCreateImageFile(file);
-    setCreateImagePreview(URL.createObjectURL(file));
-  }
-
-  function handleClearCreateImage() {
-    if (createImagePreview) URL.revokeObjectURL(createImagePreview);
-    setCreateImageFile(null);
-    setCreateImagePreview(null);
-    if (createFileInputRef.current) createFileInputRef.current.value = '';
-  }
-
-  async function handleCreate() {
-    const name = createForm.name.trim();
-    if (!name) {
-      toast.error('لازم تكتب اسم للمجال الأول');
-      return;
-    }
-    setCreating(true);
-    try {
-      let area = await createLifeArea({
-        name,
-        color: createForm.color,
-        icon: createForm.icon || null,
-        parentId: createParentId,
-      });
-      // لو المستخدم اختار صورة قبل الإنشاء، بنرفعها فورًا بعد ما المجال
-      // يتنشئ — من وجهة نظر المستخدم دي خطوة واحدة (اختيار + إنشاء).
-      if (createImageFile) {
-        try {
-          area = await uploadLifeAreaIcon(area.id, createImageFile);
-        } catch (uploadErr) {
-          toast.error(uploadErr instanceof Error ? uploadErr.message : 'اتنشأ المجال لكن تعذّر رفع الصورة');
-        }
-      }
-      setAreas((prev) => [...prev, area]);
-      setExpanded((prev) => new Set(prev).add(area.id));
-      if (area.parentId) setExpanded((prev) => new Set(prev).add(area.parentId as string));
-      setCreateForm(EMPTY_FORM);
-      setCreateParentId(null);
-      handleClearCreateImage();
-      sounds.addItem();
-      toast.success(`اتضاف مجال "${name}"`);
-      notifyChanged();
-    } catch (err) {
-      sounds.error();
-      toast.error(err instanceof Error ? err.message : 'تعذّر إنشاء المجال');
-    } finally {
-      setCreating(false);
-    }
+  // بينادى بعد ما الويزارد (LifeAreaWizard) يخلّص إنشاء المجال الرئيسي +
+  // كل فروعه بنجاح — بيحدّث القائمة المحلية على طول (من غير إعادة تحميل
+  // كاملة)، بيوسّع المجال الجديد وأبوه تلقائيًا عشان يبانوا في الشجرة/الكارت
+  // على طول، ويبلّغ الشاشة الأب (App) إن فيه تغيير.
+  function handleWizardCreated(main: LifeAreaData, subs: LifeAreaData[]) {
+    setAreas((prev) => [...prev, main, ...subs]);
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.add(main.id);
+      for (const s of subs) next.add(s.id);
+      return next;
+    });
+    notifyChanged();
   }
 
   function openSubCreate(parentId: string) {
@@ -809,86 +681,17 @@ export default function LifeAreasManager({
         </div>
       </div>
 
-      {/* ===== نموذج إنشاء مجال جديد ===== */}
-      <div className="admin-panel profile-section life-area-create-panel">
-        <h2>
-          <DynamicIcon name="plus" size={18} /> مجال جديد
-        </h2>
-
-        <div className="life-area-create-layout">
-          <div className="life-area-create-preview-col">
-            <button
-              type="button"
-              className="life-area-avatar-picker"
-              onClick={handlePickCreateImage}
-              disabled={creating}
-              title="اضغط لاختيار صورة مخصصة"
-            >
-              <AreaAvatar
-                color={createForm.color}
-                icon={createForm.icon || 'tag'}
-                imageUrl={createImagePreview}
-                size={64}
-                iconSize={26}
-              />
-              <span className="life-area-avatar-picker-badge">
-                <DynamicIcon name="camera" size={12} />
-              </span>
-            </button>
-            <input
-              ref={createFileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              hidden
-              onChange={(e) => handleCreateImageSelected(e.target.files?.[0])}
-            />
-            {createImagePreview ? (
-              <button type="button" className="small danger life-area-avatar-clear" onClick={handleClearCreateImage}>
-                إزالة الصورة
-              </button>
-            ) : (
-              <span className="modal-hint life-area-avatar-hint">اختياري: صورة بدل الأيقونة</span>
-            )}
-          </div>
-
-          <div className="life-area-create-fields">
-            <div className="settings-field">
-              <label>اسم المجال</label>
-              <input
-                value={createForm.name}
-                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="مثلاً: الصحة واللياقة"
-                maxLength={40}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              />
-            </div>
-            <div className="settings-field">
-              <label>
-                مكان المجال <span className="modal-hint">(اختياري: اجعله فرعيًا تحت مجال موجود)</span>
-              </label>
-              <ParentPicker areas={areas} value={createParentId} onChange={setCreateParentId} />
-            </div>
-            <div className="settings-field">
-              <label>اللون</label>
-              <ColorPicker value={createForm.color} onChange={(color) => setCreateForm((f) => ({ ...f, color }))} />
-            </div>
-            <div className="settings-field">
-              <label>الأيقونة {createImagePreview && <span className="modal-hint">(هتتستخدم الصورة اللي اخترتها بدلها)</span>}</label>
-              <IconGroups value={createForm.icon} onSelect={(icon) => setCreateForm((f) => ({ ...f, icon }))} />
-            </div>
-          </div>
-        </div>
-
-        <div className="modal-actions">
-          <button onClick={handleCreate} disabled={creating || !createForm.name.trim()} type="button">
-            {creating ? 'جاري الإنشاء...' : createParentId ? 'إنشاء المجال الفرعي' : 'إنشاء المجال'}
-          </button>
-        </div>
+      {/* ===== زرار صغير بس لإنشاء مجال جديد — بيفتح الويزارد خطوة-بخطوة.
+          باقي الصفحة بقت مخصصة بالكامل لعرض كروت مجالات الحياة. ===== */}
+      <div className="life-area-toolbar">
+        <button type="button" className="life-area-new-btn" onClick={() => setWizardOpen(true)}>
+          <DynamicIcon name="plus" size={16} /> مجال حياة جديد
+        </button>
       </div>
 
-      {/* ===== شجرة المجالات الحالية ===== */}
+      {/* ===== كروت مجالات الحياة ===== */}
       {loading && (
-        <div className="lists-grid">
+        <div className="life-area-cards-grid">
           <div className="skeleton skeleton-card" />
           <div className="skeleton skeleton-card" />
         </div>
@@ -897,11 +700,21 @@ export default function LifeAreasManager({
       {!loading && areas.length === 0 && (
         <p className="empty">
           <DynamicIcon name="compass" size={32} className="empty-icon" />
-          لسه مفيش مجالات حياة، ابدأ بإنشاء أول مجال فوق
+          لسه مفيش مجالات حياة، ابدأ بإنشاء أول مجال من الزرار فوق
         </p>
       )}
 
-      {!loading && areas.length > 0 && <div className="life-area-tree">{tree.map((node) => renderNode(node))}</div>}
+      {!loading && areas.length > 0 && (
+        <div className="life-area-cards-grid">
+          {tree.map((node) => (
+            <div key={node.id} className="life-area-card" style={{ ['--area-color' as any]: node.color }}>
+              {renderNode(node)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <LifeAreaWizard open={wizardOpen} onClose={() => setWizardOpen(false)} onCreated={handleWizardCreated} />
 
       {confirmDeleteArea && (
         <ConfirmModal
