@@ -9,6 +9,7 @@
   "scripts": {
     "build": "prisma generate && tsc",
     "start": "prisma db push --accept-data-loss --skip-generate && node dist/index.js",
+    "predev": "prisma db push --accept-data-loss --skip-generate",
     "dev": "tsx watch src/index.ts",
     "postinstall": "prisma generate",
     "make-admin": "node dist/scripts/makeAdmin.js",

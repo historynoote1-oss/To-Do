@@ -165,6 +165,9 @@ import {
   Table2,
   Columns3,
   GripVertical,
+  Sigma,
+  Filter,
+  ArrowUpDown,
 } from 'lucide-react';
 
 // أيقونة القلب (زرار "إضافة للمفضّلة") متعمولة كـ SVG مكتوب يدويًا هنا، مش
@@ -382,6 +385,9 @@ export const ICON_MAP = {
   table: Table2,
   'columns-3': Columns3,
   'grip-vertical': GripVertical,
+  sigma: Sigma,
+  filter: Filter,
+  'arrow-up-down': ArrowUpDown,
 } satisfies Record<string, IconComponent>;
 
 export type IconKey = keyof typeof ICON_MAP;

@@ -224,9 +224,42 @@ model CustomDatabase {
   // خصائص Relation (من أي قاعدة، حتى من نفسها) اللي بتستهدف القاعدة دي —
   // reverse side بس، مفيش حاجة بتتخزن هنا مباشرة.
   incomingRelationProperties DatabaseProperty[] @relation("DatabaseRelationTarget")
+  savedViews                 DatabaseSavedView[]
 
   @@index([userId])
   @@index([userId, lifeAreaId])
+}
+
+// ===== المرحلة 5: Views متعددة محفوظة =====
+// بدل ما القاعدة تبقى ليها "عرض واحد" بس (viewType/boardGroupById فوق)،
+// دلوقتي ممكن يبقى ليها أي عدد من الـ Views المسمّاة (زي Notion): أكتر من
+// Table view بفلاتر مختلفة، Board views بتجميع مختلف، أو Calendar view.
+// boardGroupById/calendarDateById هنا IDs حرة (مش foreign key) عن قصد —
+// لو الخاصية المرتبطة اتحذفت، الـ View بترجع تتعامل معاها كـ "مش متحددة"
+// من غير ما تحتاج نتعامل مع Cascade/SetNull معقّدة.
+model DatabaseSavedView {
+  id         String         @id @default(cuid())
+  databaseId String
+  database   CustomDatabase @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+
+  name String
+  type String @default("table") // table | board | calendar
+
+  boardGroupById   String?
+  calendarDateById String?
+
+  // فلاتر وترتيب الجدول: مصفوفة JSON حرة الشكل، بيتقرأها ويطبّقها الفرونت
+  // إند بس (مفيش حاجة منها بتتفلتر في السيرفر) — عشان تبسيط، وعشان كل
+  // صفوف القاعدة أصلاً بترجع كاملة من /:id.
+  filters Json?
+  sorts   Json?
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([databaseId])
+  @@index([databaseId, position])
 }
 
 // أنواع الخصائص المدعومة في المرحلة 1 — نص، رقم، اختيار واحد، اختيار
@@ -240,6 +273,11 @@ enum DatabasePropertyType {
   date
   checkbox
   relation
+  // ===== المرحلة 5: Rollup — خاصية محسوبة تلقائيًا من صفوف مرتبطة عبر خاصية
+  // relation (عدد/مجموع/متوسط/أقل/أكبر/عرض القيم). إعداداتها (أي خاصية
+  // relation، أي خاصية هدف، ونوع التجميع) متخزنة في options زي أي خاصية
+  // تانية — القيمة نفسها بتتحسب وقت القراءة بس ومتتخزنش في DatabaseRowValue.
+  rollup
 }
 
 // عمود/خاصية في قاعدة بيانات — بيوصف *شكل* البيانات بس، مش قيمها (القيم

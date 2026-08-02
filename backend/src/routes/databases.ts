@@ -9,9 +9,40 @@ const MAX_NAME_LEN = 60;
 const MAX_PROPERTY_NAME_LEN = 40;
 const MAX_OPTION_LEN = 30;
 const MAX_SELECT_OPTIONS = 30;
-const PROPERTY_TYPES = ['text', 'number', 'select', 'multiSelect', 'date', 'checkbox', 'relation'] as const;
+const PROPERTY_TYPES = ['text', 'number', 'select', 'multiSelect', 'date', 'checkbox', 'relation', 'rollup'] as const;
 type PropertyType = (typeof PROPERTY_TYPES)[number];
 const MAX_RELATION_VALUES = 200;
+
+// ===== المرحلة 5: Rollup =====
+const ROLLUP_AGGREGATIONS = ['count', 'sum', 'average', 'min', 'max', 'showValues'] as const;
+type RollupAggregation = (typeof ROLLUP_AGGREGATIONS)[number];
+interface RollupConfig {
+  relationPropertyId: string;
+  targetPropertyId: string | null;
+  aggregation: RollupAggregation;
+}
+
+function validateRollupConfig(raw: unknown, ownProperties: { id: string; type: string; relatedDatabaseId?: string | null }[]): RollupConfig {
+  const body = (raw && typeof raw === 'object' ? raw : {}) as any;
+  const relationPropertyId = typeof body.relationPropertyId === 'string' ? body.relationPropertyId : '';
+  const relationProperty = ownProperties.find((p) => p.id === relationPropertyId);
+  if (!relationProperty || relationProperty.type !== 'relation') {
+    throw new Error('لازم تختار خاصية ربط (relation) موجودة في نفس القاعدة');
+  }
+  const aggregation = typeof body.aggregation === 'string' && ROLLUP_AGGREGATIONS.includes(body.aggregation as RollupAggregation)
+    ? (body.aggregation as RollupAggregation)
+    : 'count';
+  let targetPropertyId: string | null = null;
+  if (aggregation !== 'count') {
+    targetPropertyId = typeof body.targetPropertyId === 'string' ? body.targetPropertyId : '';
+    if (!targetPropertyId) throw new Error('لازم تختار الخاصية اللي هيتم التجميع عليها من القاعدة المرتبطة');
+  }
+  return { relationPropertyId, targetPropertyId, aggregation };
+}
+
+// ===== المرحلة 5: Views متعددة محفوظة =====
+const VIEW_TYPES = ['table', 'board', 'calendar'] as const;
+type SavedViewType = (typeof VIEW_TYPES)[number];
 
 // ===== تحقق من صحة اسم (قاعدة بيانات أو خاصية) =====
 function validateName(value: unknown, maxLen: number, label: string): string {
@@ -108,6 +139,10 @@ function normalizeValue(type: PropertyType, options: SelectOption[] | undefined,
       }
       return Array.from(new Set(raw as string[]));
     }
+    case 'rollup':
+      // قيمة الـ rollup بتتحسب تلقائيًا وقت القراءة، مينفعش المستخدم يعدّلها
+      // يدوي زي باقي الخصائص.
+      throw new Error('قيمة خاصية الـ Rollup بتتحسب تلقائيًا، مينفعش تتعدّل يدوي');
     default:
       throw new Error('نوع خاصية غير معروف');
   }
@@ -155,7 +190,8 @@ function serializeDatabase(db: any) {
         id: p.id,
         name: p.name,
         type: p.type,
-        options: p.options ?? [],
+        options: p.type === 'rollup' ? [] : (p.options ?? []),
+        rollupConfig: p.type === 'rollup' ? (p.options ?? null) : null,
         position: p.position,
         relatedDatabaseId: p.relatedDatabaseId ?? null,
         relatedDatabaseName: p.relatedDatabase?.name ?? null,
@@ -165,12 +201,47 @@ function serializeDatabase(db: any) {
   };
 }
 
+function serializeSavedView(v: any) {
+  return {
+    id: v.id,
+    name: v.name,
+    type: v.type === 'board' || v.type === 'calendar' ? v.type : 'table',
+    boardGroupById: v.boardGroupById ?? null,
+    calendarDateById: v.calendarDateById ?? null,
+    filters: Array.isArray(v.filters) ? v.filters : [],
+    sorts: Array.isArray(v.sorts) ? v.sorts : [],
+    position: v.position,
+  };
+}
+
+// ===== المرحلة 5: لو القاعدة لسه معندهاش أي Saved Views (قواعد قديمة قبل
+// إضافة الميزة)، بننشئ view افتراضي واحد ليها ماخوذ من viewType/boardGroupById
+// القديمين (لو موجودين)، عشان الانتقال يبقى شفاف من غير أي حاجة تتكسر. =====
+async function ensureDefaultView(db: { id: string; viewType: string; boardGroupById: string | null }) {
+  const existing = await prisma.databaseSavedView.findMany({ where: { databaseId: db.id }, orderBy: { position: 'asc' } });
+  if (existing.length > 0) return existing;
+  const created = await prisma.databaseSavedView.create({
+    data: {
+      databaseId: db.id,
+      name: db.viewType === 'board' ? 'كانبان' : 'الجدول الرئيسي',
+      type: db.viewType === 'board' ? 'board' : 'table',
+      boardGroupById: db.boardGroupById ?? null,
+      position: 0,
+    },
+  });
+  return [created];
+}
+
 function serializeProperty(p: any) {
   return {
     id: p.id,
     name: p.name,
     type: p.type,
-    options: p.options ?? [],
+    // لخصائص select/multiSelect دي مصفوفة خيارات؛ لخصائص rollup دي إعدادات
+    // التجميع ({ relationPropertyId, targetPropertyId, aggregation })؛ لأي
+    // نوع تاني بترجع مصفوفة فاضية.
+    options: p.type === 'rollup' ? [] : (p.options ?? []),
+    rollupConfig: p.type === 'rollup' ? (p.options ?? null) : null,
     position: p.position,
     relatedDatabaseId: p.relatedDatabaseId ?? null,
     relatedDatabaseName: p.relatedDatabase?.name ?? null,
@@ -179,10 +250,21 @@ function serializeProperty(p: any) {
   };
 }
 
-function serializeRow(row: any, properties?: any[]) {
+function serializeRow(
+  row: any,
+  properties?: any[],
+  computedRollups?: Record<string, any>,
+  reverseRelations?: any[]
+) {
   const values: Record<string, unknown> = {};
   for (const v of row.values ?? []) {
     values[v.propertyId] = v.value;
+  }
+  // قيم الـ rollup محسوبة، مش متخزنة — بتتدمج فوق أي قيمة قديمة اتخزنت غلط
+  if (computedRollups) {
+    for (const [propertyId, value] of Object.entries(computedRollups)) {
+      values[propertyId] = value;
+    }
   }
   const linkedTask = row.linkedTodoList
     ? {
@@ -196,7 +278,16 @@ function serializeRow(row: any, properties?: any[]) {
   // (زي خاصية relation في قاعدة تانية) يقدر يعرض اسم مفهوم للصف من غير ما
   // يحتاج يجيب كل الخصائص بنفسه ويعيد نفس الحساب.
   const label = properties ? deriveRowTitle(properties, row) : undefined;
-  return { id: row.id, position: row.position, createdAt: row.createdAt, updatedAt: row.updatedAt, values, linkedTask, label };
+  return {
+    id: row.id,
+    position: row.position,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    values,
+    linkedTask,
+    label,
+    reverseRelations: reverseRelations ?? [],
+  };
 }
 
 const LINKED_TASK_INCLUDE = {
@@ -237,6 +328,115 @@ function deriveRowTitle(properties: any[], row: any): string {
     }
   }
   return 'صف بدون عنوان';
+}
+
+// ===== المرحلة 5: بتحسب قيم كل خصائص الـ rollup لمجموعة صفوف. القيمة
+// المحسوبة بترجع في خريطة rowId -> { propertyId: computedValue } عشان
+// serializeRow يقدر يدمجها فوق القيم العادية بدون ما تتخزن في القاعدة. =====
+async function computeRollups(properties: any[], rows: { id: string; values: { propertyId: string; value: any }[] }[]) {
+  const result = new Map<string, Record<string, any>>(rows.map((r) => [r.id, {}]));
+  const rollupProps = properties.filter((p) => p.type === 'rollup');
+  if (rollupProps.length === 0 || rows.length === 0) return result;
+
+  for (const prop of rollupProps) {
+    const config = (prop.options ?? {}) as Partial<RollupConfig>;
+    const relationProperty = properties.find((p) => p.id === config.relationPropertyId);
+    if (!relationProperty || relationProperty.type !== 'relation') continue;
+    const aggregation: RollupAggregation = (config.aggregation as RollupAggregation) ?? 'count';
+
+    const relationIdsByRow = new Map<string, string[]>();
+    const neededIds = new Set<string>();
+    for (const row of rows) {
+      const v = row.values.find((vv) => vv.propertyId === relationProperty.id);
+      const ids = Array.isArray(v?.value) ? (v!.value as string[]) : [];
+      relationIdsByRow.set(row.id, ids);
+      ids.forEach((id) => neededIds.add(id));
+    }
+
+    let targetValueById = new Map<string, any>();
+    if (aggregation !== 'count' && config.targetPropertyId && neededIds.size > 0) {
+      const values = await prisma.databaseRowValue.findMany({
+        where: { propertyId: config.targetPropertyId, rowId: { in: Array.from(neededIds) } },
+      });
+      targetValueById = new Map(values.map((v) => [v.rowId, v.value]));
+    }
+
+    for (const row of rows) {
+      const ids = relationIdsByRow.get(row.id) ?? [];
+      let computed: any;
+      if (aggregation === 'count') {
+        computed = ids.length;
+      } else {
+        const rawValues = ids.map((id) => targetValueById.get(id)).filter((v) => v !== undefined && v !== null);
+        if (aggregation === 'showValues') {
+          computed = rawValues;
+        } else {
+          const nums = rawValues.map((v) => Number(v)).filter((n) => !Number.isNaN(n));
+          if (aggregation === 'sum') computed = nums.reduce((a, b) => a + b, 0);
+          else if (aggregation === 'average') computed = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+          else if (aggregation === 'min') computed = nums.length ? Math.min(...nums) : null;
+          else if (aggregation === 'max') computed = nums.length ? Math.max(...nums) : null;
+          else computed = null;
+        }
+      }
+      result.get(row.id)![prop.id] = computed;
+    }
+  }
+  return result;
+}
+
+// ===== المرحلة 5: الربط ثنائي الاتجاه — بتحسب لكل صف مين "بيشاور عليه" من
+// قواعد بيانات تانية (أو من نفس القاعدة) عن طريق خاصية relation مستهدفاه.
+// النتيجة للعرض بس (read-only)، القيمة الحقيقية متخزنة في القاعدة المصدر. =====
+async function computeReverseRelations(databaseId: string, rowIds: string[]) {
+  const result = new Map<string, any[]>(rowIds.map((id) => [id, []]));
+  if (rowIds.length === 0) return { descriptors: [] as any[], byRow: result };
+
+  const incomingProperties = await prisma.databaseProperty.findMany({
+    where: { relatedDatabaseId: databaseId, type: 'relation' },
+    include: {
+      database: { select: { id: true, name: true, icon: true, color: true, properties: { orderBy: { position: 'asc' } } } },
+    },
+  });
+  if (incomingProperties.length === 0) return { descriptors: [] as any[], byRow: result };
+
+  const descriptors = incomingProperties.map((p) => ({
+    propertyId: p.id,
+    propertyName: p.name,
+    sourceDatabaseId: p.database.id,
+    sourceDatabaseName: p.database.name,
+    sourceDatabaseIcon: p.database.icon,
+    sourceDatabaseColor: p.database.color,
+  }));
+
+  const rowIdSet = new Set(rowIds);
+  for (const prop of incomingProperties) {
+    const values = await prisma.databaseRowValue.findMany({
+      where: { propertyId: prop.id },
+      include: { row: { include: { values: true } } },
+    });
+    for (const v of values) {
+      const arr = Array.isArray(v.value) ? (v.value as string[]) : [];
+      for (const targetRowId of arr) {
+        if (!rowIdSet.has(targetRowId)) continue;
+        const label = deriveRowTitle(prop.database.properties, v.row);
+        const bucket = result.get(targetRowId)!;
+        let entry = bucket.find((e: any) => e.propertyId === prop.id);
+        if (!entry) {
+          entry = {
+            propertyId: prop.id,
+            propertyName: prop.name,
+            sourceDatabaseId: prop.database.id,
+            sourceDatabaseName: prop.database.name,
+            rows: [],
+          };
+          bucket.push(entry);
+        }
+        entry.rows.push({ id: v.row.id, label });
+      }
+    }
+  }
+  return { descriptors, byRow: result };
 }
 
 // ===== قائمة كل قواعد البيانات بتاعة المستخدم (مع خصائصها) =====
@@ -296,7 +496,19 @@ router.get('/:id', async (req: AuthRequest, res) => {
     },
   });
   if (!db) return res.status(404).json({ error: 'القاعدة غير موجودة' });
-  res.json({ ...serializeDatabase(db), rows: db.rows.map((row) => serializeRow(row, db.properties)) });
+
+  const [rollupsByRow, reverse, views] = await Promise.all([
+    computeRollups(db.properties, db.rows),
+    computeReverseRelations(db.id, db.rows.map((r) => r.id)),
+    ensureDefaultView(db),
+  ]);
+
+  res.json({
+    ...serializeDatabase(db),
+    rows: db.rows.map((row) => serializeRow(row, db.properties, rollupsByRow.get(row.id), reverse.byRow.get(row.id))),
+    reverseRelationDescriptors: reverse.descriptors,
+    views: views.map(serializeSavedView),
+  });
 });
 
 // ===== تعديل اسم/أيقونة/لون/مجال حياة قاعدة بيانات، أو تبديل نوع العرض
@@ -369,7 +581,10 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 
 // ===== إضافة خاصية (عمود) جديدة لقاعدة بيانات =====
 router.post('/:id/properties', async (req: AuthRequest, res) => {
-  const db = await prisma.customDatabase.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  const db = await prisma.customDatabase.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+    include: PROPERTIES_INCLUDE,
+  });
   if (!db) return res.status(404).json({ error: 'القاعدة غير موجودة' });
 
   let name: string;
@@ -395,6 +610,24 @@ router.post('/:id/properties', async (req: AuthRequest, res) => {
     if (!target) return res.status(400).json({ error: 'القاعدة الهدف غير موجودة ضمن قواعدك' });
   }
 
+  // ===== المرحلة 5: خاصية rollup لازم تحدد خاصية relation (من نفس القاعدة)
+  // وتجميع صحيح؛ إعداداتها بتتخزن في options زي خيارات select بالظبط =====
+  let rollupConfig: RollupConfig | undefined;
+  if (type === 'rollup') {
+    try {
+      rollupConfig = validateRollupConfig(req.body.rollupConfig, db.properties as any);
+    } catch (err) {
+      return res.status(400).json({ error: err instanceof Error ? err.message : 'إعدادات الـ Rollup غير صحيحة' });
+    }
+    if (rollupConfig.targetPropertyId) {
+      const relationProperty = db.properties.find((p) => p.id === rollupConfig!.relationPropertyId);
+      const targetProperty = await prisma.databaseProperty.findFirst({
+        where: { id: rollupConfig.targetPropertyId, databaseId: relationProperty?.relatedDatabaseId ?? '__none__' },
+      });
+      if (!targetProperty) return res.status(400).json({ error: 'الخاصية الهدف غير موجودة ضمن القاعدة المرتبطة' });
+    }
+  }
+
   const last = await prisma.databaseProperty.findFirst({
     where: { databaseId: db.id },
     orderBy: { position: 'desc' },
@@ -406,7 +639,7 @@ router.post('/:id/properties', async (req: AuthRequest, res) => {
       databaseId: db.id,
       name,
       type,
-      options: options ?? Prisma.JsonNull,
+      options: type === 'rollup' ? (rollupConfig as unknown as Prisma.InputJsonValue) : options ?? Prisma.JsonNull,
       position: (last?.position ?? -1) + 1,
       relatedDatabaseId,
     },
@@ -418,17 +651,24 @@ router.post('/:id/properties', async (req: AuthRequest, res) => {
 // ===== تعديل خاصية (اسمها أو خياراتها لو select/multiSelect) — نوعها
 // نفسه ثابت بعد الإنشاء، عشان تغييره ممكن يسيب قيم صفوف مش متوافقة معاه =====
 router.patch('/:id/properties/:propertyId', async (req: AuthRequest, res) => {
-  const db = await prisma.customDatabase.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  const db = await prisma.customDatabase.findFirst({ where: { id: req.params.id, userId: req.userId! }, include: PROPERTIES_INCLUDE });
   if (!db) return res.status(404).json({ error: 'القاعدة غير موجودة' });
-  const property = await prisma.databaseProperty.findFirst({ where: { id: req.params.propertyId, databaseId: db.id } });
+  const property = db.properties.find((p) => p.id === req.params.propertyId);
   if (!property) return res.status(404).json({ error: 'الخاصية غير موجودة' });
 
   let name: string | undefined;
   let options: SelectOption[] | undefined;
+  let rollupConfig: RollupConfig | undefined;
   try {
     if (req.body.name !== undefined) name = validateName(req.body.name, MAX_PROPERTY_NAME_LEN, 'اسم الخاصية');
     if (req.body.options !== undefined) {
       options = validateOptions(property.type as PropertyType, req.body.options);
+    }
+    if (property.type === 'rollup' && req.body.rollupConfig !== undefined) {
+      rollupConfig = validateRollupConfig(
+        req.body.rollupConfig,
+        db.properties.filter((p) => p.id !== property.id) as any
+      );
     }
   } catch (err) {
     return res.status(400).json({ error: err instanceof Error ? err.message : 'بيانات غير صحيحة' });
@@ -436,7 +676,10 @@ router.patch('/:id/properties/:propertyId', async (req: AuthRequest, res) => {
 
   const updated = await prisma.databaseProperty.update({
     where: { id: property.id },
-    data: { name, options: options !== undefined ? options : undefined },
+    data: {
+      name,
+      options: rollupConfig !== undefined ? (rollupConfig as unknown as Prisma.InputJsonValue) : options !== undefined ? options : undefined,
+    },
     include: { relatedDatabase: { select: { id: true, name: true, icon: true, color: true } } },
   });
   res.json(serializeProperty(updated));
@@ -508,7 +751,8 @@ router.post('/:id/rows', async (req: AuthRequest, res) => {
     },
     include: { values: true, ...LINKED_TASK_INCLUDE },
   });
-  res.json(serializeRow(row, db.properties));
+  const rollupsByRow = await computeRollups(db.properties, [row]);
+  res.json(serializeRow(row, db.properties, rollupsByRow.get(row.id)));
 });
 
 // ===== تعديل قيمة خاصية واحدة (أو أكتر) في صف — بيرسل خرائط
@@ -551,7 +795,11 @@ router.patch('/:id/rows/:rowId', async (req: AuthRequest, res) => {
   await prisma.databaseRow.update({ where: { id: row.id }, data: {} }); // بيحدّث updatedAt
 
   const updated = await prisma.databaseRow.findUnique({ where: { id: row.id }, include: { values: true, ...LINKED_TASK_INCLUDE } });
-  res.json(serializeRow(updated, db.properties));
+  const [rollupsByRow, reverse] = await Promise.all([
+    computeRollups(db.properties, [updated as any]),
+    computeReverseRelations(db.id, [row.id]),
+  ]);
+  res.json(serializeRow(updated, db.properties, rollupsByRow.get(row.id), reverse.byRow.get(row.id)));
 });
 
 // ===== حذف صف =====
@@ -605,7 +853,11 @@ router.post('/:id/rows/:rowId/convert-to-task', async (req: AuthRequest, res) =>
     data: { linkedTodoListId: task.id },
     include: { values: true, ...LINKED_TASK_INCLUDE },
   });
-  res.json(serializeRow(updated, db.properties));
+  const [rollupsByRow, reverse] = await Promise.all([
+    computeRollups(db.properties, [updated as any]),
+    computeReverseRelations(db.id, [row.id]),
+  ]);
+  res.json(serializeRow(updated, db.properties, rollupsByRow.get(row.id), reverse.byRow.get(row.id)));
 });
 
 // ===== فك ربط صف عن مهمته — المهمة نفسها بتفضل موجودة في قائمة المهام،
@@ -621,7 +873,11 @@ router.post('/:id/rows/:rowId/unlink-task', async (req: AuthRequest, res) => {
     data: { linkedTodoListId: null },
     include: { values: true, ...LINKED_TASK_INCLUDE },
   });
-  res.json(serializeRow(updated, db.properties));
+  const [rollupsByRow, reverse] = await Promise.all([
+    computeRollups(db.properties, [updated as any]),
+    computeReverseRelations(db.id, [row.id]),
+  ]);
+  res.json(serializeRow(updated, db.properties, rollupsByRow.get(row.id), reverse.byRow.get(row.id)));
 });
 
 // ===== إعادة ترتيب الصفوف =====
@@ -637,6 +893,135 @@ router.post('/:id/rows/reorder', async (req: AuthRequest, res) => {
 
   await prisma.$transaction(
     orderedIds.map((id: string, index: number) => prisma.databaseRow.update({ where: { id }, data: { position: index } }))
+  );
+  res.json({ success: true });
+});
+
+// ===================================================================
+// ===== المرحلة 5: Views متعددة محفوظة (Table/Board/Calendar) =====
+// ===================================================================
+
+const MAX_VIEW_NAME_LEN = 40;
+const MAX_VIEWS_PER_DATABASE = 20;
+
+function validateFiltersAndSorts(raw: unknown, label: string): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+  if (raw === undefined) return Prisma.JsonNull;
+  if (!Array.isArray(raw)) throw new Error(`${label} لازم تكون قائمة`);
+  if (raw.length > 20) throw new Error(`${label} كتير أوي`);
+  return raw as Prisma.InputJsonValue;
+}
+
+// ===== قائمة الـ Views المحفوظة لقاعدة (بتنشئ واحد افتراضي لو مفيش) =====
+router.get('/:id/views', async (req: AuthRequest, res) => {
+  const db = await prisma.customDatabase.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  if (!db) return res.status(404).json({ error: 'القاعدة غير موجودة' });
+  const views = await ensureDefaultView(db);
+  res.json(views.map(serializeSavedView));
+});
+
+// ===== إنشاء View جديد =====
+router.post('/:id/views', async (req: AuthRequest, res) => {
+  const db = await prisma.customDatabase.findFirst({ where: { id: req.params.id, userId: req.userId! }, include: PROPERTIES_INCLUDE });
+  if (!db) return res.status(404).json({ error: 'القاعدة غير موجودة' });
+
+  const count = await prisma.databaseSavedView.count({ where: { databaseId: db.id } });
+  if (count >= MAX_VIEWS_PER_DATABASE) return res.status(400).json({ error: `أقصى عدد Views هو ${MAX_VIEWS_PER_DATABASE}` });
+
+  let name: string;
+  try {
+    name = validateName(req.body.name, MAX_VIEW_NAME_LEN, 'اسم الـ View');
+  } catch (err) {
+    return res.status(400).json({ error: err instanceof Error ? err.message : 'بيانات غير صحيحة' });
+  }
+  const type: SavedViewType = VIEW_TYPES.includes(req.body.type) ? req.body.type : 'table';
+
+  const last = await prisma.databaseSavedView.findFirst({ where: { databaseId: db.id }, orderBy: { position: 'desc' }, select: { position: true } });
+  const created = await prisma.databaseSavedView.create({
+    data: { databaseId: db.id, name, type, position: (last?.position ?? -1) + 1 },
+  });
+  res.json(serializeSavedView(created));
+});
+
+// ===== تعديل View (اسمه، نوعه، خاصية التجميع/التاريخ، فلاتر/ترتيب) =====
+router.patch('/:id/views/:viewId', async (req: AuthRequest, res) => {
+  const db = await prisma.customDatabase.findFirst({ where: { id: req.params.id, userId: req.userId! }, include: PROPERTIES_INCLUDE });
+  if (!db) return res.status(404).json({ error: 'القاعدة غير موجودة' });
+  const view = await prisma.databaseSavedView.findFirst({ where: { id: req.params.viewId, databaseId: db.id } });
+  if (!view) return res.status(404).json({ error: 'الـ View غير موجود' });
+
+  let name: string | undefined;
+  let filters: Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined;
+  let sorts: Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined;
+  try {
+    if (req.body.name !== undefined) name = validateName(req.body.name, MAX_VIEW_NAME_LEN, 'اسم الـ View');
+    if (req.body.filters !== undefined) filters = validateFiltersAndSorts(req.body.filters, 'الفلاتر');
+    if (req.body.sorts !== undefined) sorts = validateFiltersAndSorts(req.body.sorts, 'قواعد الترتيب');
+  } catch (err) {
+    return res.status(400).json({ error: err instanceof Error ? err.message : 'بيانات غير صحيحة' });
+  }
+
+  let type: SavedViewType | undefined;
+  if (req.body.type !== undefined) {
+    if (!VIEW_TYPES.includes(req.body.type)) return res.status(400).json({ error: 'نوع عرض غير مدعوم' });
+    type = req.body.type;
+  }
+
+  let boardGroupById: string | null | undefined;
+  if (req.body.boardGroupById !== undefined) {
+    boardGroupById = req.body.boardGroupById || null;
+    if (boardGroupById) {
+      const property = db.properties.find((p) => p.id === boardGroupById);
+      if (!property || property.type !== 'select') {
+        return res.status(400).json({ error: 'التجميع في عرض الكانبان بيشتغل بخاصية من نوع اختيار واحد بس' });
+      }
+    }
+  }
+
+  let calendarDateById: string | null | undefined;
+  if (req.body.calendarDateById !== undefined) {
+    calendarDateById = req.body.calendarDateById || null;
+    if (calendarDateById) {
+      const property = db.properties.find((p) => p.id === calendarDateById);
+      if (!property || property.type !== 'date') {
+        return res.status(400).json({ error: 'عرض التقويم بيشتغل بخاصية من نوع تاريخ بس' });
+      }
+    }
+  }
+
+  const updated = await prisma.databaseSavedView.update({
+    where: { id: view.id },
+    data: { name, type, boardGroupById, calendarDateById, filters, sorts },
+  });
+  res.json(serializeSavedView(updated));
+});
+
+// ===== حذف View — لازم يفضل View واحد على الأقل للقاعدة =====
+router.delete('/:id/views/:viewId', async (req: AuthRequest, res) => {
+  const db = await prisma.customDatabase.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  if (!db) return res.status(404).json({ error: 'القاعدة غير موجودة' });
+  const view = await prisma.databaseSavedView.findFirst({ where: { id: req.params.viewId, databaseId: db.id } });
+  if (!view) return res.status(404).json({ error: 'الـ View غير موجود' });
+
+  const count = await prisma.databaseSavedView.count({ where: { databaseId: db.id } });
+  if (count <= 1) return res.status(400).json({ error: 'لازم يفضل View واحد على الأقل' });
+
+  await prisma.databaseSavedView.delete({ where: { id: view.id } });
+  res.json({ success: true });
+});
+
+// ===== إعادة ترتيب الـ Views =====
+router.post('/:id/views/reorder', async (req: AuthRequest, res) => {
+  const db = await prisma.customDatabase.findFirst({ where: { id: req.params.id, userId: req.userId! } });
+  if (!db) return res.status(404).json({ error: 'القاعدة غير موجودة' });
+  const { orderedIds } = req.body;
+  if (!Array.isArray(orderedIds) || orderedIds.some((id) => typeof id !== 'string')) {
+    return res.status(400).json({ error: 'ترتيب غير صحيح' });
+  }
+  const owned = await prisma.databaseSavedView.findMany({ where: { databaseId: db.id, id: { in: orderedIds } }, select: { id: true } });
+  if (owned.length !== orderedIds.length) return res.status(400).json({ error: 'فيه View غير موجود ضمن القاعدة' });
+
+  await prisma.$transaction(
+    orderedIds.map((id: string, index: number) => prisma.databaseSavedView.update({ where: { id }, data: { position: index } }))
   );
   res.json({ success: true });
 });
