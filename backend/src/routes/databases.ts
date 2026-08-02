@@ -634,12 +634,15 @@ router.post('/:id/properties', async (req: AuthRequest, res) => {
     select: { position: true },
   });
 
+  const optionsJson: Prisma.InputJsonValue | typeof Prisma.JsonNull =
+    type === 'rollup' ? (rollupConfig as unknown as Prisma.InputJsonValue) : ((options as Prisma.InputJsonValue | undefined) ?? Prisma.JsonNull);
+
   const property = await prisma.databaseProperty.create({
     data: {
       databaseId: db.id,
       name,
       type,
-      options: type === 'rollup' ? (rollupConfig as unknown as Prisma.InputJsonValue) : options ?? Prisma.JsonNull,
+      options: optionsJson,
       position: (last?.position ?? -1) + 1,
       relatedDatabaseId,
     },
@@ -674,11 +677,18 @@ router.patch('/:id/properties/:propertyId', async (req: AuthRequest, res) => {
     return res.status(400).json({ error: err instanceof Error ? err.message : 'بيانات غير صحيحة' });
   }
 
+  const optionsJsonPatch: Prisma.InputJsonValue | undefined =
+    rollupConfig !== undefined
+      ? (rollupConfig as unknown as Prisma.InputJsonValue)
+      : options !== undefined
+        ? (options as unknown as Prisma.InputJsonValue)
+        : undefined;
+
   const updated = await prisma.databaseProperty.update({
     where: { id: property.id },
     data: {
       name,
-      options: rollupConfig !== undefined ? (rollupConfig as unknown as Prisma.InputJsonValue) : options !== undefined ? options : undefined,
+      options: optionsJsonPatch,
     },
     include: { relatedDatabase: { select: { id: true, name: true, icon: true, color: true } } },
   });
@@ -832,7 +842,7 @@ router.post('/:id/rows/:rowId/convert-to-task', async (req: AuthRequest, res) =>
 
   async function tryCreate(title: string) {
     return prisma.todoList.create({
-      data: { userId: req.userId!, title, lifeAreaId: db.lifeAreaId ?? undefined },
+      data: { userId: req.userId!, title, lifeAreaId: db!.lifeAreaId ?? undefined },
     });
   }
 
