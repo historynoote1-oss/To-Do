@@ -71,6 +71,8 @@ const MusicPlayer = lazy(() => import('@/pages/media/MusicPlayer'));
 const Pomodoro = lazy(() => import('@/pages/media/Pomodoro'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const VoiceRoomsPage = lazy(() => import('@/pages/voice-rooms/VoiceRoomsPage'));
+const DatabasesHome = lazy(() => import('@/pages/databases/DatabasesHome'));
+const DatabaseView = lazy(() => import('@/pages/databases/DatabaseView'));
 
 // شاشة انتظار بسيطة (نفس سبينر شاشة الإقلاع) بتظهر لحظة تحميل صفحة جديدة
 // عند الطلب — عادةً أجزاء من الثانية على أي اتصال عادي.
@@ -193,6 +195,10 @@ export default function App() {
   const [pushState, setPushState] = useState<PushSupportState>('unsupported');
   const [lifeAreas, setLifeAreas] = useState<LifeAreaData[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  // null = عرض قائمة قواعد البيانات كلها (DatabasesHome)، ID = فتح جدول
+  // قاعدة معيّنة (DatabaseView). بيترجع null تلقائيًا لما تسيب شاشة
+  // الداتابيسز خالص عشان لو رجعت تاني تلاقي القائمة مش آخر جدول فتحته.
+  const [openDatabaseId, setOpenDatabaseId] = useState<string | null>(null);
   const handleOpenMenu = useCallback(() => {
     void hapticSelection();
     setMenuOpen(true);
@@ -820,6 +826,10 @@ export default function App() {
         onOpenDashboard={openDashboard}
         onOpenGoalMap={() => setView('goalMap')}
         onOpenLifeAreas={() => setView('lifeAreas')}
+        onOpenDatabases={() => {
+          setOpenDatabaseId(null);
+          setView('databases');
+        }}
         onOpenPlayer={() => setView('player')}
         onOpenPomodoro={() => setView('pomodoro')}
         onOpenPrayerTimes={() => setView('prayerTimes')}
@@ -930,6 +940,38 @@ export default function App() {
             onOpenMenu={handleOpenMenu}
             menuOpen={menuOpen}
           />
+        </Suspense>
+        {sideMenuAndModals}
+      </>
+    );
+  }
+
+  if (view === 'databases') {
+    return (
+      <>
+        <ToastContainer />
+        <OfflineBanner />
+        <Suspense fallback={<RouteLoading />}>
+          {openDatabaseId ? (
+            <DatabaseView
+              databaseId={openDatabaseId}
+              onBack={() => setOpenDatabaseId(null)}
+              onOpenMenu={handleOpenMenu}
+              menuOpen={menuOpen}
+              onOpenTask={() => {
+                setOpenDatabaseId(null);
+                setView('todos');
+              }}
+              onOpenDatabase={(id) => setOpenDatabaseId(id)}
+            />
+          ) : (
+            <DatabasesHome
+              onBack={() => setView('todos')}
+              onOpenMenu={handleOpenMenu}
+              menuOpen={menuOpen}
+              onOpenDatabase={(id) => setOpenDatabaseId(id)}
+            />
+          )}
         </Suspense>
         {sideMenuAndModals}
       </>

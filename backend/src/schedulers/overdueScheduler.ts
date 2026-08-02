@@ -49,7 +49,7 @@ async function tickRegularTasks(cutoff: Date) {
 // محدد). هنا الهدف مبيتؤرشفش ولا يتحرّك من مكانه — بيتحط عليه بس علامة
 // overduePenalizedAt (عشان يظهر بشكل لافت أعلى صفحة خريطة الأهداف ويقدر
 // المستخدم يراجعه ويعدّله من نفس المكان)، ويتخصم يوم استريك واحد فوري من
-// صاحبه (User.streakPenalty، مسموح يبقى بالسالب — شوف routes/streak.ts).
+// صاحبه (User.streakPenalty — الاستريك النهائي متوقفش تحت صفر، شوف routes/streak.ts).
 // الفلتر بـ overduePenalizedAt: null بيمنع تكرار الخصم لنفس الهدف كل ما
 // الجدولة تشتغل.
 async function tickGoalHierarchyItems(cutoff: Date) {

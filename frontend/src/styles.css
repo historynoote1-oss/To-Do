@@ -12696,3 +12696,612 @@ body.modal-lock-scroll {
     background: transparent;
   }
 }
+
+/* ===== قواعد البيانات (Databases) — المرحلة 1: عرض الجدول ===== */
+
+.db-view-page {
+  max-width: 100%;
+}
+
+.db-table-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  margin-top: 12px;
+}
+
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 480px;
+}
+
+.db-table th,
+.db-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  text-align: right;
+  vertical-align: middle;
+}
+
+.db-table thead th {
+  background: var(--surface-2);
+  position: sticky;
+  top: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.db-table-col-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.db-table-col-header span {
+  flex: 1;
+  font-weight: 600;
+}
+
+.db-table-col-header .icon-btn {
+  width: 22px;
+  height: 22px;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.db-table-col-header:hover .icon-btn {
+  opacity: 1;
+}
+
+.db-table-add-col {
+  width: 44px;
+  text-align: center;
+}
+
+.db-table-row-actions {
+  width: 40px;
+  text-align: center;
+}
+
+.db-table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.db-cell-input {
+  width: 100%;
+  min-width: 90px;
+  padding: 6px 8px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+}
+
+.db-cell-input:hover,
+.db-cell-input:focus {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.db-cell-checkbox {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.db-select-cell {
+  position: relative;
+}
+
+.db-select-trigger {
+  width: 100%;
+  min-width: 90px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.db-select-trigger:hover {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.db-select-empty {
+  color: var(--text-faint);
+}
+
+.db-select-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.db-select-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.db-select-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 180px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.db-select-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  text-align: right;
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.db-select-option:hover {
+  background: var(--surface-2);
+}
+
+.db-select-option.is-checked {
+  background: var(--surface-2);
+}
+
+.db-select-clear {
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-soft);
+  border-radius: 0;
+  margin-bottom: 3px;
+  padding-bottom: 9px;
+}
+
+.db-property-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.db-property-type-choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.db-property-type-choice.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+}
+
+.db-options-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.db-option-chip {
+  gap: 6px;
+}
+
+.db-option-chip button {
+  display: inline-flex;
+  background: none;
+  border: none;
+  color: #fff;
+  padding: 0;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+}
+
+.db-add-option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-add-option-row .db-cell-input {
+  border-color: var(--border);
+  background: var(--surface-2);
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .db-property-type-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== قواعد البيانات — المرحلة 2: عرض Board (كانبان) ===== */
+
+.db-view-toggle {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  margin-top: 12px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-pill);
+  width: fit-content;
+}
+
+.db-view-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.db-view-toggle-btn.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.db-view-toggle-btn:disabled {
+  opacity: 0.6;
+}
+
+.db-board-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 28px 16px;
+}
+
+.db-board-property-picker {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.db-board-property-choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.db-board-property-choice:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.db-board-scroll {
+  overflow-x: auto;
+  margin-top: 12px;
+  padding-bottom: 6px;
+}
+
+.db-board-columns {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: min-content;
+}
+
+.db-board-column {
+  flex: 0 0 250px;
+  width: 250px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.db-board-column.is-drop-target {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--glass-bg));
+}
+
+.db-board-column-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky;
+  top: 0;
+}
+
+.db-board-column-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.db-board-column-header .db-select-badge {
+  font-size: 12.5px;
+}
+
+.db-board-column-count {
+  margin-inline-start: auto;
+  font-size: 12px;
+  color: var(--text-faint);
+  min-width: 16px;
+  text-align: center;
+}
+
+.db-board-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.db-board-column-empty {
+  color: var(--text-faint);
+  font-size: 12.5px;
+  text-align: center;
+  padding: 10px 0;
+}
+
+.db-board-card {
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  padding: 8px 10px;
+  cursor: grab;
+  transition: opacity var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.db-board-card:active {
+  cursor: grabbing;
+}
+
+.db-board-card.is-dragging {
+  opacity: 0.4;
+}
+
+.db-board-card:hover {
+  box-shadow: var(--shadow-lift);
+}
+
+.db-board-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.db-board-card-grip {
+  color: var(--text-faint);
+}
+
+.db-board-card-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.db-board-move-popover {
+  top: calc(100% + 4px);
+  left: 0;
+  right: auto;
+  min-width: 160px;
+}
+
+.db-board-card-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.db-board-card-field-label {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.db-board-card-field .db-cell-input,
+.db-board-card-field .db-select-trigger {
+  min-width: 0;
+  flex: 1;
+}
+
+.db-board-card-empty {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+@media (max-width: 640px) {
+  .db-board-column {
+    flex-basis: 220px;
+    width: 220px;
+  }
+}
+
+/* ===== قواعد البيانات — المرحلة 3: ربط صف بمهمة فعلية ===== */
+
+.db-table-task-col {
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.db-task-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.db-task-link-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.db-task-link-btn:disabled {
+  opacity: 0.6;
+}
+
+.db-task-link-badge {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.db-task-link-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  max-width: 160px;
+  overflow: hidden;
+}
+
+.db-task-link-status span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-task-link-status.is-done {
+  border-color: var(--success, #22c55e);
+  color: var(--success, #22c55e);
+}
+
+.db-board-card-task {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-soft);
+}
+
+.db-board-card-task .db-task-link-btn,
+.db-board-card-task .db-task-link-status {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ===== المرحلة 4: Relations بين قواعد بيانات مختلفة ===== */
+
+.db-relation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-relation-popover {
+  min-width: 220px;
+  max-height: 280px;
+}
+
+.db-relation-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 2px 6px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.db-relation-search {
+  border-color: var(--border);
+  background: var(--surface-2);
+  margin-bottom: 4px;
+}
+
+.db-relation-loading {
+  padding: 10px 6px;
+  color: var(--text-faint);
+  font-size: 13px;
+  text-align: center;
+}
+
+.db-relation-target-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 0;
+}

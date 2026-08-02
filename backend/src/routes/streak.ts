@@ -49,10 +49,11 @@ router.get('/', async (req: AuthRequest, res) => {
     cursor.setUTCDate(cursor.getUTCDate() - 1);
   }
 
-  // الخصم بيتطبّق آخر حاجة، وممكن يودّي بالنتيجة للسالب عمدًا (شوف تعليق
-  // streakPenalty في schema.prisma) — الواجهة (StreakCard.tsx) بتتعامل مع
-  // القيمة السالبة دي بعرض مختلف بدل ما تفترض إنها دايمًا صفر أو أكتر.
-  res.json({ current: current - penalty });
+  // الخصم بيتطبّق آخر حاجة، لكن الاستريك متوقّفش ينزل تحت صفر — أقل قيمة
+  // ممكنة هي صفر (يعني "مفيش استريك"، مش استريك سالب). الطريقة الوحيدة إن
+  // الاستريك يزيد هي إنجاز مهمة رئيسية واحدة على الأقل في اليوم (شوف
+  // syncListArchiveState في services/archive.ts).
+  res.json({ current: Math.max(0, current - penalty) });
 });
 
 export default router;

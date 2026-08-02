@@ -46,8 +46,8 @@ model User {
   // عداد تراكمي لعدد أيام الاستريك اللي اتخصمت بسبب "مهام متأخرة" في خريطة
   // الأهداف (هدف/مهمة ليها وقت نهاية (endTime) عدّى معادها بـ 10 دقايق من
   // غير ما المستخدم يخلّصها — شوف lib/overdueScheduler.ts). الاستريك
-  // المعروض فعليًا = (الاستريك المحسوب من UserActivityDay) − streakPenalty،
-  // ومسموح يبقى بالسالب (شوف routes/streak.ts). الخصم دائم عمدًا: استرجاع
+  // المعروض فعليًا = max(0, (الاستريك المحسوب من UserActivityDay) − streakPenalty)
+  // — الاستريك متوقّفش ينزل تحت صفر (شوف routes/streak.ts). الخصم دائم عمدًا: استرجاع
   // المهمة المتأخرة وتعديلها بيرجّعها نشطة تاني، لكن مبيرجّعش يوم الاستريك
   // المخصوم — العقوبة على التأخير نفسه، مش على المهمة.
   streakPenalty Int @default(0)
@@ -68,6 +68,7 @@ model User {
   lifeAreas         LifeArea[]
   activityDays      UserActivityDay[]
   notifications     Notification[]
+  customDatabases   CustomDatabase[]
 
   // ===== الغرف الصوتية =====
   createdVoiceRooms VoiceRoom[]        @relation("VoiceRoomCreator")
@@ -162,8 +163,7 @@ model LifeArea {
   updatedAt DateTime @updatedAt
 
   lists          TodoList[]
-
-  // الاسم لازم يكون فريد بين إخوته بس (نفس parentId)، مش بين كل مجالات
+  customDatabases CustomDatabase[] (نفس parentId)، مش بين كل مجالات
   // المستخدم — عشان "الجري" تحت "الصحة" و"الجري" تحت "شغل" (مثلاً) يبقوا
   // مسموحين. ملحوظة: قيود UNIQUE في بوستجرس بتعتبر NULL≠NULL، فالتحقق من
   // فرادة الاسم بين المجالات الجذرية (parentId=null) بيتم يدويًا في السيرفر
@@ -183,6 +183,145 @@ model AdminAuditLog {
   createdAt      DateTime @default(now())
 }
 
+// ===== قواعد بيانات مخصصة (Databases) — المرحلة 1 =====
+// فكرة مستوحاة من Notion Databases: جدول مرن يقدر المستخدم يعرّف أعمدته
+// (خصائصه) بنفسه بدل ما يبقى شكل ثابت زي المهام العادية. كل قاعدة بيانات
+// ممكن (اختياريًا) تتربط بمجال حياة معيّن (lifeAreaId) عشان تظهر جوّه
+// صفحته، أو تفضل عامة (lifeAreaId = null) لو مش مرتبطة بمجال بعينه.
+// المرحلة 1 بتغطي View جدول واحد بس بخصائص أساسية — الأنواع المتقدمة
+// (Relation/Formula/Board/Calendar) هتتضاف في مراحل لاحقة فوق نفس الأساس ده.
+model CustomDatabase {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // لو المستخدم ربط القاعدة بمجال حياة، وانحذف المجال ده، القاعدة نفسها
+  // بتفضل موجودة (SetNull) — نفس فلسفة "الحذف ما بيكسرش حاجة تانية"
+  // المتّبعة مع TodoList.lifeAreaId في باقي المشروع.
+  lifeAreaId String?
+  lifeArea   LifeArea? @relation(fields: [lifeAreaId], references: [id], onDelete: SetNull)
+
+  name  String
+  icon  String?
+  color String  @default("#7c3aed")
+
+  // ===== المرحلة 2: عرض Board (كانبان) =====
+  // viewType بيحدد شكل العرض الافتراضي للقاعدة (table أو board). لو board،
+  // boardGroupById بيحدد أي خاصية (لازم تكون من نوع select) بتتحول لأعمدة
+  // الكانبان — كل خيار فيها بيبقى عمود، وتحريك الصف بين الأعمدة معناه تغيير
+  // قيمته في الخاصية دي. onDelete: SetNull عشان لو الخاصية اتحذفت، القاعدة
+  // ترجع تلقائيًا لعرض الجدول من غير ما تتكسر.
+  viewType       String            @default("table")
+  boardGroupById String?
+  boardGroupBy   DatabaseProperty? @relation("DatabaseBoardGroupBy", fields: [boardGroupById], references: [id], onDelete: SetNull)
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  properties DatabaseProperty[]
+  rows       DatabaseRow[]
+  // خصائص Relation (من أي قاعدة، حتى من نفسها) اللي بتستهدف القاعدة دي —
+  // reverse side بس، مفيش حاجة بتتخزن هنا مباشرة.
+  incomingRelationProperties DatabaseProperty[] @relation("DatabaseRelationTarget")
+
+  @@index([userId])
+  @@index([userId, lifeAreaId])
+}
+
+// أنواع الخصائص المدعومة في المرحلة 1 — نص، رقم، اختيار واحد، اختيار
+// متعدد، تاريخ، وصح/خطأ. باقي الأنواع (Relation/Formula/Person/...) هتتضاف
+// بمراحل لاحقة من غير ما تكسر البيانات الموجودة (enum بيتقبل إضافة قيم جديدة).
+enum DatabasePropertyType {
+  text
+  number
+  select
+  multiSelect
+  date
+  checkbox
+  relation
+}
+
+// عمود/خاصية في قاعدة بيانات — بيوصف *شكل* البيانات بس، مش قيمها (القيم
+// الفعلية في DatabaseRowValue). لخصائص select/multiSelect، الخيارات
+// المتاحة (نص + لون كل خيار) متخزنة في options كـ JSON، مثلاً:
+// [{ "value": "قيد التنفيذ", "color": "#f59e0b" }, ...]
+model DatabaseProperty {
+  id         String               @id @default(cuid())
+  databaseId String
+  database   CustomDatabase       @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+
+  name     String
+  type     DatabasePropertyType
+  options  Json?
+  position Int                  @default(0)
+
+  // ===== المرحلة 4: Relations بين قواعد بيانات مختلفة =====
+  // لو النوع relation، relatedDatabaseId بيحدد القاعدة "الهدف" اللي الخاصية
+  // دي بتربط بصفوفها (ممكن تكون نفس القاعدة — self-relation، زي "مهام
+  // مرتبطة"). القيمة الفعلية لكل صف (مصفوفة IDs بتاعة صفوف من القاعدة
+  // الهدف) متخزنة عادي في DatabaseRowValue زي أي خاصية تانية. onDelete:
+  // Cascade هنا (مختلف عن باقي الروابط الاختيارية في المشروع) لأن خاصية
+  // Relation من غير قاعدة هدف مالهاش أي معنى — لو القاعدة الهدف اتحذفت،
+  // الخاصية بتتحذف معاها (وقيمها Cascade كمان زي أي خاصية بتتحذف).
+  relatedDatabaseId String?
+  relatedDatabase   CustomDatabase? @relation("DatabaseRelationTarget", fields: [relatedDatabaseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  values                   DatabaseRowValue[]
+  databasesUsingAsBoardBy CustomDatabase[]    @relation("DatabaseBoardGroupBy")
+
+  @@index([databaseId])
+  @@index([databaseId, position])
+  @@index([relatedDatabaseId])
+}
+
+// صف واحد في القاعدة (يعني "عنصر" واحد — كتاب، فيلم، مصروف... حسب استخدام
+// المستخدم). قيمه الفعلية موزّعة على DatabaseRowValue، صف لكل خاصية.
+model DatabaseRow {
+  id         String         @id @default(cuid())
+  databaseId String
+  database   CustomDatabase @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+
+  // ===== المرحلة 3: ربط صف بمهمة فعلية =====
+  // لو المستخدم حوّل الصف ده لمهمة حقيقية، linkedTodoListId بيخزّن الـ id
+  // بتاع الـ TodoList اللي اتعملت. onDelete: SetNull عشان لو المهمة اتحذفت
+  // من قائمة المهام، الصف يفضل موجود وبس يرجع "مش مربوط" تلقائيًا.
+  linkedTodoListId String?
+  linkedTodoList   TodoList? @relation(fields: [linkedTodoListId], references: [id], onDelete: SetNull)
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  values DatabaseRowValue[]
+
+  @@index([databaseId])
+  @@index([databaseId, position])
+  @@index([linkedTodoListId])
+}
+
+// قيمة خاصية معيّنة لصف معيّن. القيمة نفسها متخزنة كـ JSON عشان عمود واحد
+// يستوعب كل الأنواع (نص خام، رقم، تاريخ ISO، true/false، أو مصفوفة نصوص
+// لـ multiSelect) من غير ما نحتاج عمود منفصل لكل نوع.
+model DatabaseRowValue {
+  id String @id @default(cuid())
+
+  rowId String
+  row   DatabaseRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+
+  propertyId String
+  property   DatabaseProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  value Json?
+
+  // صف واحد مايستحملش قيمتين لنفس الخاصية.
+  @@unique([rowId, propertyId])
+  @@index([propertyId])
+}
+
 // TodoList بتمثّل "المهمة الرئيسية" في واجهة المستخدم — عنوانها وأولويتها
 // بيوصفوا الهدف الكبير، وكل عناصرها (TodoItem) دي المهام الفرعية اللي بتتحقق
 // بيها المهمة الرئيسية خطوة خطوة.
@@ -196,6 +335,7 @@ model TodoList {
   updatedAt DateTime   @updatedAt
   items     TodoItem[]
   reminders Reminder[]
+  linkedDatabaseRows DatabaseRow[]
 
   // ===== مؤقت المهمة الرئيسية (Task Timeline) =====
   // بيتفعّل بس لو الاتنين متحددين مع بعض (وقت البداية لازم يكون قبل وقت

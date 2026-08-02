@@ -29,6 +29,7 @@ import streakRoutes from './routes/streak';
 import notificationsRoutes from './routes/notifications';
 import youtubeRoutes from './routes/youtube';
 import voiceRoomsRoutes from './routes/voiceRooms';
+import databasesRoutes from './routes/databases';
 import { verifyUser } from './middleware/verifyUser';
 import { requireAdmin } from './middleware/requireAdmin';
 import { maintenanceGate } from './middleware/maintenanceGate';
@@ -177,6 +178,7 @@ app.use('/api/voice-rooms', verifyUser, rehabilitationGate, maintenanceGate, voi
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, remindersRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, pushRoutes);
 app.use('/api/streak', verifyUser, rehabilitationGate, maintenanceGate, streakRoutes);
+app.use('/api/databases', verifyUser, rehabilitationGate, maintenanceGate, databasesRoutes);
 app.use('/api', verifyUser, rehabilitationGate, maintenanceGate, notificationsRoutes);
 app.use('/api/profile', verifyUser, rehabilitationGate, maintenanceGate, profileLimiter, profileRoutes);
 app.use('/api/admin/analytics', verifyUser, rehabilitationGate, requireAdmin, adminLimiter, adminAnalyticsRoutes);

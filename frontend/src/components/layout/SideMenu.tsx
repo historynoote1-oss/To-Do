@@ -22,6 +22,7 @@ interface Props {
   onOpenDashboard: () => void;
   onOpenGoalMap: () => void;
   onOpenLifeAreas: () => void;
+  onOpenDatabases: () => void;
   onOpenPlayer: () => void;
   onOpenPomodoro: () => void;
   onOpenPrayerTimes: () => void;
@@ -51,6 +52,7 @@ export default function SideMenu({
   onOpenDashboard,
   onOpenGoalMap,
   onOpenLifeAreas,
+  onOpenDatabases,
   onOpenPlayer,
   onOpenPomodoro,
   onOpenPrayerTimes,
@@ -192,6 +194,17 @@ export default function SideMenu({
           >
             <DynamicIcon name="compass" size={18} className="side-menu-item-icon" />
             <span className="side-menu-item-label">مجالات الحياة</span>
+            <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
+          </button>
+
+          <button
+            className={`side-menu-item ${currentView === 'databases' ? 'active' : ''}`}
+            type="button"
+            onClick={() => go(onOpenDatabases)}
+            aria-current={currentView === 'databases' ? 'page' : undefined}
+          >
+            <DynamicIcon name="table" size={18} className="side-menu-item-icon" />
+            <span className="side-menu-item-label">قواعد البيانات</span>
             <DynamicIcon name="chevron-left" size={16} className="side-menu-item-arrow" aria-hidden />
           </button>
 

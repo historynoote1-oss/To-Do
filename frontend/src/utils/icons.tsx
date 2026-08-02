@@ -158,6 +158,13 @@ import {
   CornerUpLeft,
   Music2,
   FileText,
+  Hash,
+  Type,
+  CircleDot,
+  CheckSquare,
+  Table2,
+  Columns3,
+  GripVertical,
 } from 'lucide-react';
 
 // أيقونة القلب (زرار "إضافة للمفضّلة") متعمولة كـ SVG مكتوب يدويًا هنا، مش
@@ -367,6 +374,14 @@ export const ICON_MAP = {
   lock: Lock,
   unlock: Unlock,
   'shield-off': ShieldOff,
+  // ===== خاصة بميزة قواعد البيانات (Databases) =====
+  hash: Hash,
+  text: Type,
+  'circle-dot': CircleDot,
+  'check-square': CheckSquare,
+  table: Table2,
+  'columns-3': Columns3,
+  'grip-vertical': GripVertical,
 } satisfies Record<string, IconComponent>;
 
 export type IconKey = keyof typeof ICON_MAP;

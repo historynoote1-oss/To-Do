@@ -17,6 +17,7 @@ export type ViewName =
   | 'goalMap'
   | 'prayerTimes'
   | 'voiceRooms'
+  | 'databases'
   | 'settings';
 
 // خريطة كل شاشة لمسارها في الـ URL — ده اللي بيخلي كل قسم في الموقع يكون
@@ -32,6 +33,7 @@ export const VIEW_PATHS: Record<ViewName, string> = {
   goalMap: '/goals',
   prayerTimes: '/prayer-times',
   voiceRooms: '/voice-rooms',
+  databases: '/databases',
   settings: '/settings',
 };
 
