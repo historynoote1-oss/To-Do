@@ -163,11 +163,15 @@ model LifeArea {
   updatedAt DateTime @updatedAt
 
   lists          TodoList[]
-  customDatabases CustomDatabase[] (نفس parentId)، مش بين كل مجالات
-  // المستخدم — عشان "الجري" تحت "الصحة" و"الجري" تحت "شغل" (مثلاً) يبقوا
-  // مسموحين. ملحوظة: قيود UNIQUE في بوستجرس بتعتبر NULL≠NULL، فالتحقق من
-  // فرادة الاسم بين المجالات الجذرية (parentId=null) بيتم يدويًا في السيرفر
-  // (شوف routes/lifeAreas.ts) بدل الاعتماد على القيد ده لوحده.
+  // قواعد بيانات مرتبطة بمجال الحياة ده مباشرة (نفس lifeAreaId) — مش كل
+  // قواعد المستخدم، بس اللي اتربطت بالمجال ده تحديدًا.
+  customDatabases CustomDatabase[]
+
+  // فرادة الاسم مقيّدة بين المجالات اللي ليها نفس الأب (نفس parentId)، مش
+  // بين كل مجالات المستخدم — عشان "الجري" تحت "الصحة" و"الجري" تحت "شغل"
+  // (مثلاً) يبقوا مسموحين. ملحوظة: قيود UNIQUE في بوستجرس بتعتبر NULL≠NULL،
+  // فالتحقق من فرادة الاسم بين المجالات الجذرية (parentId=null) بيتم يدويًا
+  // في السيرفر (شوف routes/lifeAreas.ts) بدل الاعتماد على القيد ده لوحده.
   @@unique([userId, parentId, name])
   @@index([userId])
   @@index([userId, position])
