@@ -4975,82 +4975,8 @@ li input[type='checkbox'] {
   background: color-mix(in srgb, var(--danger) 8%, var(--glass-bg, var(--surface)));
 }
 
-.life-area-create-panel .settings-field {
-  margin-bottom: 14px;
-}
-
-/* ---- تخطيط نموذج الإنشاء: معاينة حية على اليمين + الحقول على الشمال ---- */
-.life-area-create-layout {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.life-area-create-preview-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  padding-top: 4px;
-}
-
-.life-area-avatar-picker {
-  position: relative;
-  padding: 0;
-  border: none;
-  background: none;
-  box-shadow: none;
-  cursor: pointer;
-  border-radius: var(--radius);
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-
-.life-area-avatar-picker:hover {
-  transform: scale(1.04);
-}
-
-.life-area-avatar-picker-badge {
-  position: absolute;
-  bottom: -4px;
-  inset-inline-end: -4px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.life-area-avatar-clear {
-  font-size: 11px;
-}
-
-.life-area-avatar-hint {
-  font-size: 11px;
-  text-align: center;
-  max-width: 90px;
-}
-
-.life-area-create-fields {
-  flex: 1;
-  min-width: 240px;
-}
-
-.life-area-edit-subtitle {
-  font-size: 11.5px;
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-top: 2px;
-}
-
-/* ---- شارة معاينة الأفتار (دائرة/مربّع بتدرج) — تُستخدم في نموذج
-   الإنشاء/التعديل وفي كارت المجال بالقائمة ---- */
+/* ---- شارة معاينة الأفتار (دائرة/مربّع بتدرج) — تُستخدم في الويزارد
+   وفي كارت المجال بالقائمة ---- */
 .life-area-avatar {
   display: flex;
   align-items: center;
@@ -5222,60 +5148,6 @@ li input[type='checkbox'] {
   color: var(--accent);
 }
 
-.life-area-stats-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.life-area-stat-success {
-  color: var(--success);
-  font-weight: 700;
-}
-
-.life-area-edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.life-area-edit-form input[type='text'],
-.life-area-edit-form > input {
-  width: 100%;
-}
-
-.life-area-image-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-@media (max-width: 520px) {
-  .life-area-create-layout {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .life-area-create-fields {
-    width: 100%;
-    min-width: 0;
-  }
-}
-
-/* ---- منتقي "مجال الأب" (select عادي، بمسافة بادئة نصّية للعمق) ---- */
-.life-area-parent-select {
-  width: 100%;
-  padding: 9px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-soft);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 13px;
-}
-
 /* ---- شبكة الأيقونات المُقسّمة لأقسام (اقتراحات مبوّبة حسب جانب الحياة) ---- */
 .life-area-icon-groups {
   display: flex;
@@ -5358,171 +5230,31 @@ li input[type='checkbox'] {
   box-shadow: var(--shadow-lift);
 }
 
-.life-area-card > .life-area-node-wrap {
-  gap: 4px;
-}
-
-.life-area-card .life-area-node-children {
-  margin-top: 6px;
-}
-
 @media (max-width: 640px) {
   .life-area-cards-grid {
     grid-template-columns: 1fr;
   }
 }
 
-/* =========================================================================
-   شجرة مجالات الحياة الهرمية (Life Area Tree)
-   ========================================================================= */
-
-.life-area-tree {
+/* ---- أزرار التعديل/الحذف: أعلى الكارت بس، ومفيش أي زرار تاني على
+   الكارت غيرهم (لا "+"، ولا سحب/ترتيب) — كل حاجة تانية بتتم من جوه
+   الويزارد (زر التعديل). ظاهرين بهدوء طول الوقت (مش hover-only) عشان
+   يبانوا واضحين على الموبايل. ---- */
+.life-area-card-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.life-area-node-wrap {
-  display: flex;
-  flex-direction: column;
-}
-
-/* ---- كارت المجال المضغوط: صف واحد قصير (سهم + أيقونة + اسم بس ظاهرين
-   افتراضيًا). خلفية الكارت محايدة تمامًا — اللون بيظهر على الأيقونة بس
-   (شوف AreaAvatar)، مفيش تلوين لخلفية الكارت نفسه. باقي المعلومات
-   (إحصائيات/تقدّم/ترتيب) بقت جوه لوحة تفاصيل بتتفتح بالطلب. ---- */
-.life-area-node {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  min-height: 44px;
-  position: relative;
-  cursor: grab;
-  transition: box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
-  animation: pop-in var(--dur-slow) var(--ease-out) both;
-}
-
-.life-area-node:hover {
-  box-shadow: var(--shadow-sm);
-}
-
-.life-area-node:active {
-  cursor: grabbing;
-}
-
-.life-area-node.is-dragging {
-  opacity: 0.5;
-}
-
-.life-area-node.is-drag-over {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-dim);
-  transform: scale(1.01);
-}
-
-/* ---- المجالات الفرعية بتتزاح شوية لجوّه، مع خط رفيع بيوصلها بأبوها
-   بصريًا — إحساس "شجرة/مجلدات" واضح من غير ما نحتاج مكتبة رسم خاصة. ---- */
-.life-area-node-children {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 8px 0 0;
-  padding-inline-start: 22px;
-  border-inline-start: 2px dashed var(--border-soft);
-  margin-inline-start: 20px;
-}
-
-.life-area-node.is-nested {
-  background: var(--surface-2);
-}
-
-.life-area-node-expand {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border-radius: 50%;
-  background: transparent;
-  border: 1px solid transparent;
-  box-shadow: none;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.life-area-node-expand:not(.is-leaf):hover {
-  background: var(--surface-3);
-  color: var(--text);
-}
-
-.life-area-node-expand svg {
-  transition: transform var(--dur-fast) var(--ease-out);
-}
-
-.life-area-node-expand svg.is-collapsed {
-  transform: rotate(-90deg);
-}
-
-.life-area-node-leaf-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--border);
-}
-
-/* ---- أزرار النقل لأعلى/لأسفل — بقت جوه لوحة التفاصيل بدل عمود ثابت
-   على الكارت (fallback يدوي جنب السحب والإفلات) ---- */
-.life-area-node-reorder {
-  display: flex;
-  align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 
-.life-area-node-reorder button {
-  width: 26px;
-  height: 24px;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  box-shadow: none;
-  font-size: 10px;
-}
-
-.life-area-node-glyph-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.life-area-node-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.life-area-node-header {
+/* ---- الصف الرئيسي القابل للضغط: أفتار + اسم + ملخّص صغير + سهم —
+   الضغط عليه بيفتح لوحة التفاصيل (LifeAreaDetailsModal). ---- */
+.life-area-card-main {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-/* ---- زر اسم المجال: بيلف عنوان h3 عشان الضغط عليه يفتح/يقفل لوحة
-   التفاصيل، من غير ما يبان كزرار تقليدي (خلفية/حدود شفافة). ---- */
-.life-area-node-name-btn {
-  flex: 1;
-  min-width: 0;
-  padding: 2px 0;
+  gap: 12px;
+  width: 100%;
+  padding: 4px 2px;
   background: none;
   border: none;
   box-shadow: none;
@@ -5531,107 +5263,107 @@ li input[type='checkbox'] {
   border-radius: var(--radius-sm);
 }
 
-.life-area-node-name-btn:hover h3 {
+.life-area-card-main:hover strong {
   color: var(--accent-soft);
 }
 
-.life-area-node-name-btn:focus-visible {
+.life-area-card-main:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.life-area-node-header h3 {
-  margin: 0;
-  font-size: 14.5px;
-  overflow-wrap: anywhere;
+.life-area-card-main-text {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.life-area-card-main-text strong {
+  font-size: 16px;
+  color: var(--text);
+  overflow-wrap: anywhere;
   transition: color var(--dur-fast) var(--ease-out);
 }
 
-.life-area-node-child-count {
+.life-area-card-main-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.life-area-card-chevron {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+/* ---- قائمة المجالات الفرعية جوه الكارت — بدون أي أيقونة (زي ما
+   اتطلب)؛ نقطة صغيرة بلون المجال بس، والاسم، وعدّاد اختياري. الضغط على
+   أي صف بيفتح تفاصيله في نفس اللوحة اللي بتفتح للمجال الرئيسي. ---- */
+.life-area-card-subs {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px dashed var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.life-area-card-subs.is-nested {
+  margin: 2px 0 0;
+  padding: 2px 0 0 18px;
+  border-top: none;
+}
+
+.life-area-card-sub-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 6px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  text-align: start;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.life-area-card-sub-btn:hover {
+  background: var(--surface-2);
+}
+
+.life-area-card-sub-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.life-area-card-sub-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.life-area-card-sub-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.life-area-card-sub-count {
+  flex-shrink: 0;
   font-size: 10.5px;
   font-weight: 700;
   color: var(--text-muted);
   background: var(--surface-3);
   border-radius: 999px;
   padding: 1px 7px;
-}
-
-.life-area-stat-aggregate {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  color: var(--accent-soft);
-  font-weight: 600;
-}
-
-/* ---- أزرار الإجراءات (فرعي/تعديل/حذف) على كل كارت: مخفية بهدوء إلا
-   عند hover/focus على الكارت — تفضل مضغوطة بصريًا لكن سهلة الوصول.
-   على الموبايل (مفيش hover) بتفضل ظاهرة بشفافية خفيفة عشان تتلمس بسهولة. ---- */
-.life-area-node-header .row-actions {
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-
-.life-area-node:hover .row-actions,
-.life-area-node:focus-within .row-actions {
-  opacity: 1;
-}
-
-@media (hover: none) {
-  .life-area-node-header .row-actions {
-    opacity: 0.75;
-  }
-}
-
-/* ---- لوحة التفاصيل: بتتفتح بالضغط على اسم المجال — إحصائيات + شريط
-   تقدّم + ترتيب يدوي، من غير ما تتحط على الكارت طول الوقت. ---- */
-.life-area-details-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 6px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border-soft);
-  animation: pop-in var(--dur-fast) var(--ease-out) both;
-}
-
-/* ---- صف إنشاء مجال فرعي — بيظهر مضغوط جوه المكان المتزاح بتاع أبوه ---- */
-.life-area-subcreate-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 8px 0 0 20px;
-  padding: 10px;
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  border: 1px dashed var(--border-soft);
-}
-
-.life-area-subcreate-fields {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.life-area-subcreate-fields input {
-  width: 100%;
-}
-
-.life-area-subcreate-style summary {
-  cursor: pointer;
-  font-size: 11.5px;
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.life-area-subcreate-style[open] summary {
-  color: var(--text);
 }
 
 /* ---- عرض هرمي (مسافة بادئة) في القوائم المنسدلة/شارة الاختيار ---- */
@@ -5653,19 +5385,146 @@ li input[type='checkbox'] {
   opacity: 0.92;
 }
 
-@media (max-width: 520px) {
-  .life-area-node-children {
-    padding-inline-start: 14px;
-    margin-inline-start: 12px;
-  }
-
-  .life-area-subcreate-row {
-    margin-inline-start: 12px;
-  }
-}
-
 body.modal-lock-scroll {
   overflow: hidden;
+}
+
+/* =========================================================================
+   لوحة تفاصيل مجال الحياة (LifeAreaDetailsModal) — بتتفتح بالضغط على أي
+   اسم مجال (رئيسي أو فرعي). هيدر ملوّن بلون المجال + شبكة إحصائيات واضحة
+   + شريط تقدّم كبير، بديل مباشر للصف القديم المزدحم جوه الكارت.
+   ========================================================================= */
+
+.life-area-details-modal {
+  max-width: 380px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.life-area-details-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 20px 20px;
+  text-align: center;
+}
+
+.life-area-details-close {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 12px;
+  background: var(--surface);
+}
+
+.life-area-details-hero h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.life-area-details-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.life-area-details-body {
+  padding: 18px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.life-area-details-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.life-area-details-progress-track {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.life-area-details-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--dur) var(--ease-out);
+}
+
+.life-area-details-progress-label {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.life-area-details-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.life-area-details-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.life-area-details-stat strong {
+  font-size: 20px;
+  color: var(--text);
+  font-family: var(--font-num);
+}
+
+.life-area-details-stat span {
+  font-size: 11.5px;
+}
+
+.life-area-details-aggregate {
+  border-radius: var(--radius);
+  background: var(--accent-dim);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.life-area-details-aggregate-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-soft);
+}
+
+.life-area-details-aggregate-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.life-area-details-aggregate-rate {
+  font-weight: 700;
+  color: var(--accent-soft);
 }
 
 /* ======================================================================
